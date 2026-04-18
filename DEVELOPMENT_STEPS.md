@@ -217,18 +217,40 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | — | DEVELOPMENT_STEPS.md | — | ✅ | 随時更新 |
 | — | CLAUDE.md | — | ✅(プロジェクト固有ルール追記済) | 継続管理 |
 
+### Step 9 — GitHub インフラ整備
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-04-18 |
+| 作業内容 | GitHub 運用インフラを整備。Issue テンプレート 2 種(PRB/CR)+ config.yml、PR テンプレート 1 種を `.github/` に配置。ブランチ保護ルールを `gh api` で適用(force push 禁止、削除禁止、CI Pass 必須、PR 必須(admin bypass 可))。admin bypass を有効にした理由は単独開発での現実的運用を優先するため |
+| 成果物 | `.github/ISSUE_TEMPLATE/problem_report.md`、`.github/ISSUE_TEMPLATE/change_request.md`、`.github/ISSUE_TEMPLATE/config.yml`、`.github/pull_request_template.md`、GitHub 側のブランチ保護設定 |
+| コミット | (このステップのコミット) |
+
+**採用根拠(なぜ補助ドキュメントの前に GitHub インフラか):**
+
+- 計画書群(SDP/SRMP/SCMP/SPRP/SMP)で定義したプロセスを **実運用できる状態** にする。CR 起票・PRB 起票・PR 作成の際、テンプレートが無いと入力項目を都度思い出すコストが発生し、記録の抜けが生じやすい。
+- 補助ドキュメント(CIL/CCB/CRR/RMF)の作成を PR + CI 経由の正式ルートで行うため、先にインフラを固めるのが筋。
+- ブランチ保護を admin bypass 付きで設定する理由:
+  - 単独開発では PR 必須を厳格化するとオーバーヘッドが大きい。
+  - ただし「force push 禁止」「ブランチ削除禁止」は無条件で有効化し、過去の履歴を守る。
+  - 将来的に共同開発者が増えた場合、enforce_admins を true に変更する運用とする(SCMP §8 に追記)。
+- Issue テンプレート `config.yml` の contact_links で、**DEVELOPMENT_STEPS.md への誘導** を配置し、本プロジェクトの「お手本」としての読者アクセスを改善。
+
+**実装詳細:**
+
+- **Issue テンプレート(Problem Report):** SPRP §11 のテンプレートを GitHub 向けに移植。発見元チェックリスト、重大度 4 段階、安全性影響判定、根本原因 7 分類、水平展開調査、関連 ID の全フィールドを含む。
+- **Issue テンプレート(Change Request):** SCMP §4.1.2 の記録項目を網羅。変更区分 3 段階、影響範囲解析、SRMP §7.2 リスク影響解析チェックリスト、CCB セルフ承認欄。
+- **PR テンプレート:** 変更区分、影響範囲、リスク影響解析、RMF 更新、CI 検証、手動検証、SPRP §9 の問題修正 PR 向け追加項目(再現試験・水平展開)、DEVELOPMENT_STEPS.md 更新確認、リリースノート記載事項、マージ後アクションを網羅。
+- **ブランチ保護設定(main):**
+  - `allow_force_pushes: false`
+  - `allow_deletions: false`
+  - `required_pull_request_reviews: null`(単独開発)
+  - `required_status_checks: { strict: true, contexts: ["docs-check"] }`
+  - `enforce_admins: false`(admin bypass 有効、運用上の柔軟性確保)
+
 ## 次のステップ計画(Phase 3 残り)
 
 残された M0 基盤整備期タスクを以下の順で実施する:
-
-### Step 9 — GitHub インフラ整備
-
-- Issue テンプレート: `.github/ISSUE_TEMPLATE/problem_report.md`(PRB 用)、`change_request.md`(CR 用)
-- PR テンプレート: `.github/pull_request_template.md`(影響解析欄、関連 PRB/CR/SRS/RCM 欄、CI チェック欄)
-- ブランチ保護ルール: main への直接 push 禁止、CI Pass 必須、force push 禁止、タグ保護
-- 将来的な CI 拡張(ID 整合性検査、SOUP 脆弱性スキャン)はこの時点で雛形のみ用意
-
-**根拠:** 計画書群で定義したプロセス(CR 起票、PRB 起票、ブランチ戦略、CI 検証)を実運用できる状態にする。以降の CIL/RMF・SRS 作成時には PR + CI 経由の正式ルートで行いたいため、先にインフラを固める。
 
 ### Step 10 — 補助ドキュメント整備
 

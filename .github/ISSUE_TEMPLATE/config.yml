@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 開発ステップ記録(DEVELOPMENT_STEPS.md)
+    url: https://github.com/grace2riku/virtual_infusion_pump_classC/blob/main/DEVELOPMENT_STEPS.md
+    about: プロジェクトの進め方・作業順の根拠はこちらを参照してください。
+  - name: ソフトウェア問題解決手順書(SPRP-VIP-001)
+    url: https://github.com/grace2riku/virtual_infusion_pump_classC/blob/main/9_software_problem_resolution_process/software_problem_resolution_procedure.md
+    about: 問題報告(PRB)の詳細ルールはこちらを参照してください。
+  - name: ソフトウェア構成管理計画書(SCMP-VIP-001)
+    url: https://github.com/grace2riku/virtual_infusion_pump_classC/blob/main/8_software_configuration_management_process/software_configuration_management_plan.md
+    about: 変更要求(CR)の詳細ルールはこちらを参照してください。
