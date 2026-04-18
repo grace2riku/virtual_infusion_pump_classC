@@ -184,6 +184,21 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 
 ---
 
+### Step 8 — README 進捗表更新と ID 表記統一
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-04-18 |
+| 作業内容 | README 進捗表に SRMP/SCMP/SPRP/SMP の完了状態を反映。SCMP 内の `PR-NNNN` / `PR-nnn`(問題報告)表記を `PRB-NNNN` / `PRB-nnnn` に統一し SCMP を v0.2 にバージョンアップ。CLAUDE.md の ID 体系表も `PRB-` に更新。README 補助セクションに `DEVELOPMENT_STEPS.md` へのリンクを追加 |
+| 成果物 | `README.md`(更新)、`SCMP-VIP-001 v0.2`、`CLAUDE.md`(更新)、`DEVELOPMENT_STEPS.md`(本書、Step 8 追記) |
+| コミット | (このステップのコミット) |
+
+**採用根拠(なぜここで整合化作業か):**
+
+- 支援プロセス計画(SRMP/SCMP/SPRP/SMP)が揃った時点で、**外部から見える進捗情報(README)と内部参照(各ドキュメントの ID 表記)を整合させる** 節目。
+- Step 6 で発見した ID 衝突(`PR-` vs GitHub Pull Request)を、インフラ整備(Step 9)に入る前に必ず解消しておく必要がある。GitHub Issue テンプレートや PR テンプレートを作る際、どの ID 体系を採用するかが決まっていないと書けない。
+- SCMP のバージョンアップ(v0.1 → v0.2)は、「軽微な用語統一でも改訂履歴に残す」という SCMP 自身のルールを自ら遵守する実践例となる。
+
 ## 現時点のドキュメント達成状況
 
 | 箇条 | ドキュメント | ID | 状態 | Step |
@@ -192,25 +207,19 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 6 | SMP | SMP-VIP-001 | ✅ v0.1 | Step 7 |
 | 7 | SRMP | SRMP-VIP-001 | ✅ v0.1 | Step 4 |
 | 7 | SSC | SSC-VIP-001 | ✅ v0.1 | Step 1 |
-| 7 | RMF | — | ⬜ 未着手(Phase 3) | — |
-| 8 | SCMP | SCMP-VIP-001 | ✅ v0.1 | Step 5 |
-| 8 | CIL | — | ⬜ 未着手(Phase 3) | — |
-| 8 | CCB 運用規程 | — | ⬜ 未着手(Phase 3) | — |
-| 8 | CRR(変更要求台帳) | — | ⬜ 未着手(Phase 3) | — |
+| 7 | RMF | — | ⬜ 未着手(Step 10) | — |
+| 8 | SCMP | SCMP-VIP-001 | ✅ v0.2 | Step 5(v0.1)/ Step 8(v0.2) |
+| 8 | CIL | — | ⬜ 未着手(Step 10) | — |
+| 8 | CCB 運用規程 | — | ⬜ 未着手(Step 10) | — |
+| 8 | CRR(変更要求台帳) | — | ⬜ 未着手(Step 10) | — |
 | 9 | SPRP | SPRP-VIP-001 | ✅ v0.1 | Step 6 |
-| — | README | — | ✅(Step 3) | Step 3 |
+| — | README | — | ✅ | Step 3 / Step 8 |
+| — | DEVELOPMENT_STEPS.md | — | ✅ | 随時更新 |
+| — | CLAUDE.md | — | ✅(プロジェクト固有ルール追記済) | 継続管理 |
 
-## 次のステップ計画(Phase 3)
+## 次のステップ計画(Phase 3 残り)
 
 残された M0 基盤整備期タスクを以下の順で実施する:
-
-### Step 8 — README 進捗表更新と ID 表記統一
-
-- README 進捗表に SRMP/SCMP/SPRP/SMP の完了状態を反映
-- CLAUDE.md・SCMP 内の `PR-nnnn`(問題報告)表記を `PRB-nnnn` に統一
-- DEVELOPMENT_STEPS.md(本書)の追記ルール定着を確認
-
-**根拠:** 支援プロセス計画が揃った時点で、外部から見える進捗情報を整合させる。Step 6 で発見した ID 衝突も併せて解消。
 
 ### Step 9 — GitHub インフラ整備
 
