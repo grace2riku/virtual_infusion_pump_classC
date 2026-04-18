@@ -48,11 +48,11 @@
 | 6 保守 | ソフトウェア保守計画書(SMP) | [`6_.../software_maintenance_plan.md`](./6_software_maintenance_process/software_maintenance_plan.md) | ✅ v0.1 |
 | 7 リスク | ソフトウェアリスクマネジメント計画書(SRMP) | [`7_.../software_risk_management_plan.md`](./7_software_risk_management_process/software_risk_management_plan.md) | ✅ v0.1 |
 | 7 リスク | ソフトウェア安全クラス決定記録(SSC) | [`7_.../software_safety_class_determination_record.md`](./7_software_risk_management_process/software_safety_class_determination_record.md) | ✅ v0.1 |
-| 7 リスク | リスクマネジメントファイル(RMF, ISO 14971) | [`7_.../risk_management_file.md`](./7_software_risk_management_process/risk_management_file.md) | ⬜ 未着手(Step 10 予定) |
+| 7 リスク | リスクマネジメントファイル(RMF, ISO 14971) | [`7_.../risk_management_file.md`](./7_software_risk_management_process/risk_management_file.md) | ✅ v0.1 |
 | 8 構成管理 | ソフトウェア構成管理計画書(SCMP) | [`8_.../software_configuration_management_plan.md`](./8_software_configuration_management_process/software_configuration_management_plan.md) | ✅ v0.2 |
-| 8 構成管理 | 構成アイテム一覧(CIL) | [`8_.../configuration_item_list.md`](./8_software_configuration_management_process/configuration_item_list.md) | ⬜ 未着手(Step 10 予定) |
-| 8 構成管理 | CCB 運用規程 | [`8_.../ccb_operating_rules.md`](./8_software_configuration_management_process/ccb_operating_rules.md) | ⬜ 未着手(Step 10 予定) |
-| 8 構成管理 | 変更要求台帳 | [`8_.../change_request_register.md`](./8_software_configuration_management_process/change_request_register.md) | ⬜ 未着手(Step 10 予定) |
+| 8 構成管理 | 構成アイテム一覧(CIL) | [`8_.../configuration_item_list.md`](./8_software_configuration_management_process/configuration_item_list.md) | ✅ v0.1 |
+| 8 構成管理 | CCB 運用規程 | [`8_.../ccb_operating_rules.md`](./8_software_configuration_management_process/ccb_operating_rules.md) | ✅ v0.1 |
+| 8 構成管理 | 変更要求台帳 | [`8_.../change_request_register.md`](./8_software_configuration_management_process/change_request_register.md) | ✅ v0.1(空台帳) |
 | 9 問題解決 | ソフトウェア問題解決手順書(SPRP) | [`9_.../software_problem_resolution_procedure.md`](./9_software_problem_resolution_process/software_problem_resolution_procedure.md) | ✅ v0.1 |
 
 ### 補助
