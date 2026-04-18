@@ -224,7 +224,13 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 作業日 | 2026-04-18 |
 | 作業内容 | GitHub 運用インフラを整備。Issue テンプレート 2 種(PRB/CR)+ config.yml、PR テンプレート 1 種を `.github/` に配置。ブランチ保護ルールを `gh api` で適用(force push 禁止、削除禁止、CI Pass 必須、PR 必須(admin bypass 可))。admin bypass を有効にした理由は単独開発での現実的運用を優先するため |
 | 成果物 | `.github/ISSUE_TEMPLATE/problem_report.md`、`.github/ISSUE_TEMPLATE/change_request.md`、`.github/ISSUE_TEMPLATE/config.yml`、`.github/pull_request_template.md`、GitHub 側のブランチ保護設定 |
-| コミット | (このステップのコミット) |
+| コミット | `7b890a5`(テンプレート 4 件作成)、`e458f8e`(markdown lint 修正 — MD037/MD050/MD028 の解消)、ブランチ保護設定は `gh api` で適用(コミットなし) |
+
+**作業中に発見した問題と教訓:**
+
+- **CI リグレッションの発覚**:Step 9 で `.github/ISSUE_TEMPLATE/*` と `pull_request_template.md` を追加した際、Markdown lint が MD037/MD050/MD028 で失敗。原因は `___`(triple underscore)プレースホルダがemphasis マーカーと誤解釈されたこと。さらに調査の過程で **Step 3(README 初版)以降、CI は本リポジトリで一度も成功していなかった** ことが判明。テンプレート側の `lychee.toml` / `markdownlint-cli2.yaml` は upstream のままで動作していたが、`gh run list` のデフォルト repo 解決が upstream を向いており、本リポジトリの CI 結果が見えていなかった。
+- **対応**:`gh run list --repo grace2riku/virtual_infusion_pump_classC` で本リポジトリ側を明示確認し、エラー原因を特定。`___` → `<記入>` への一括置換、blockquote の結合で MD028 解消。以降の作業では **`--repo` を明示する、または PR ベースで CI 結果を確認する** ことを徹底する。
+- **教訓**:ドキュメント系 CI でも、プレースホルダ記号は markdownlint ルールとの衝突を事前確認すべき。IEC 62304 プロジェクトの「プロセス計画」が機能するには、**まず CI が正常動作している状態を Step 0 で確認する** のが良い(Step 12 以降の改善候補)。
 
 **採用根拠(なぜ補助ドキュメントの前に GitHub インフラか):**
 
