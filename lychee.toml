@@ -1,0 +1,18 @@
+# lychee configuration for internal link checking
+# External URL verification is skipped to keep CI deterministic;
+# enable "offline = false" in a dedicated job if needed.
+
+offline = true
+verbose = "info"
+no_progress = true
+include_fragments = true
+
+exclude_path = [
+  ".git",
+  "node_modules",
+]
+
+# Treat template placeholder URLs as valid (e.g., {{URL}})
+exclude = [
+  '^\{\{.*\}\}$',
+]

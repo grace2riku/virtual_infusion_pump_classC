@@ -1,0 +1,32 @@
+config:
+  default: true
+  # Line length: disabled for long Japanese sentences / tables
+  MD013: false
+  # Allow HTML for admonitions when rarely needed
+  MD033: false
+  # Allow duplicate headings in different sections (e.g., each clause has "改訂履歴")
+  MD024:
+    siblings_only: true
+  # Allow bare URLs (we use few)
+  MD034: false
+  # Allow trailing punctuation in headings (Japanese punctuation)
+  MD026: false
+  # First line heading rule off — our files start with frontmatter-like ID block
+  MD041: false
+  # Fenced code block language — not every code block specifies one
+  MD040: false
+  # Blank lines around headings: off — our dense templates place content immediately after headings
+  MD022: false
+  # Blank lines around lists: off — same rationale as MD022
+  MD032: false
+  # Emphasis used as heading: off — our templates use bold at the top for IDs
+  MD036: false
+  # Blank lines around fenced code blocks: off — same rationale as MD022
+  MD031: false
+  # Multiple H1: off — combined plan/report templates use "第 I 部" and "第 II 部" as top-level dividers
+  MD025: false
+globs:
+  - "**/*.md"
+ignores:
+  - ".git/**"
+  - "node_modules/**"

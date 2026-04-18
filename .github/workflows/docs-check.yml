@@ -1,0 +1,136 @@
+name: Documentation Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  structure:
+    name: Verify IEC 62304 directory structure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify required clause directories exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_dirs=(
+            "5.1_software_development_planning"
+            "5.2_software_requirements_analysis"
+            "5.3_software_architecture_design"
+            "5.4_software_detailed_design"
+            "5.5_software_unit_implementation"
+            "5.6_software_integration_testing"
+            "5.7_software_system_testing"
+            "5.8_software_release"
+            "6_software_maintenance_process"
+            "7_software_risk_management_process"
+            "8_software_configuration_management_process"
+            "9_software_problem_resolution_process"
+          )
+          missing=0
+          for d in "${required_dirs[@]}"; do
+            if [[ ! -d "$d" ]]; then
+              echo "::error::Required directory missing: $d"
+              missing=$((missing + 1))
+            fi
+          done
+          if (( missing > 0 )); then
+            echo "::error::$missing required directories are missing"
+            exit 1
+          fi
+          echo "All required clause directories present."
+
+      - name: Verify required primary templates exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          required_files=(
+            "CLAUDE.md"
+            "5.1_software_development_planning/software_development_plan.md"
+            "5.2_software_requirements_analysis/software_requirements_specification.md"
+            "5.3_software_architecture_design/software_architecture_design.md"
+            "5.4_software_detailed_design/software_detailed_design.md"
+            "5.5_software_unit_implementation/software_unit_test_plan_report.md"
+            "5.6_software_integration_testing/software_integration_test_plan_report.md"
+            "5.7_software_system_testing/software_system_test_plan_report.md"
+            "5.8_software_release/software_master_specification.md"
+            "6_software_maintenance_process/software_maintenance_plan.md"
+            "7_software_risk_management_process/software_risk_management_plan.md"
+            "7_software_risk_management_process/software_safety_class_determination_record.md"
+            "8_software_configuration_management_process/software_configuration_management_plan.md"
+            "8_software_configuration_management_process/configuration_item_list.md"
+            "9_software_problem_resolution_process/software_problem_resolution_procedure.md"
+          )
+          missing=0
+          for f in "${required_files[@]}"; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error file=$f::Required template file missing"
+              missing=$((missing + 1))
+            fi
+          done
+          if (( missing > 0 )); then
+            echo "::error::$missing required template files are missing"
+            exit 1
+          fi
+          echo "All required primary templates present."
+
+  lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            **/*.md
+            !.git/**
+
+  links:
+    name: Internal link check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check internal links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --verbose
+            --offline
+            --include-fragments
+            './**/*.md'
+          fail: true
+
+  frontmatter:
+    name: Date format policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Disallow non-ISO date formats
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Allow: {{YYYY-MM-DD}} placeholder; YYYY-MM-DD and YYYY-MM actual dates
+          # Flag: slash-separated dates (2026/04/17 or 04/17/2026) outside code blocks
+          # Note: this is a best-effort check; false positives may occur in version strings.
+          violations=$(grep -rn -E '\b[0-9]{4}/[0-9]{1,2}/[0-9]{1,2}\b' \
+            --include='*.md' \
+            --exclude-dir='.git' \
+            . || true)
+          if [[ -n "$violations" ]]; then
+            echo "::error::Slash-separated dates detected. Use ISO 8601 (YYYY-MM-DD) per CLAUDE.md."
+            echo "$violations"
+            exit 1
+          fi
+          echo "Date format policy check passed."
