@@ -33,7 +33,7 @@
 | 箇条 | ドキュメント | ファイル | 状態 |
 |------|-----------|--------|------|
 | 5.1 | ソフトウェア開発計画書(SDP) | [`5.1_.../software_development_plan.md`](./5.1_software_development_planning/software_development_plan.md) | ✅ v0.1 |
-| 5.2 | ソフトウェア要求仕様書(SRS) | [`5.2_.../software_requirements_specification.md`](./5.2_software_requirements_analysis/software_requirements_specification.md) | ⬜ 未着手 |
+| 5.2 | ソフトウェア要求仕様書(SRS) | [`5.2_.../software_requirements_specification.md`](./5.2_software_requirements_analysis/software_requirements_specification.md) | 🟡 v0.1(Inc.1 範囲確定、Inc.2〜4 は今後追補) |
 | 5.3 | ソフトウェアアーキテクチャ設計書 | [`5.3_.../software_architecture_design.md`](./5.3_software_architecture_design/software_architecture_design.md) | ⬜ 未着手 |
 | 5.4 | ソフトウェア詳細設計書 | [`5.4_.../software_detailed_design.md`](./5.4_software_detailed_design/software_detailed_design.md) | ⬜ 未着手 |
 | 5.5 | ユニット試験計画書/報告書 | [`5.5_.../software_unit_test_plan_report.md`](./5.5_software_unit_implementation/software_unit_test_plan_report.md) | ⬜ 未着手 |
