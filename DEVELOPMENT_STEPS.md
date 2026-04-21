@@ -219,11 +219,12 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 8 | CRR(変更要求台帳) | CRR-VIP-001 | ✅ v0.3(CR-0001 クローズ記録反映) | Step 10d(v0.1)/ Step 14a(v0.2)/ Step 14c(v0.3) |
 | 9 | SPRP | SPRP-VIP-001 | ✅ v0.1 | Step 6 |
 | — | README | — | ✅ | Step 3 / Step 8 |
-| — | DEVELOPMENT_STEPS.md | — | ✅ v0.4 | 随時更新(Step 14e で v0.3 化、Step 16 で v0.4 化) |
+| — | DEVELOPMENT_STEPS.md | — | ✅ v0.5 | 随時更新(Step 14e で v0.3 化、Step 16 で v0.4 化、Step 17a で v0.5 化) |
 | — | CLAUDE.md | — | ✅(プロジェクト固有ルール追記済) | 継続管理 |
 | — | GitHub インフラ(Issue/PR テンプレ、ブランチ保護) | — | ✅ | Step 9 |
 | — | ベースライン `inc1-design-frozen` | BL-20260421-001 | ✅ 付与済 | Step 14d |
-| — | UPSTREAM_FEEDBACK.md | UF-VIP-001 | ✅ v0.1(UF-001〜009 登録) | Step 16 |
+| — | UPSTREAM_FEEDBACK.md | UF-VIP-001 | ✅ v0.2(UF-001〜009 upstream 起票済) | Step 16(v0.1)/ Step 17a(v0.2) |
+| — | upstream Issue 起票 | grace2riku/iec62304_template #6〜#14 | ✅ 9 件起票(2026-04-21) | Step 17a |
 
 ## Phase 区分の進捗
 
@@ -583,13 +584,52 @@ Inc.1 設計凍結完了(Step 14d/14e 完了、ベースライン `inc1-design-f
 
 ---
 
-## 次ステップ計画(Step 16 完了時点)
+## 次ステップ計画(Step 16 完了時点、当時の記録)
 
 Step 16 完了を受けて(並行して CR-0002 Step 15a 進行中):
 
 - **Step 17 候補 A(最優先)**:Step 15b 実施(次セッション 2026-04-22 以降、CR-0002 PR 作成 → CI Pass → マージ → CRR v0.5 + CIL v0.5 更新)。本 Step 16 と CR-0002 のマージを整合させる作業を含む
 - **Step 17 候補 B**:UF-001(高優先)などの upstream feedback を実際に upstream リポジトリへ Issue 起票、PR 送付
 - **Step 17 候補 C**:Inc.1 UT 計画書(§5.5、UTPR-VIP-001 v0.1)作成、または Inc.1 実装着手(Python パッケージ骨格)
+
+(Step 17a で候補 B を実施。最新の計画は本書末尾「次ステップ計画(Step 17a 完了時点)」参照)
+
+---
+
+### Step 17a — upstream Issue 一括起票(UF-001〜UF-009)+ UPSTREAM_FEEDBACK v0.2
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-04-21 |
+| 作業内容 | Step 17 候補 B を採用。本プロジェクト運用中に発見した upstream 修正要望 9 件(UF-001〜UF-009)を upstream リポジトリ `grace2riku/iec62304_template` へ GitHub Issue #6〜#14 として一括起票。Bash スクリプト `/tmp/create_upstream_issues.sh` で本文ファイル 9 個(`/tmp/uf001_body.md` 〜 `/tmp/uf009_body.md`)を heredoc で生成し、`gh issue create --repo grace2riku/iec62304_template` で一括起票。起票後、Python スクリプト `/tmp/update_upstream_feedback.py` で UPSTREAM_FEEDBACK.md の各エントリの「状態」欄(未提案 → 提案済み(Issue #N、2026-04-21))と「upstream Issue」欄(TBD → GitHub Issue URL)を一括更新し、改訂履歴に v0.2 を追加。main ブランチに直接 push(軽微区分、ユーザー推奨の運用効率重視、admin bypass 発生) |
+| 成果物 | upstream Issue #6〜#14(9 件、`grace2riku/iec62304_template`)、UPSTREAM_FEEDBACK.md v0.2、DEVELOPMENT_STEPS.md v0.5(本書) |
+| コミット | (このステップのコミット、main 直接 push) |
+
+**採用根拠(なぜ main 直接 push か):**
+
+- **運用効率重視のユーザー判断**:UPSTREAM_FEEDBACK.md は今後も UF 追加・状態更新で頻繁に編集される運用メタ文書。毎回 PR 経由で CI を通すのはオーバーヘッドが大きい。ユーザーは Step 17a 直前の論点整理で「main 直接 push」を明示的に推奨。
+- **軽微区分(MINOR)としての整合**:SCMP §4.1.2 軽微区分「CI 設定の非機能変更」の解釈を広く取り、「運用補助ドキュメントの状態更新」を含める。Step 14c 教訓「マージ後アクションの軽微台帳更新」の類型に該当。
+- **admin bypass の発生は記録済**:本ステップで `Bypassed rule violations: 4 of 4 required status checks are expected` が再発生するが、事前にローカル lint(`npx markdownlint-cli2@0.13.0`)で 0 エラーを確認しているため品質リスクは緩和。将来的に CR-0003(SCMP §4.1.2 明文化)でこのパターンを正規化する予定(UF-006 の自己還元)。
+
+**本ステップで発生した技術的知見(教訓セクションへ拡充):**
+
+- **一括置換スクリプトの正規表現バグ(閉じ括弧直後のパイプ欠落スペース)**:Python スクリプトで UPSTREAM_FEEDBACK.md の全 9 エントリの「状態」「upstream Issue」欄を一括更新する際、UF-005 の state 行が「未提案(upstream の現状未確認)」直後にスペースなしでパイプ区切りという変則形式だった(他の行は「未提案」の後に半角スペース + パイプ)。パターン `未提案[^|]*?( \\|)` が UF-005 でマッチ失敗し、非貪欲マッチが後ろの UF-006 の state 行を拾い、**UF-N の処理で UF-(N+1) の state 行が誤って置換される連鎖バグ** が発生。対策として、パターンを `( ?\\|)` に変更してパイプ前のスペースを 0/1 回の両方許容に修正。後処理で UF-005 の state 行を他と統一フォーマット(半角スペース + パイプ)に修正した。
+
+**本ステップの「お手本」的価値:**
+
+- **upstream 還元ループの完成**:テンプレート派生プロジェクトから upstream へ Issue として還元する一連の流れ(発見 → 台帳記録 → 一括起票 → 台帳更新)の実例を提示。後続プロジェクトは `UPSTREAM_FEEDBACK.md` と本書 Step 17a を参照して同じループを構築できる。
+- **一括操作スクリプトのお手本**:単発の Issue 起票ではなく、Bash + heredoc + Python 正規表現の組み合わせで多数の操作を効率化する実装パターン。運用量が多くなった際の参考実装として再利用可能。
+- **ドキュメント整形不整合の検出機会**:UF-005 の state 行のスペース欠落は、人手では見逃しやすいが、正規表現一括処理の過程で顕在化した。一括操作は **ドキュメント品質の隠れた不整合を検出する副次効果** を持つ(「機械的に扱える形式を保つ」ことの価値)。
+
+---
+
+## 次ステップ計画(Step 17a 完了時点)
+
+Step 17a 完了、本セッションは区切り。次セッション以降の選択肢:
+
+- **Step 18 候補 α(最優先)**:CR-0002 Step 15b 実施(2026-04-22 以降、24h インターバル経過後)— CR-0002 PR 作成 → CI Pass → マージ → CRR v0.5 + CIL v0.5 更新。本 Step 16/17a と CR-0002 の DEVELOPMENT_STEPS.md マージコンフリクトを整合する作業含む
+- **Step 18 候補 β**:Inc.1 UT 計画書(§5.5、UTPR-VIP-001 v0.1)作成、または Inc.1 実装着手
+- **Step 18 候補 γ**:CR-0003(SCMP §4.1.2「マージ後アクション直接 push 許可」明文化)— UF-006 の自己還元、本プロジェクトの運用を規程で正式化
 
 ---
 
@@ -613,3 +653,4 @@ Step 16 完了を受けて(並行して CR-0002 Step 15a 進行中):
 | 0.2 | 2026-04-19 | Step 14a(CR-0001 起票 + SDD v0.2 ドラフト作成、CCB プロセス初動実例)を追記。Step 14b〜14e の次セッション計画を整理。§202 表で SDD/CRR の状態を更新、Phase 4 進捗範囲を Step 14a まで拡張。教訓セクションに「GitHub ラベルとテンプレートの同時整備」「プロセス規程の条文ベース参照」「詳細設計が要求を完成させる」を追加 | k-abe |
 | 0.3 | 2026-04-21 | **Inc.1 設計凍結完了に伴う一括更新**。Step 14b(CI 修復 + PR #2 作成)・Step 14c(PR マージ + Issue #1 クローズ + CRR v0.3)・Step 14d/14e(CIL v0.3 + DEVSTEPS v0.3 + `inc1-design-frozen` タグ付与、統合実施)を実績エントリとして追記。§202 ドキュメント達成状況表を Inc.1 設計凍結完了時点に更新(SRS lint 修正、SDD v0.2 確定、CIL v0.3、CRR v0.3、ベースライン `inc1-design-frozen` を反映)。Phase 4 ステータスを「Inc.1 設計凍結完了、実装着手待ち」に更新。「次ステップ計画」を CR-0002(24h→1分インターバル規程改訂)優先・UT 計画・実装着手の 3 択に再整理。教訓セクションに 4 件追加:「CI 失敗を複数ステップ連続で放置するリスク」「マージコミット方式の採用判断」「admin bypass による main 直接 push の扱い」「CIL v0.2 時点の自己参照と派生ドキュメントの更新漏れ」 | k-abe |
 | 0.4 | 2026-04-21 | Step 16(運用改善、軽微区分)を追記。`.gitignore` に `.claude/settings.local.json` 除外追加、`UPSTREAM_FEEDBACK.md` v0.1 新規作成(UF-001〜UF-009 初期登録)、CIL-VIP-001 v0.4 への昇格(CI-DOC-UPSTREAM 新規登録 + 自己参照更新)を実績記録。CR-0002(Step 15a、並行ブランチ進行中)と Step 16 の並行関係・マージ順序・DEVELOPMENT_STEPS.md 整列方針を注記。「次ステップ計画」を Step 17 候補 A(CR-0002 Step 15b)・B(upstream feedback 提案)・C(UT 計画/実装)に再整理 | k-abe |
+| 0.5 | 2026-04-21 | Step 17a(upstream Issue 一括起票 + UPSTREAM_FEEDBACK v0.2)を追記。UF-001〜UF-009 の 9 件を `grace2riku/iec62304_template` へ Issue #6〜#14 として一括起票、Bash スクリプトと Python 正規表現一括置換による効率化を実践。UPSTREAM_FEEDBACK.md v0.2 で各エントリの状態を「提案済み」に更新。一括置換時の正規表現バグ(UF-005 の閉じ括弧直後パイプ欠落スペースによる連鎖誤置換)を発見・修正した教訓を記録。main 直接 push(軽微、ユーザー推奨運用)。「次ステップ計画」を Step 18 候補 α/β/γ に再整理 | k-abe |
