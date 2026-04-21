@@ -219,10 +219,11 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 8 | CRR(変更要求台帳) | CRR-VIP-001 | ✅ v0.3(CR-0001 クローズ記録反映) | Step 10d(v0.1)/ Step 14a(v0.2)/ Step 14c(v0.3) |
 | 9 | SPRP | SPRP-VIP-001 | ✅ v0.1 | Step 6 |
 | — | README | — | ✅ | Step 3 / Step 8 |
-| — | DEVELOPMENT_STEPS.md | — | ✅ v0.3 | 随時更新(Step 14e で v0.3 化) |
+| — | DEVELOPMENT_STEPS.md | — | ✅ v0.4 | 随時更新(Step 14e で v0.3 化、Step 16 で v0.4 化) |
 | — | CLAUDE.md | — | ✅(プロジェクト固有ルール追記済) | 継続管理 |
 | — | GitHub インフラ(Issue/PR テンプレ、ブランチ保護) | — | ✅ | Step 9 |
 | — | ベースライン `inc1-design-frozen` | BL-20260421-001 | ✅ 付与済 | Step 14d |
+| — | UPSTREAM_FEEDBACK.md | UF-VIP-001 | ✅ v0.1(UF-001〜009 登録) | Step 16 |
 
 ## Phase 区分の進捗
 
@@ -528,7 +529,7 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 
 ---
 
-## 次ステップ計画
+## 次ステップ計画(Step 14d/14e 完了時点、当時の記録)
 
 Inc.1 設計凍結完了(Step 14d/14e 完了、ベースライン `inc1-design-frozen` 付与済)を受けて、次の選択肢:
 
@@ -537,7 +538,7 @@ Inc.1 設計凍結完了(Step 14d/14e 完了、ベースライン `inc1-design-f
 - **Step 15 候補 C**:Inc.1 実装着手(Python パッケージ骨格、UNIT-001 State Machine から順に TDD)— UT 計画と並行させるか、先行させるかは判断余地あり
 - **Step 15 候補 D(推奨)**:**候補 A を先行**(CR-0002)し、インターバル 1 分化で後続 CR の学習効率を上げてから、候補 B → 候補 C の順で進める
 
-次セッションで候補を確定する。
+(Step 15a で候補 D を採用。最新の計画は本書末尾「次ステップ計画(Step 16 完了時点)」参照)
 
 ---
 
@@ -554,6 +555,43 @@ Inc.1 設計凍結完了(Step 14d/14e 完了、ベースライン `inc1-design-f
 | 後続プロジェクトへの教訓が得られた | 「教訓」セクション(随時追加)に記録 |
 
 本書は **プロセス運用の一部** であり、更新漏れは SPRP の対象(ドキュメント誤りカテゴリ)となる。CLAUDE.md の「AI アシスタントへの指示」にも更新義務を明記する。
+
+---
+
+### Step 16 — 運用改善(.gitignore 拡充 + UPSTREAM_FEEDBACK 運用開始 + CIL v0.4)
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-04-21 |
+| 作業内容 | CR-0002(Step 15a、並行ブランチ `docs/cr-0002-interval-1min` 上で進行中)とは独立した軽微な運用改善作業。ブランチ `chore/gitignore-and-upstream-feedback` を main から派生。(1) `.gitignore` に `.claude/settings.local.json` を追記(Claude Code 個人ローカル設定の誤コミット防止、チーム共有設定 `settings.json` は引き続き管理対象に残す)、(2) `UPSTREAM_FEEDBACK.md` を新規作成し、本プロジェクト運用中に発見した upstream テンプレート(`grace2riku/iec62304_template`)への修正要望 9 件(UF-001〜UF-009)を初期登録、(3) CIL-VIP-001 を v0.3 → v0.4 に更新し `CI-DOC-UPSTREAM` を新規登録、CI-DOC-CIL 自己参照も v0.4 に連動更新(Step 14d 教訓の即時適用)。軽微区分(MINOR、SCMP §4.1.2)として CR 不要、PR 経由で CI Pass 確認後セルフ承認マージ運用(admin bypass 不使用、Step 14c 教訓の緩和) |
+| 成果物 | `.gitignore` 更新、`UPSTREAM_FEEDBACK.md` v0.1(新規)、CIL-VIP-001 v0.4、DEVELOPMENT_STEPS.md v0.4(本書、Step 16 追記) |
+| コミット | (このステップのコミット、ブランチ `chore/gitignore-and-upstream-feedback` 上) |
+
+**採用根拠(なぜこの構成で運用改善を進めるか):**
+
+- **軽微区分(MINOR)としての扱い**:SCMP §4.1.2「軽微 = 誤字、コメント修正、整形、リンク修正、CI 設定の非機能変更」に照らし、.gitignore の除外追加と運用補助文書(UPSTREAM_FEEDBACK.md)の新規作成は「CI 設定の非機能変更」と「プロジェクト運用補助ドキュメントの追加」に該当。CR 起票は不要だが、**新規 CI の追加は CIL 登録が必要**(SCMP §3)。
+- **upstream feedback を台帳化する価値**:テンプレート派生運用の実プロジェクトで発見した改善提案は、口頭・個人メモ・Issue コメントに散ると失われる。本書のような台帳に集約することで、(a) 上流還元の継続性確保、(b) 派生プロジェクト間での知見共有、(c) テンプレート品質の漸進的改善 を同時に達成する。本プロジェクトの「お手本」価値にも直結。
+- **初期 9 件の選定基準**:Step 0〜Step 15a までの作業で明示的に「テンプレート側の問題」と識別できたものを全て収録。優先度は High(UF-003 gh upstream 誤参照、UF-004 CI 連続失敗放置、UF-006 マージ後アクション運用)、Medium(UF-001 PR→PRB、UF-002 ラベル作成、UF-005 SRS lint、UF-007 CIL 自己参照)、Low(UF-008 インターバル値、UF-009 日付書式検出範囲)で分類。
+- **Step 14d 教訓の即時適用**:UF-007(CIL 自己参照の更新漏れ)を記録しつつ、本 Step 16 の CIL v0.4 更新では CI-DOC-CIL 自己参照を忘れずに v0.4 へ昇格。教訓を台帳化した瞬間に自分で実践する自己検証。
+- **CR-0002(Step 15a)との関係**:CR-0002 はプロセス規程改訂 CR(MAJOR)で別ブランチ進行中。本 Step 16 は軽微運用改善で CR 不要、並行作業。マージ順序は本 Step 16 が先(CR 不要、24h インターバル待ち不要)、CR-0002 マージは 2026-04-22 以降。CR-0002 ブランチが main の最新を取り込む際、DEVELOPMENT_STEPS.md のマージコンフリクト解決で Step 15a と Step 16 の両方を取り込む必要がある(順序は 15a → 16 に整列)。
+
+**本ステップの「お手本」的価値:**
+
+- **upstream feedback 運用開始の実例**:テンプレート派生プロジェクトは「テンプレート側に還元する」ループを持つことで、派生/上流双方の品質が改善する。本書 `UPSTREAM_FEEDBACK.md` は後続プロジェクトがそのまま再利用可能な運用パターン。
+- **軽微区分の正規ルート実例**:Step 14c/14d で admin bypass 直接 push に頼ったのに対し、本 Step 16 は軽微区分でも **PR 経由 + CI Pass を通す** 正規ルートを採用(bypass 発生ゼロ)。新規 CI 登録を伴うので CIL 更新も PR に同梱。軽微でも PR 経由が筋、というお手本。
+- **教訓の即時適用ループ**:Step 14d で発見した CIL 自己参照更新漏れを、次の CIL 改訂(本 Step 16)で即座に遵守。教訓を記録するだけでなく運用に即反映する文化の実例。
+
+---
+
+## 次ステップ計画(Step 16 完了時点)
+
+Step 16 完了を受けて(並行して CR-0002 Step 15a 進行中):
+
+- **Step 17 候補 A(最優先)**:Step 15b 実施(次セッション 2026-04-22 以降、CR-0002 PR 作成 → CI Pass → マージ → CRR v0.5 + CIL v0.5 更新)。本 Step 16 と CR-0002 のマージを整合させる作業を含む
+- **Step 17 候補 B**:UF-001(高優先)などの upstream feedback を実際に upstream リポジトリへ Issue 起票、PR 送付
+- **Step 17 候補 C**:Inc.1 UT 計画書(§5.5、UTPR-VIP-001 v0.1)作成、または Inc.1 実装着手(Python パッケージ骨格)
+
+---
 
 ## 教訓(随時追加)
 
@@ -574,3 +612,4 @@ Inc.1 設計凍結完了(Step 14d/14e 完了、ベースライン `inc1-design-f
 | 0.1 | 2026-04-18 | 初版作成(Step 0〜Step 7 を記録、Phase 3 以降の計画と更新ルールを定義) | k-abe |
 | 0.2 | 2026-04-19 | Step 14a(CR-0001 起票 + SDD v0.2 ドラフト作成、CCB プロセス初動実例)を追記。Step 14b〜14e の次セッション計画を整理。§202 表で SDD/CRR の状態を更新、Phase 4 進捗範囲を Step 14a まで拡張。教訓セクションに「GitHub ラベルとテンプレートの同時整備」「プロセス規程の条文ベース参照」「詳細設計が要求を完成させる」を追加 | k-abe |
 | 0.3 | 2026-04-21 | **Inc.1 設計凍結完了に伴う一括更新**。Step 14b(CI 修復 + PR #2 作成)・Step 14c(PR マージ + Issue #1 クローズ + CRR v0.3)・Step 14d/14e(CIL v0.3 + DEVSTEPS v0.3 + `inc1-design-frozen` タグ付与、統合実施)を実績エントリとして追記。§202 ドキュメント達成状況表を Inc.1 設計凍結完了時点に更新(SRS lint 修正、SDD v0.2 確定、CIL v0.3、CRR v0.3、ベースライン `inc1-design-frozen` を反映)。Phase 4 ステータスを「Inc.1 設計凍結完了、実装着手待ち」に更新。「次ステップ計画」を CR-0002(24h→1分インターバル規程改訂)優先・UT 計画・実装着手の 3 択に再整理。教訓セクションに 4 件追加:「CI 失敗を複数ステップ連続で放置するリスク」「マージコミット方式の採用判断」「admin bypass による main 直接 push の扱い」「CIL v0.2 時点の自己参照と派生ドキュメントの更新漏れ」 | k-abe |
+| 0.4 | 2026-04-21 | Step 16(運用改善、軽微区分)を追記。`.gitignore` に `.claude/settings.local.json` 除外追加、`UPSTREAM_FEEDBACK.md` v0.1 新規作成(UF-001〜UF-009 初期登録)、CIL-VIP-001 v0.4 への昇格(CI-DOC-UPSTREAM 新規登録 + 自己参照更新)を実績記録。CR-0002(Step 15a、並行ブランチ進行中)と Step 16 の並行関係・マージ順序・DEVELOPMENT_STEPS.md 整列方針を注記。「次ステップ計画」を Step 17 候補 A(CR-0002 Step 15b)・B(upstream feedback 提案)・C(UT 計画/実装)に再整理 | k-abe |
