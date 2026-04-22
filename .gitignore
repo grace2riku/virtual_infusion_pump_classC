@@ -1,2 +1,5 @@
 # Claude Code session-local scheduled task lock (session-specific, not for sharing)
 .claude/scheduled_tasks.lock
+
+# Claude Code personal local settings (not for sharing; team-wide settings go in .claude/settings.json)
+.claude/settings.local.json
