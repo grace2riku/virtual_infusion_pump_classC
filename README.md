@@ -102,7 +102,35 @@ npx markdownlint-cli2 "**/*.md"
 lychee --offline --include-fragments './**/*.md'
 ```
 
-コード用の CI(pytest・ruff・mypy 等)は Inc.1 実装開始時に追加予定。
+コード用の CI(`.github/workflows/unit-test.yml`)を Step 19 B1(2026-04-23)で追加しました。`ruff check --select ALL` / `ruff format --check` / `mypy --strict` / `bandit` / `pytest`(カバレッジ付き)/ `pip-audit` を実行します。
+
+## 開発環境セットアップ(Step 19 B1 以降)
+
+本プロジェクトは Python 3.12 を使用します。以下の手順で開発環境を整えてください。
+
+```bash
+# venv 作成と依存関係のインストール(editable)
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install -e ".[dev]"
+```
+
+### 日常の検証コマンド
+
+CI と同じチェックをローカルで実行できます:
+
+```bash
+ruff check .              # lint(--select ALL、UTPR §3.1 / SDP §実装ルール)
+ruff format --check .     # フォーマット確認(差分があれば `ruff format .` で適用)
+mypy src tests            # 静的型検査(--strict)
+bandit -ll -r src         # セキュリティ静的解析(本番コードのみ)
+pytest --cov              # ユニット試験 + カバレッジ
+pip-audit --strict \
+  -r <(pip freeze --exclude-editable)  # 依存脆弱性監査(editable 自身は除外)
+```
+
+Inc.1 のユニット試験計画は [`5.5_software_unit_implementation/software_unit_test_plan_report.md`](5.5_software_unit_implementation/software_unit_test_plan_report.md)(UTPR-VIP-001 v0.1)を参照してください。TDD(Red-Green-Refactor)で進めます。
 
 ## 関連規格
 
