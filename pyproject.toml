@@ -1,0 +1,165 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vip"
+version = "0.2.0.dev0"
+description = "Virtual Infusion Pump — IEC 62304 Class C learning project (VIP-CTRL)"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "k-abe", email = "gracehime@gmail.com" }]
+keywords = ["iec-62304", "medical-software", "class-c", "learning", "virtual"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Education",
+]
+dependencies = [
+    # SOUP-002 per SAD §7. pinned to >=2.6 for dataclass-like behaviour stability.
+    "pydantic>=2.6,<3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Unit test framework (CI-SOUP-002 predicted)
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "pytest-timeout>=2.3",
+    # Property-based testing (CI-SOUP-004 predicted), UNIT-001.1 / UNIT-004.1 targeted
+    "hypothesis>=6.98",
+    # Static analysis stack (per SDP §, UTPR §3.1)
+    "ruff>=0.5",
+    "pylint>=3.2",
+    "mypy>=1.10",
+    "bandit[toml]>=1.7",
+    # Security / SBOM (per SMP)
+    "pip-audit>=2.7",
+]
+
+[project.urls]
+Homepage = "https://github.com/grace2riku/virtual_infusion_pump_classC"
+Documentation = "https://github.com/grace2riku/virtual_infusion_pump_classC"
+Repository = "https://github.com/grace2riku/virtual_infusion_pump_classC"
+Issues = "https://github.com/grace2riku/virtual_infusion_pump_classC/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--tb=short",
+]
+timeout = 30
+# Fail if any test emits a DeprecationWarning from our code
+filterwarnings = [
+    "error",
+]
+
+[tool.coverage.run]
+source = ["src"]
+branch = true
+# Empty `__init__.py` files would skew branch coverage; allow them.
+omit = ["*/__init__.py"]
+
+[tool.coverage.report]
+# Step 19 B1 scaffolding contains only docstring-only `__init__.py` files
+# (omitted from coverage), so the measurable denominator is 0. Keep the
+# threshold at 0 until Step 19 B2 introduces the first concrete module
+# (UNIT-001.1 State Machine). Step 19 B2 PR MUST raise this to 95
+# (and RCM-bearing units must meet 100% MC/DC individually per UTPR §7.4).
+fail_under = 0
+show_missing = true
+skip_empty = true
+precision = 2
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    # Docstring style kept pragmatic for learning project; SDP requires PEP 257
+    # only, not full numpy/google docstring conventions.
+    "D203",   # 1 blank line before class — conflicts with D211
+    "D213",   # multi-line summary 2nd line — conflicts with D212
+    "D400",   # first line ends with period (Japanese / technical docstrings)
+    "D415",   # first line punctuation (same as above)
+    "COM812", # trailing comma — conflicts with formatter
+    "ISC001", # implicit string concat — conflicts with formatter
+    # Type annotations enforced via mypy --strict instead of ruff
+    "ANN401", # dynamically typed expressions (Any) — judge case-by-case
+    # Todo/fixme comments allowed during Inc.1 development
+    "TD002",
+    "TD003",
+    "FIX002",
+    # Magic-number rule is too noisy in test data; judge per file via noqa
+    "PLR2004",
+    # Commented-out code detection: too many false positives on Markdown-style
+    # bullet lists inside docstrings
+    "ERA001",
+    # Missing copyright header — learning project, not required
+    "CPY001",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",    # assert allowed in tests
+    "D",       # docstring rules relaxed in tests
+    "ANN",     # type annotation rules relaxed in tests
+    "PLR0913", # too many arguments (pytest fixtures)
+    "INP001",  # tests intentionally omit __init__.py
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+warn_return_any = true
+warn_unreachable = true
+show_error_codes = true
+pretty = true
+files = ["src", "tests"]
+
+[[tool.mypy.overrides]]
+# pydantic v2 already ships PEP 561 markers, no override needed — kept empty
+# as a placeholder for future third-party SOUP additions.
+module = []
+ignore_missing_imports = false
+
+[tool.pylint.main]
+py-version = "3.12"
+jobs = 0
+
+[tool.pylint."messages control"]
+disable = [
+    "missing-module-docstring",  # ruff D100 handles this
+    "missing-class-docstring",   # ruff D101
+    "missing-function-docstring", # ruff D103
+    "too-few-public-methods",    # pragmatic
+    "duplicate-code",            # judged per review
+]
+
+[tool.pylint.format]
+max-line-length = 100
+
+[tool.bandit]
+exclude_dirs = ["tests", "build", "dist"]
+# B101 (assert_used) is relevant only for production code; tests already
+# excluded via exclude_dirs above.

@@ -3,3 +3,48 @@
 
 # Claude Code personal local settings (not for sharing; team-wide settings go in .claude/settings.json)
 .claude/settings.local.json
+
+# --- Python (Step 19 B1) ---
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+pip-wheel-metadata/
+
+# Test / coverage artifacts
+.pytest_cache/
+.tox/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.hypothesis/
+
+# Static analysis caches
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.pylint.d/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

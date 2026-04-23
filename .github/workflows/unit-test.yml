@@ -1,0 +1,85 @@
+name: Unit Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff lint (--select ALL)
+        run: ruff check .
+
+      - name: Ruff format check
+        run: ruff format --check .
+
+      - name: mypy --strict
+        run: mypy src tests
+
+      - name: bandit (production code)
+        run: bandit -ll -r src -c pyproject.toml
+
+      - name: pytest with coverage
+        run: pytest --cov --cov-report=term --cov-report=xml --cov-report=html
+
+      - name: Upload coverage artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.os }}-py${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 14
+          # Step 19 B1 scaffolding has no production code yet so the reports
+          # may be absent; allow Step 19 B2+ to start producing them.
+          if-no-files-found: ignore
+
+  pip-audit:
+    name: pip-audit (dependency vulnerabilities)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install and audit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          # Generate a requirements list excluding the editable `vip` package
+          # (not on PyPI, cannot be audited) and scan the remaining deps.
+          pip freeze --exclude-editable > requirements-audit.txt
+          pip-audit --strict -r requirements-audit.txt
