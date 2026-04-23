@@ -72,12 +72,11 @@ branch = true
 omit = ["*/__init__.py"]
 
 [tool.coverage.report]
-# Step 19 B1 scaffolding contains only docstring-only `__init__.py` files
-# (omitted from coverage), so the measurable denominator is 0. Keep the
-# threshold at 0 until Step 19 B2 introduces the first concrete module
-# (UNIT-001.1 State Machine). Step 19 B2 PR MUST raise this to 95
-# (and RCM-bearing units must meet 100% MC/DC individually per UTPR §7.4).
-fail_under = 0
+# Step 19 B2 onwards: Inc.1 implementation threshold raised to 95%. RCM-bearing
+# units (UNIT-001.1 per Step 19 B2) must meet 100% MC/DC individually per
+# UTPR §7.4 — this is verified directly by test-suite design (every RCM branch
+# has a positive and negative case) rather than enforced here.
+fail_under = 95
 show_missing = true
 skip_empty = true
 precision = 2
