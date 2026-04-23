@@ -1,7 +1,7 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.3
+**バージョン:** 0.4
 **作成日:** 2026-04-23
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -254,19 +254,33 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 
 **関連 SRS:** SRS-RCM-004, SRS-032、**関連 RCM:** RCM-004(HW 側)、**関連 HZ:** HZ-001, HZ-002(SW 停止時の過量継続)
 
+> **Step 19 B4 整合化(2026-04-23、本節 v0.4):** v0.3 までの本節に対し、SDD §4.3 と並べ読みした結果として 2 件の設計判断と 1 件の表記整合化を行った。**(1) Logger 注入の据置:** SDD §4.3.C 擬似コードに `self._logger.log_failsafe_trip(...)` の呼出があるが §4.3.B データ構造表に `_logger` フィールドが宣言されていないため、本 Inc.1 段階では Logger 注入を行わず、HW 側フェイルセーフ識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` の reason 引数で代替する。Logger 注入は UNIT-004+ で正式化予定。**(2) クロック注入(DI)の採用:** SDD §4.3.B には `_clock` フィールドがないが、UT-002.4-07(クロック逆転試験)を実現するため `clock: Callable[[], float]` をコンストラクタ注入可能にした(本番デフォルトは `time.monotonic`)。**(3) クロック逆転時の挙動:** SDD §4.3.E は `time.monotonic()` の単調増加保証を根拠に未定義としているが、注入クロック経由で逆転が起きた場合の挙動を「安全側 = 発火」と実装判断(RCM-004 の安全側原則 + Step 19 B2 State Machine 「不正は ERROR」と整合)。SRS / SDD / RMF / SAD 本体は不変、教訓は DEVELOPMENT_STEPS §教訓に記録(MINOR 区分・CR 不要)。
+
 | 試験 ID | 対象 API / 観点 | 入力 / 条件 | 期待結果 | 種別 |
 |---------|---------------|-----------|---------|------|
-| UT-002.4-01 | `heartbeat()` 正常受信 | 毎 100 ms で呼出 | タイマ未発火 | 正常系 |
-| UT-002.4-02 | ハートビート途絶検知 | 最終 heartbeat から 500 ms 経過 | `force_stop_failsafe()` が Pump Simulator で呼出される | RCM(RCM-004 HW 側) |
-| UT-002.4-03 | 境界:499 ms | タイマ精度内 | 発火しない | 境界値 |
-| UT-002.4-04 | 境界:500 ms(+ ε) | 500 ms 超過 | 発火する | 境界値 |
-| UT-002.4-05 | 複数スレッドからの heartbeat | 2 スレッドが同時に呼出 | 競合せず最新タイムスタンプが記録 | 並行 |
-| UT-002.4-06 | 二重冗長動作 | SW WDT(UNIT-001.5)が発火前に停止しない状況で、本ユニットが独立に発火 | Pump Simulator が強制停止、ログに「HW failsafe triggered」記録 | RCM・タイミング |
-| UT-002.4-07 | クロック逆転 | モックで時刻を後退させる | 異常検知、安全側に倒す(発火または ERROR 誘発) | 異常系 |
-| UT-002.4-08 | タイマ停止後の heartbeat | `force_stop_failsafe` 後 | タイマは再開しない(冪等) | 正常系 |
+| UT-002.4-01 | `heartbeat()` 正常受信 | 100 ms 間隔で 10 回呼出 | `is_tripped() is False` | 正常系 |
+| UT-002.4-02 | ハートビート途絶検知 | 最終 heartbeat から 501 ms 経過後 `check_once()` | `is_tripped() is True`、`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出 | RCM(RCM-004 HW 側) |
+| UT-002.4-03 | 境界:499 ms | 499 ms 経過後 `check_once()` | 発火しない | 境界値 |
+| UT-002.4-04a | 境界:500 ms ちょうど | `(now - last) > timeout` の `>` 判定で発火しない | 発火しない | 境界値 |
+| UT-002.4-04b | 境界:500 ms + ε | 500.0001 ms 経過後 `check_once()` | 発火する | 境界値 |
+| UT-002.4-05 | 複数スレッドからの heartbeat | 2 スレッドが同時に 50 回ずつ呼出(`Barrier` で同期スタート) | データ競合なし、`last_heartbeat() == fake_clock()` | 並行 |
+| UT-002.4-06 | HW failsafe 識別子 | `force_stop_failsafe` がモックで呼出された際の reason 引数を検証 | `reason="HEARTBEAT_TIMEOUT"` で 1 回呼出 | RCM・識別 |
+| UT-002.4-07 | クロック逆転(安全側) | 注入 fake_clock で時刻を 0.2 → 0.05 に後退 | 発火する(設計判断:逆転は安全側) | 異常系 |
+| UT-002.4-08a | Tripped 後の heartbeat 無視 | `force_stop_failsafe` 後に `heartbeat()` を呼出 | `last_heartbeat()` 不変(無視) | 冪等 |
+| UT-002.4-08b | 重複 `check_once()` 冪等 | Tripped 後に `check_once()` を 3 回連続呼出 | `force_stop_failsafe` の呼出回数は 1 回 | 冪等 |
 
-**ケース数目安:** 正常系 2、境界値 2、異常系 1、RCM 2、並行 1、タイミング 1 = **合計 ≥ 9**
-**MC/DC 目標:** 100%(RCM-004 HW 側、ハートビート判定)
+**展開実装(Step 19 B4 時点、`tests/unit/test_failsafe_timer.py`):**
+
+- 上記 10 試験ケースに加え、補助観点として:
+  - **start / stop ライフサイクル**: 4 件(start→stop / 二重 start→`RuntimeError` / 二重 stop→no-op / start 前 stop→no-op)
+  - **pump 例外時のロバスト性**: 1 件(`force_stop_failsafe` が例外を投げてもタイマ自身はクラッシュせず、`is_tripped()=True` を維持)
+  - **定数値**: 2 件(`HEARTBEAT_TIMEOUT == 0.5`、`MONITOR_INTERVAL == 0.1`)
+  - **実時間スレッド統合スモーク**: 1 件(発火側、`time.monotonic` + 監視スレッド経由で 1 秒以内に発火することを確認)
+- 連打側スモークは macOS の `time.sleep` ジッタで本質的に flaky と判明したため fake_clock 試験(UT-002.4-01 / 05)に委任(教訓 DEVELOPMENT_STEPS §教訓に記録)
+- **実測ケース数 18 件、全 Pass(2026-04-23、3 連続実行で stable 確認)**
+
+**ケース数目安:** 正常系 2、境界値 2、異常系 1、RCM 2、並行 1、タイミング 1 = **合計 ≥ 9**(展開後 18)
+**MC/DC 目標:** 100%(RCM-004 HW 側、ハートビート判定 + クロック逆転分岐 + Tripped 状態分岐の複合条件)
 
 #### 7.3.4 UNIT-003.3 Atomic File Writer(代表・詳細)
 
@@ -375,12 +389,12 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-001.1 | **62**(うち UT-001.1-01..12 = 12 + パラメータ化展開 45 + スモーク 5)| **62** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 目視確認、RCM-019 全分岐)** | 2026-04-23 | Step 19 B2 PR マージコミット `27dd1cd`(マージ後 SHA は `git log` 参照)|
 | UNIT-001.2 | ≥ 12 | — | — | — | — | — | — |
 | UNIT-001.3 | ≥ 10 | — | — | — | — | — | — |
-| UNIT-001.4 | **34**(うち UT-001.4-01..12 = 12 + パラメータ化展開 14 + 補助観点 8)| **34** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐)** | 2026-04-23 | Step 19 B3 PR マージコミット(TBD)|
+| UNIT-001.4 | **34**(うち UT-001.4-01..12 = 12 + パラメータ化展開 14 + 補助観点 8)| **34** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐)** | 2026-04-23 | Step 19 B3 PR #11 マージコミット `72d474e` |
 | UNIT-001.5 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-002.1 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-002.2 | ≥ 6 | — | — | — | — | — | — |
 | UNIT-002.3 | ≥ 3 | — | — | — | — | — | — |
-| UNIT-002.4 | ≥ 9 | — | — | — | — | — | — |
+| UNIT-002.4 | **18**(うち UT-002.4-01..08 展開後 10 + 補助観点 8)| **18** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-004 HW 側 + クロック逆転 + Tripped 分岐)** | 2026-04-23 | Step 19 B4 PR マージコミット(TBD)|
 | UNIT-003.1 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-003.2 | ≥ 6 | — | — | — | — | — | — |
 | UNIT-003.3 | ≥ 10 | — | — | — | — | — | — |
@@ -420,7 +434,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-002.1 Pump Simulator | UT-002.1-01 〜(≥ 10) | SRS-030, 031, SRS-P01 | RCM-004(HW 被呼出側)| HZ-001, HZ-002 | 未実施 |
 | UNIT-002.2 Pump Observer | UT-002.2-01 〜(≥ 6) | SRS-031, SRS-I-020 | — | — | 未実施 |
 | UNIT-002.3 Event Injection Stub | UT-002.3-01 〜(≥ 3) | SRS-032, SRS-I-040(Inc.2)| —(Inc.2 で追加)| HZ-004 | 未実施 |
-| UNIT-002.4 HW-side Failsafe Timer | UT-002.4-01 〜 UT-002.4-08 | SRS-RCM-004, SRS-032 | RCM-004(HW 側)| HZ-001, HZ-002 | 未実施 |
+| UNIT-002.4 HW-side Failsafe Timer | UT-002.4-01 〜 UT-002.4-08 | SRS-RCM-004, SRS-032 | RCM-004(HW 側)| HZ-001, HZ-002 | **Pass(18 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B4、2026-04-23)** |
 | UNIT-003.1 Serializer | UT-003.1-01 〜(≥ 8) | SRS-DATA-001, 004 | RCM-015 前提 | HZ-007 | 未実施 |
 | UNIT-003.2 Checksum Verifier | UT-003.2-01 〜(≥ 6) | SRS-SEC-001 | RCM-015 構成要素 | HZ-007 | 未実施 |
 | UNIT-003.3 Atomic File Writer | UT-003.3-01 〜 UT-003.3-10 | SRS-DATA-002, 003 | RCM-015 前提 | HZ-007 | 未実施 |
@@ -439,3 +453,4 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | 0.1 | 2026-04-23 | 初版作成(計画、Step 19 A)。Inc.1 の全 17 ユニットに UT-UID(UT-001.1〜UT-005.3)を採番。代表 5 ユニット(UNIT-001.1, 001.4, 002.4, 003.3, 004.1、SDD v0.1 時点で詳細設計された 5 件)について試験ケースを詳細記述(正常系 / 境界値 / 異常系 / RCM / 並行 / タイミング / プロパティ 分類合計 59 件)。残 12 ユニットは試験観点とケース数目安のみ骨格記述(合計目安 ≥ 95 件)。カバレッジ目標を本プロジェクト固有に強化(RCM 実装 6 ユニットで MC/DC 100%)。試験環境、試験 ID 体系、クラス C 追加基準 9 項目(§5.5.4 準拠)、問題発見時の手続(SPRP/CR 連携)を確立。第 II 部(報告)は骨格のみ、Step 19 B 以降の TDD Red-Green-Refactor で埋めていく | k-abe |
 | 0.2 | 2026-04-23 | **Step 19 B2(UNIT-001.1 State Machine TDD 実装)の実施結果を第 II 部に反映**。§9.2 UNIT-001.1 行を 62 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-019 全分岐)で確定。§11 トレーサビリティマトリクス UNIT-001.1 行の結果欄を「Pass」に更新。他 16 ユニットは未実施のまま据置(Step 19 B2+ 以降で TDD を継続)。UT-001.1-04 パラメータ化展開で TRANSITION_TABLE 全 13 エントリ × Pass 方向を網羅、UT-001.1-05 で (State, EventKind) 非登録全組合せ 45 ケースを網羅(RCM-019 確認)、UT-001.1-11/12 で hypothesis プロパティ試験 2 件を実装 | k-abe |
 | 0.3 | 2026-04-23 | **Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)の実施結果を反映 + §7.3.2 を SRS/SDD に整合化**。**(1) 第 I 部 §7.3.2 整合化(MINOR、CR 不要):** v0.2 までの本節は (a) 指令値域を「設定値域 0.1〜1200」と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で齟齬していた。SRS/SDD を真として本節のテーブル(UT-001.4-01〜12)を全面差し替え、整合化注釈を本節冒頭に追記。SRS / SDD / RMF / SAD 本体は不変。**(2) 第 II 部 §9.2:** UNIT-001.4 行を 34 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐、試験設計担保)で確定。§11 トレーサビリティマトリクス UNIT-001.4 行を「Pass」に更新。**(3) 試験設計:** UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% の 3 サブケースに `pytest.parametrize` 展開、補助観点として 5 状態 × 設定値検証スキップ確認 + 純粋性 + frozen 4 件 + 範囲定数 2 件を追加。`hypothesis` プロパティ 2 件は `max_examples=200, deadline=None` で実装。教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
+| 0.4 | 2026-04-23 | **Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)の実施結果を反映 + §7.3.3 整合化**。**(1) 第 I 部 §7.3.3 整合化(MINOR、CR 不要):** Step 19 B3 教訓を運用化し着手前クロスレビューを実施、(a) Logger 注入据置(SDD §4.3.B に `_logger` フィールドなし、UNIT-004+ で正式化、HW failsafe 識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` で代替)、(b) クロック注入(DI)採用(`clock: Callable[[], float]` をコンストラクタ注入、UT-002.4-07 クロック逆転試験のため)、(c) クロック逆転時挙動を「安全側 = 発火」と設計判断(SDD §4.3 未定義、RCM-004 安全側原則 + UNIT-001.1 と整合)、の 3 件を整合化注釈に明記。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.3 試験テーブル:** UT-002.4-04 を 04a(500 ms ちょうどで発火しない)/ 04b(500 ms + ε で発火)に分割、UT-002.4-06 を「ログ記録」から「`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出識別」に整合化、UT-002.4-08 を 08a(heartbeat 無視)/ 08b(`check_once` 冪等)に分割、各ケースに `check_once` API 経由のテスト前提を明記。**(3) 第 II 部 §9.2:** UNIT-002.4 行を 18 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-002.4 行を「Pass」更新。UNIT-001.4 行のコミット欄を Step 19 B3 マージ SHA `72d474e` で確定。**(4) 試験設計:** 補助観点 8 件(start/stop ライフサイクル 4、pump 例外耐性 1、定数値 2、実時間スレッド統合スモーク 1)、連打側スモークは macOS sleep ジッタ flaky のため fake_clock UT-002.4-01/05 に委任(教訓記録)。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
