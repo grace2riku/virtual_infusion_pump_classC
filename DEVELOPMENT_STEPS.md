@@ -199,7 +199,7 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 - Step 6 で発見した ID 衝突(`PR-` vs GitHub Pull Request)を、インフラ整備(Step 9)に入る前に必ず解消しておく必要がある。GitHub Issue テンプレートや PR テンプレートを作る際、どの ID 体系を採用するかが決まっていないと書けない。
 - SCMP のバージョンアップ(v0.1 → v0.2)は、「軽微な用語統一でも改訂履歴に残す」という SCMP 自身のルールを自ら遵守する実践例となる。
 
-## 現時点のドキュメント達成状況(Step 15b マージ直前時点、2026-04-23)
+## 現時点のドキュメント達成状況(Step 19 B3 マージ直前時点、2026-04-23)
 
 | 箇条 | ドキュメント | ID | 状態 | Step |
 |------|------------|-----|------|------|
@@ -207,7 +207,7 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 5.2 | SRS(Inc.1 範囲確定) | SRS-VIP-001 | ✅ v0.1(MD056 lint 修正、軽微 / §10 CCB §5.4 参照整合) | Step 11 / Step 14b(lint 修正)/ Step 15a(§10 参照整合、バージョン据置) |
 | 5.3 | SAD(Inc.1 範囲確定) | SAD-VIP-001 | ✅ v0.1(§8 CCB §5.4 参照整合) | Step 12c / Step 15a(§8 参照整合、バージョン据置) |
 | 5.4 | SDD(Inc.1 全 17 ユニット詳細) | SDD-VIP-001 | ✅ v0.2(§5.4.2 完全充足) | Step 13(v0.1)/ Step 14a〜14c(v0.2) |
-| 5.5 | UTPR(ユニット試験計画・報告) | UTPR-VIP-001 | 🟢 v0.2(計画 + UNIT-001.1 実施結果反映、62 tests Pass / 100% カバレッジ / MC/DC 100%) | Step 19 A(v0.1)/ Step 19 B2(v0.2) |
+| 5.5 | UTPR(ユニット試験計画・報告) | UTPR-VIP-001 | 🟢 v0.3(計画 + UNIT-001.1 / 001.4 実施結果反映、計 96 tests Pass / 各 100% カバレッジ / MC/DC 100%、§7.3.2 を SRS/SDD に整合化)| Step 19 A(v0.1)/ Step 19 B2(v0.2)/ Step 19 B3(v0.3)|
 | 5.6〜5.7 | IT / ST 計画・報告 | — | ⬜ 未着手 | — |
 | 5.8 | SMS | — | ⬜ 未着手(M_final 予定) | — |
 | 6 | SMP | SMP-VIP-001 | ✅ v0.2(1 分インターバル反映) | Step 7(v0.1)/ Step 15a(v0.2) |
@@ -215,12 +215,12 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | 7 | SSC | SSC-VIP-001 | ✅ v0.1 | Step 1 |
 | 7 | RMF | RMF-VIP-001 | ✅ v0.2 | Step 10a(v0.1)/ Step 12a(v0.2) |
 | 8 | SCMP | SCMP-VIP-001 | ✅ v0.3(§4.1 区分別要件の 1 分反映) | Step 5(v0.1)/ Step 8(v0.2)/ Step 15a(v0.3) |
-| 8 | CIL | CIL-VIP-001 | ✅ v0.9(Step 19 B2 で CI-SRC-001 UNIT-001.1 運用中化 + CI-TD-001b 新規) | Step 10b(v0.1)/ Step 12b(v0.2)/ Step 14d(v0.3)/ Step 16(v0.4)/ Step 17b(v0.5)/ Step 15b 後段(v0.6)/ Step 19 A(v0.7)/ Step 19 B1(v0.8)/ Step 19 B2(v0.9) |
+| 8 | CIL | CIL-VIP-001 | ✅ v0.10(Step 19 B3 で CI-SRC-001 に UNIT-001.4 v0.1 追記 + CI-TD-001d 新規 + 冒頭バージョン表記の累積更新漏れ補正)| Step 10b(v0.1)/ Step 12b(v0.2)/ Step 14d(v0.3)/ Step 16(v0.4)/ Step 17b(v0.5)/ Step 15b 後段(v0.6)/ Step 19 A(v0.7)/ Step 19 B1(v0.8)/ Step 19 B2(v0.9)/ Step 19 B3(v0.10) |
 | 8 | CCB 運用規程 | CCB-VIP-001 | ✅ v0.2(§5.4 学習/実機 2 系統表記、1 分インターバル採用) | Step 10c(v0.1)/ Step 15a(v0.2) |
 | 8 | CRR(変更要求台帳) | CRR-VIP-001 | ✅ v0.5(CR-0002 CLOSED 記録、実装 PR #6、マージ 2026-04-22T23:46:05Z、SHA a741cda) | Step 10d(v0.1)/ Step 14a(v0.2)/ Step 14c(v0.3)/ Step 15a(v0.4)/ Step 15b 後段(v0.5) |
 | 9 | SPRP | SPRP-VIP-001 | ✅ v0.2(§5 CCB 通知行の 1 分反映) | Step 6(v0.1)/ Step 15a(v0.2) |
 | — | README | — | ✅ | Step 3 / Step 8 |
-| — | DEVELOPMENT_STEPS.md | — | ✅ v0.11 | 随時更新(Step 14e で v0.3 化、Step 16 で v0.4 化、Step 17a で v0.5 化、Step 17b で v0.6 化、Step 15b 本体マージで v0.7 化、Step 15b 後段で v0.8 化、Step 19 A で v0.9 化、Step 19 B1 で v0.10 化、Step 19 B2 で v0.11 化) |
+| — | DEVELOPMENT_STEPS.md | — | ✅ v0.12 | 随時更新(Step 14e で v0.3 化、Step 16 で v0.4 化、Step 17a で v0.5 化、Step 17b で v0.6 化、Step 15b 本体マージで v0.7 化、Step 15b 後段で v0.8 化、Step 19 A で v0.9 化、Step 19 B1 で v0.10 化、Step 19 B2 で v0.11 化、Step 19 B3 で v0.12 化) |
 | — | CLAUDE.md | — | ✅(プロジェクト固有ルール追記済 / Step 15a で独立性擬制 1 分化) | 継続管理 / Step 15a(1 分化) |
 | — | GitHub インフラ(Issue/PR テンプレ、ブランチ保護) | — | ✅ | Step 9 |
 | — | ベースライン `inc1-design-frozen` | BL-20260421-001 | ✅ 付与済 | Step 14d |
@@ -235,7 +235,7 @@ Phase 1〜2 の「計画先行」方針を採る根拠:
 | Phase 1: 分類と計画(M0 開始期) | ✅ 完了 | Step 1(SSC)+ Step 2(SDP) |
 | Phase 2: 支援プロセス計画(M0 基盤整備期) | ✅ 完了 | Step 4(SRMP)+ Step 5(SCMP)+ Step 6(SPRP)+ Step 7(SMP) |
 | Phase 3: インフラ整備(M0 終了期) | ✅ 完了 | Step 3/8(README)+ Step 9(GitHub)+ Step 10a〜10d(RMF/CIL/CCB/CRR) |
-| Phase 4: Inc.1〜Inc.4 実開発(M1〜M4) | 🟡 Inc.1 実装着手(UNIT-001.1 完了、カバレッジ 100% / MC/DC 100%)、UNIT-001.2〜005.3 TDD 継続 | Step 11(SRS v0.1)+ Step 12a(RMF v0.2)+ Step 12b(CIL v0.2 + 要求凍結ベースライン)+ Step 12c(SAD v0.1)+ Step 13(SDD v0.1)+ Step 14a(SDD v0.2 ドラフト + CR-0001)+ Step 14b(CI 修復 + PR #2 作成)+ Step 14c(PR マージ + Issue クローズ + CRR v0.3)+ Step 14d/14e(CIL v0.3 + DEVSTEPS v0.3 + `inc1-design-frozen` タグ付与)+ Step 15a(CR-0002 起票 + プロセス規程 11 文書改訂)+ Step 15b(CR-0002 PR マージ + main 整合化、新 1 分ルール施行)+ Step 19 A(UTPR-VIP-001 v0.1、全 17 ユニットの UT-UID 採番 + 代表 5 詳細ケース)+ Step 19 B1(Python パッケージ骨格、pyproject.toml、unit-test.yml CI 整備、SOUP 正式登録)+ **Step 19 B2(UNIT-001.1 State Machine TDD、UT-001.1-01〜12 を 62 ケース展開、カバレッジ 100%、MC/DC 100%、RCM-019 実装完了)** |
+| Phase 4: Inc.1〜Inc.4 実開発(M1〜M4) | 🟡 Inc.1 実装着手(UNIT-001.1 / 001.4 完了、カバレッジ 各 100% / MC/DC 100%)、UNIT-001.2 / 001.3 / 001.5 / 002.* 〜 005.3 TDD 継続 | Step 11(SRS v0.1)+ Step 12a(RMF v0.2)+ Step 12b(CIL v0.2 + 要求凍結ベースライン)+ Step 12c(SAD v0.1)+ Step 13(SDD v0.1)+ Step 14a(SDD v0.2 ドラフト + CR-0001)+ Step 14b(CI 修復 + PR #2 作成)+ Step 14c(PR マージ + Issue クローズ + CRR v0.3)+ Step 14d/14e(CIL v0.3 + DEVSTEPS v0.3 + `inc1-design-frozen` タグ付与)+ Step 15a(CR-0002 起票 + プロセス規程 11 文書改訂)+ Step 15b(CR-0002 PR マージ + main 整合化、新 1 分ルール施行)+ Step 19 A(UTPR-VIP-001 v0.1、全 17 ユニットの UT-UID 採番 + 代表 5 詳細ケース)+ Step 19 B1(Python パッケージ骨格、pyproject.toml、unit-test.yml CI 整備、SOUP 正式登録)+ Step 19 B2(UNIT-001.1 State Machine TDD、UT-001.1-01〜12 を 62 ケース展開、カバレッジ 100%、MC/DC 100%、RCM-019 実装完了)+ **Step 19 B3(UNIT-001.4 Flow Command Validator TDD、UT-001.4-01〜12 を 34 ケース展開、カバレッジ 100%、MC/DC 100%、RCM-001 実装完了、UTPR §7.3.2 を SRS/SDD に整合化)** |
 | Phase 5: リリースと保守(M_final 以降) | ⬜ 未着手 | — |
 
 ### Step 9 — GitHub インフラ整備
@@ -915,7 +915,7 @@ Step 19 B1(パッケージ骨格 + コード CI)完了。続いて:
 
 ---
 
-## 次ステップ計画(Step 19 B2 完了時点)
+## 次ステップ計画(Step 19 B2 完了時点、当時の記録)
 
 Step 19 B2(UNIT-001.1 TDD 第一巡)完了、RCM-019 実装済、カバレッジ 100%、MC/DC 100%。続いて:
 
@@ -925,6 +925,53 @@ Step 19 B2(UNIT-001.1 TDD 第一巡)完了、RCM-019 実装済、カバレッジ
 - **Step 19 B6**:UNIT-004.1 Integrity Validator TDD(UT-004.1-01〜12、RCM-015、hypothesis 破損注入プロパティ試験)。代表 5 ユニット完了後に残 12 ユニットは骨格 → TDD 詳細化で順次
 - **Step 19 C(並行可能)**:CR-0003(UF-006 自己還元)— 新 1 分ルール下の最初の CR
 - **Step 19 D**:Inc.1 ITPR v0.1 骨格 — 代表 5 ユニット完了後に着手が効率的
+
+(Step 19 B3 を採用、本書本文 Step 19 B3 セクション参照。)
+
+---
+
+### Step 19 B3 — UNIT-001.4 Flow Command Validator TDD 実装(Red-Green-Refactor、RCM-001 実装完了 + UTPR §7.3.2 SRS/SDD 整合化)
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-04-23 |
+| 作業内容 | Step 19 B2(UNIT-001.1)完了を受けて **TDD 第二巡** を実行。UNIT-001.1 と依存関係がなく独立に書ける UNIT-001.4 を採用。**着手前確認で UTPR §7.3.2(v0.2)と SRS-O-001 / SDD §4.2 の間に 3 件の不整合を発見** し、ユーザー合意のうえ提案 A(SRS/SDD を真として UTPR を整合化、PR 同梱、MINOR 区分・CR 不要)で進行。(1) **Red**:`tests/unit/test_flow_validator.py` に UT-001.4-01〜12(SRS/SDD 整合化版)を 34 ケースに展開して先に記述(`pytest.parametrize` で UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% 3 サブケース、補助観点として 5 状態 × 設定値検証スキップ + 純粋性 + frozen 4 件 + 範囲定数 2 件、hypothesis プロパティ 2 件)。`pytest` で `ModuleNotFoundError: No module named 'vip_ctrl.flow_validator'` を確認(Red 確立)。(2) **Green**:`src/vip_ctrl/flow_validator.py` を 56 stmt で最小実装(`ValidationReason` enum 4 値、`FlowCommand` / `ValidatedFlowCommand` / `Settings` / `ControlContext` frozen dataclass、`ValidationOk` / `ValidationErr` ユニオン、純粋関数 `validate(command, context) -> ValidationResult`、SDD §4.2.C のアルゴリズム逐語実装。State enum は `vip_ctrl.state_machine` から import)。`pytest` で 34 件全 Pass 確認。(3) **Refactor**:ruff 16 件(FURB157 / RUF003 / RUF100 / SIM300)を解消、ruff format / mypy `--strict` / bandit 0 件 / pip-audit 全 Pass、TOTAL カバレッジ 100.00%(stmt 204 / branch 28 / `fail_under=95` 超過)。(4) **UTPR-VIP-001 v0.2 → v0.3**:§7.3.2 テーブルを SRS-O-001(指令値域 `0.0 ≤ value ≤ 1200.0`) / SDD §4.2.B(`ValidationReason` enum 名)/ §4.2.C(`state == State.RUNNING` 前提)に整合化、整合化注釈を本節冒頭に追記(MINOR 区分・CR 不要)、§9.2 UNIT-001.4 行を 34 tests Pass / カバレッジ 100% / MC/DC 100% で確定、§11 トレーサビリティマトリクス UNIT-001.4 行を Pass に更新、§12 改訂履歴に v0.3 追加。(5) **CIL-VIP-001 v0.9 → v0.10**:CI-SRC-001 行に UNIT-001.4 v0.1 追記(状態を「UNIT-001.1 / 001.4 完了」へ)、CI-TD-001d(`tests/unit/test_flow_validator.py`、34 ケース)新規登録、CI-DOC-UTPR v0.3 / CI-DOC-DEVSTEPS v0.12 / 自己参照 v0.10 に更新、改訂履歴 v0.10 追加。**冒頭バージョン表記が長らく v0.4 のまま停滞していた累積更新漏れも今回 v0.10 へ整合化(教訓追加、Step 14d / 17b / 15b 後段教訓「派生ドキュメント更新漏れ」の延長)**。(6) **DEVELOPMENT_STEPS.md v0.11 → v0.12**:本セクション追記、§202 達成状況表 / Phase 区分表を Step 19 B3 反映、改訂履歴 v0.12 追加、教訓 2 件追加(SRS/SDD/UTPR クロスレビュー漏れ + CIL 冒頭バージョン表記の累積更新漏れ)。PR 経由 + 2 系統 CI(docs-check + unit-test)全 Pass 後マージ予定(admin bypass 不使用、Step 17b 教訓継続)|
+| 成果物 | **コード系**:`src/vip_ctrl/flow_validator.py`(新規 56 stmt、カバレッジ 100%、純粋関数 validate + ValidationReason enum + 4 frozen dataclass + Result 型ユニオン、RCM-001 実装)、`tests/unit/test_flow_validator.py`(新規 34 ケース、UT-001.4-01〜12 ベース、`pytest.parametrize` 展開 + hypothesis プロパティ 2 件 + 補助観点 8 件)。**ドキュメント系**:UTPR-VIP-001 v0.3、CIL-VIP-001 v0.10、DEVELOPMENT_STEPS.md v0.12(本書)、Step 19 B3 PR #TBD |
+| コミット | (本ステップのコミット、ブランチ `feat/step19b3-unit-001.4-flow-validator`)|
+
+**採用根拠(なぜ UNIT-001.4 を第二巡に選んだか):**
+
+- **依存関係の独立性**:UNIT-001.4 Flow Command Validator は純粋関数で State enum 以外の依存を持たない。UNIT-001.1 と並んで「他ユニットなしで完結する」最小 RCM 実装ユニット。第二巡として適合(他のユニット — Control Loop / Command Handler / Watchdog 等 — は依存ユニットの実装を待つ必要がある)。
+- **RCM-001 の早期実装による HZ-001 / HZ-002 緩和の前進**:過量投与・過少投与の主要 RCM である「流量指令の範囲チェック + 設定値整合性」を Inc.1 早期に実装することで、後続結合試験で RCM が機能していることを前提に故障注入できる。RCM-019(状態保護)+ RCM-001(範囲保護)の 2 本柱が Inc.1 序盤で動く意義は大きい。
+- **TDD の Red-Green-Refactor を 2 度目に踏む価値**:第一巡(Step 19 B2、State Machine、62 tests)に対し、第二巡は純粋関数という別アーキタイプ。並行性なし、状態なし、Decimal 演算中心という違いから、TDD サイクルが「異なる種類のコード」でも円滑に回ることを実証できる。後続の HW-side Failsafe Timer(UNIT-002.4、並行 + タイマ)、Atomic File Writer(UNIT-003.3、I/O + 例外注入)、Integrity Validator(UNIT-004.1、複合検証)と続く前に、純粋関数アーキタイプを通すのが学習効果も高い。
+
+**本ステップの「お手本」的価値:**
+
+- **TDD Red-Green-Refactor 第二巡の実例**:State Machine(第一巡)とは異なる純粋関数アーキタイプで同じサイクルを踏む実例。後続プロジェクトは「TDD は state-ful にも state-less にも適用可能」を確認できる。
+- **着手前 SRS/SDD/UTPR クロスレビューによる不整合発見**:UTPR §7.3.2 の SRS/SDD 整合性チェックを実装着手「前」に実施し、3 件の不整合(指令値域 vs 設定値域、ValidationReason 名、状態前提)を発見。Step 14a 教訓「詳細設計が要求を完成させる」の派生として、**TDD Red を書く前のレビューで UT 計画自身の不整合が見つかる** という別の発見パターンを示した。整合化を MINOR + 同 PR 同梱で処理することで、CR の重さに頼らずに軽微整合化を進める運用パターンも提示。
+- **Decimal による精度保持の実装パターン**:`Decimal("100.00").as_tuple().exponent == -2` で精度を保持しつつ算術(`abs(rate - expected) / expected > TOLERANCE`)を行うパターン。医療機器ドメインの単位精度要件(SRS-005 ±5%)を Python で実現する具体例。
+- **State enum の共有 import**:`vip_ctrl.flow_validator` から `vip_ctrl.state_machine` の `State` を import することで、ドメインモデルの単一ソース化を確立。後続ユニットも同じ State enum を再利用できる。将来的に `src/vip_ctrl/domain.py` への抽出リファクタは別 CR で検討余地あり。
+- **試験設計レベルでの MC/DC 100% 担保**:RCM-001 の分岐(NaN/Inf、負、上限超、設定 0、設定整合性 + 状態別)を `pytest.parametrize` の網羅展開と補助観点の 5 状態 × スキップ確認で機械的に網羅。Step 19 B2 の RCM-019 と同様、coverage.py の branch coverage に加えて **試験設計そのもので MC/DC 100% を保証** する構造。
+
+**本ステップで判断した実装方針(後続 UNIT 参照用):**
+
+1. **Settings 最小プロジェクション**:UNIT-001.2 SettingsStore の全フィールドではなく、`flow_rate` のみを持つ最小 `Settings` dataclass を validator が消費する設計。UNIT-001.4 を SettingsStore 実装から疎結合にできる。
+2. **`ControlContext` の役割**:呼出側が「設定値 + 現在状態」を一括スナップショットして渡す契約。validator は context の整合性を呼出側が保証していると仮定し、内部で再ロックしない(純粋性確保)。
+3. **TOLERANCE 境界の挙動(`>` で判定)**:`diff_ratio > TOLERANCE` で SDD §4.2.C どおり実装。よって `diff_ratio == TOLERANCE`(ちょうど ±5.00%)は **Ok**。境界の挙動を UT-001.4-09b で明示確認(SRS-005 解釈の曖昧さを試験で固定)。
+4. **NaN / Inf 検査を最初に置く理由**:`Decimal('NaN') < x` は `InvalidOperation` 例外を投げるため、比較演算より先に `is_nan()` / `is_infinite()` で弾く必要がある。SDD §4.2.C のアルゴリズム順序がそのまま安全性の根拠になっている。
+5. **`State.RUNNING` のみで設定値整合性検証**:STOPPED 時の指令 0.0、IDLE 時の遷移途中、PAUSED 時の保留、ERROR 時のフェイルセーフ後保留のいずれも、設定値と乖離した指令が正常な運用シナリオに含まれるため、RUNNING 以外でスキップするのが正しい。UT-001.4 補助観点(5 状態 × 1 件)で全状態をテスト。
+
+---
+
+## 次ステップ計画(Step 19 B3 完了時点)
+
+Step 19 B3(UNIT-001.4 TDD 第二巡)完了、RCM-001 実装済、カバレッジ 100%、MC/DC 100%、UTPR §7.3.2 SRS/SDD 整合化済。続いて:
+
+- **Step 19 B4(推奨、TDD 第三巡)**:**UNIT-002.4 HW-side Failsafe Timer** の TDD(UT-002.4-01〜08、RCM-004 HW 側、Pump Simulator へのコールバック注入パターン確立、500/600 ms タイマ精度試験、Tripped 状態の冪等性)。並行 + タイマ + フェイルセーフという「state-ful + 時間依存」アーキタイプ、State Machine とは別の並行制御パターン
+- **Step 19 B5**:UNIT-003.3 Atomic File Writer TDD(UT-003.3-01〜10、RCM-015 前提、subprocess + SIGKILL による電源断シミュレーション)
+- **Step 19 B6**:UNIT-004.1 Integrity Validator TDD(UT-004.1-01〜12、RCM-015、hypothesis 破損注入プロパティ試験)
+- **Step 19 C(並行可能)**:CR-0003(UF-006 自己還元、SCMP §4.1.2「マージ後アクション直接 push 許可」明文化)— 新 1 分ルール下の最初の CR
+- **Step 19 D**:Inc.1 ITPR v0.1 骨格 — 代表 5 ユニット(UNIT-001.1 / 001.4 / 002.4 / 003.3 / 004.1)完了後に着手が効率的
 
 ---
 
@@ -942,6 +989,8 @@ Step 19 B2(UNIT-001.1 TDD 第一巡)完了、RCM-019 実装済、カバレッジ
 - **教訓は記録しただけでは再発を防げない(CIL 更新漏れの二度目)**:Step 14d で「CIL の自己参照および派生ドキュメント更新漏れ」を教訓として本書に明文化し、UF-007 として upstream にも還元(Issue #12 / PR #21 でマージ済)したにもかかわらず、**Step 17a で UPSTREAM_FEEDBACK を v0.1 → v0.2 に昇格した際、本 CIL 上の `CI-DOC-UPSTREAM` は v0.1 のまま放置** された(本 Step 17b で v0.1 → v0.3 に一気に遡及補正)。Step 17a は「upstream 一括起票と台帳更新」に意識が集中し、**連動 CI(CIL)への波及チェックが抜けた**。**根本原因:**教訓が「記録」の段階に留まり、運用チェックリスト(PR テンプレートの必須項目、CI の自動検証、コミットテンプレート等)に組み込まれていない。**対策案:**(a) PR テンプレートに「CIL の自己参照 + 連動 CI を更新したか」のチェック項目追加、(b) CI ジョブで「UPSTREAM_FEEDBACK.md のバージョンと CIL の `CI-DOC-UPSTREAM` のバージョンが一致しているか」等の自動検証、(c) markdownlint カスタムルールで同種の不整合を検出。本教訓は **「教訓の運用組込み」という上位メタ教訓** を示しており、将来 UF-010 候補(PR/CI テンプレートによる教訓の自動適用)として upstream 還元可能。
 - **upstream 還元の応答速度は例外事例**:Step 17a で upstream(`grace2riku/iec62304_template`)に 9 件起票したところ、同一メンテナ(本プロジェクト作成者)が同日中に PR #15〜#23 としてマージ。これは upstream と本プロジェクトのメンテナが同一という特殊構成ゆえの高速応答であり、**一般の OSS upstream 還元では Issue 起票 → PR マージまで週〜月単位の滞留を想定すべき**。本プロジェクト記述を「お手本」として再利用する後続プロジェクトには、UPSTREAM_FEEDBACK.md の状態欄に「提案済み」で長期滞留する運用を想定した追補ガイダンス(例:Inc. 完了時に滞留エントリのレビュー実施、30 日無反応時の再通知運用)が必要。本教訓は UF-010 候補として upstream 還元の価値あり。
 - **並行ブランチ間の採番衝突と時系列再構成による解消**:Step 15b で CR-0002 ブランチ(Step 14d/14e の `3ee655c` から派生)に main(Step 16/17a/17b で進行、`dbf5131` まで)をマージした際、CR-0002 ブランチ側で先取り採番していた DEVSTEPS v0.4 = Step 15a と、main 側で既に採番済みの DEVSTEPS v0.4 = Step 16 が改訂履歴で衝突した。**解消方針:**(a) どちらかを破棄するのではなく、main 採番(v0.4=Step 16、v0.5=Step 17a、v0.6=Step 17b)を維持、(b) CR-0002 ブランチの Step 15a セクションは時系列位置(Step 14d/14e と Step 16 の間)に挿入、(c) 統合分を新規 v0.7 エントリとして追記(「Step 15a の時系列挿入 + Step 15b 実施」)。これにより両ブランチの作業履歴が完全保存され、改訂履歴がバージョン降順の単一タイムラインを維持する。**根本対策:** 先取り採番時は「採番は仮、main マージ時に再採番の可能性」をブランチ名コミットメッセージに明記する運用を PR テンプレートに追加することを検討(UF-010 候補、教訓自動化の文脈で Step 17b の「教訓は記録しただけでは再発を防げない」と接続)。**お手本的価値:**長期並行ブランチは学習プロジェクトでよく発生するため、この 3 段アプローチ(採番維持 + 時系列挿入 + 統合エントリ)は後続プロジェクトで再利用可能。
+- **UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ(Step 19 B3 で発見)**:Step 19 B3(UNIT-001.4 TDD)着手前の UTPR §7.3.2 確認で、SRS-O-001(指令値域 `0.0 ≤ value ≤ 1200.0`)/ SDD §4.2.B(`ValidationReason` enum 名)/ §4.2.C(`state == State.RUNNING` でのみ設定値整合性検証)の **3 点で UTPR が SRS/SDD と齟齬している**ことが判明した。具体的には (a) UT-001.4-02 が「流量 = 0.1 mL/h(SRS 最小)」と記載していたが、これは設定値域(SRS-I-001)であり指令値域は SRS-O-001 で 0.0 から、(b) 期待結果が `Err(OutOfRangeError)` 等の擬似名で SDD §4.2.B の enum と不一致、(c) 設定値整合性検証(UT-001.4-08/09)に状態前提が記載されておらず暗黙化。**根本原因:**Step 19 A(UTPR v0.1 作成)時、代表 5 ユニットの試験ケースを SDD v0.1 詳細(§4.1〜4.5)から起こした際、UNIT-001.4(SDD §4.2)については擬似コードを読み込まず、SRS の概念だけで起こしたために値域・enum 名・前提条件の精度が落ちた。**対策:**Step 19 B3 では実装着手前に SDD §4.2 + SRS-O-001 + SRS-RCM-001 を並べて読み比べ、不整合を全件検出してからユーザー合意のもとで UTPR §7.3.2 を MINOR 区分で整合化(CR 不要、SRS / SDD / RMF / SAD は不変)。**運用への組込み:**(1) 残 12 ユニット(UNIT-001.2 / 001.3 / 001.5 / 002.* 〜 005.3)の TDD Red 着手前に同じ「SDD 該当節 + 関連 SRS + 関連 RCM のクロスレビュー」を必ず実施する手順を採用、(2) UTPR §7.3.X 各節の冒頭に「SDD §X.Y との整合確認日」フィールドを追加することを将来の UTPR 改訂で検討、(3) UF-010 候補として upstream へ「UT 計画のテンプレートに SDD/SRS クロスレビューチェック欄を追加する」提案を起こす可能性。**お手本的価値:**「TDD Red を書く前のレビュー」が UT 計画自身の不整合を発見する機会という、Step 14a 教訓「設計が要求を完成させる」の **派生パターン** を実証。後続プロジェクトでも代表 5 ユニットの UT 計画は SDD と独立に書きがちで、同種の不整合は発生しやすい。
+- **CIL 冒頭バージョン表記の累積更新漏れ(Step 19 B3 で発見・補正)**:Step 19 B3 で CIL を v0.9 → v0.10 に更新する際、CIL ファイル冒頭の `**バージョン:** 0.4` 表記が **改訂履歴(本文では v0.9 まで進行)と乖離していた**ことが判明した。すなわち、Step 16(v0.4)以降 v0.5 → v0.6 → v0.7 → v0.8 → v0.9 と 5 回の改訂で本文の改訂履歴行は追加されていたが、**冒頭の `**バージョン:**` メタ情報の更新が一貫して漏れていた**。最終更新日も 2026-04-21 のままで停滞していた。**根本原因:**CIL の更新作業は §4 ドキュメント表 / 自己参照行 / 改訂履歴行に意識が集中し、ファイル冒頭メタ情報(バージョン・最終更新日)を毎回書き換える慣習が確立されていなかった。Step 14d / 17b / 15b 後段の「派生ドキュメント更新漏れ」教訓が CIL の **派生先** には適用されていたが、CIL **自身の冒頭メタ** には適用されていなかった盲点。**対策:**(1) Step 19 B3 でまとめて v0.10 + 2026-04-23 に整合化(遡及補正)、(2) 今後は CIL 改訂時に「冒頭バージョン + 最終更新日 + §4 自己参照 + 改訂履歴」の 4 箇所を必ず同時更新する運用、(3) 同種の盲点は SCMP / SRMP / SPRP / SMP / CRR / SRS / SAD / SDD / UTPR の冒頭にも存在する可能性があるため、Step 19 B4 着手前に全文書を一巡確認する候補(別 Step として整理)。**お手本的価値:**「ドキュメント自身の自己メタ情報も派生ドキュメントの一種」という認識の重要性。本プロジェクトの全文書テンプレートで「冒頭バージョン」と「改訂履歴の最新行」が常に一致していることを CI で機械検証する upstream 還元候補(UF-011 候補)として価値あり。
 
 ## 改訂履歴
 
@@ -958,3 +1007,4 @@ Step 19 B2(UNIT-001.1 TDD 第一巡)完了、RCM-019 実装済、カバレッジ
 | 0.9 | 2026-04-23 | **Step 19 A**(Inc.1 UTPR v0.1 新規作成、V 字モデル右側着手)を追記。IEC 62304 §5.5 要求に基づく UTPR-VIP-001 v0.1 をテンプレートから全面書換え:Inc.1 全 17 ユニットに UT-UID 採番、代表 5 ユニット(UNIT-001.1/001.4/002.4/003.3/004.1、SDD v0.1 で詳細化済の 5 件)を試験ケース詳細記述(合計 54 件、プロパティ試験 + 並行 + タイミング + RCM + 境界値 + 異常系網羅)、残 12 ユニットは骨格(ケース数目安合計 ≥ 95 件、Step 19 B の TDD Red で詳細化)。カバレッジ目標を段階化(RCM 実装 6 ユニット MC/DC 100%、その他 C クラス 95%、B 分離 90%)。SEP-001 論理分離の `mypy` 機械検証計画を §3.2 + §4.2 に明示。pytest + hypothesis + pytest-cov + pytest-timeout を SOUP 候補として記載。連動:CIL-VIP-001 v0.6 → v0.7(CI-DOC-UTPR を「未着手」→ v0.1 に昇格、自己参照 v0.7)。§202 達成状況表で UT/IT/ST 行を分割、Phase 4 範囲を Step 19 A 含む記述に拡張。「次ステップ計画(Step 15b 後段完了時点)」を「当時の記録」化、新規「次ステップ計画(Step 19 A 完了時点)」を追加、Step 19 B(TDD 実装起動)/ C(CR-0003)/ D(ITPR v0.1 骨格)を次候補として整理。PR 経由 + CI Pass(admin bypass 不使用、Step 17b 教訓継続) | k-abe |
 | 0.10 | 2026-04-23 | **Step 19 B1**(Python パッケージ骨格 + コード CI 整備、TDD 実装前提整備)を追記。Step 19 B を B1(骨格 + CI)と B2(UNIT-001.1 TDD 実装)に分割し B1 先行実施:(1) `src/{vip_ctrl,vip_sim,vip_persist,vip_integrity,vip_api,vip_api_b}/__init__.py` 6 件を docstring 付きで作成、`tests/conftest.py` + `tests/test_package_structure.py`(7 ケース)新規、(2) `pyproject.toml` 新規(CI-CFG-009、依存 11 件、ruff / mypy / pytest / coverage / pylint / bandit 統合設定)、(3) `.github/workflows/unit-test.yml` 新規(CI-CFG-011、matrix Ubuntu × Python 3.12、ruff / mypy / bandit / pytest / pip-audit を順次実行)、(4) `.gitignore` に Python 系生成物を追加、(5) README に開発環境セットアップ手順を追加、(6) ローカル venv で全 6 ツール(ruff check / ruff format / mypy / bandit / pytest / pip-audit)Pass 確認。連動:CIL-VIP-001 v0.7 → v0.8(SOUP-001〜010 を候補から正式登録に昇格、SOUP-011 pytest-timeout 新規追加、TOOL-008〜012 / CFG-009 / CFG-011 を「予定」から運用中に遷移、TD-001 / TD-001a を新規登録、自己参照 v0.8)。§202 達成状況表で CIL v0.8 / DEVSTEPS v0.10 を反映、Phase 4 範囲を Step 19 B1 含む記述に拡張。coverage `fail_under=0` の一時緩和を `pyproject.toml` コメントと Step 19 B2 計画の両方に明記(戻し忘れ防止の二重化)。editable + pip-audit 両立のための `pip freeze --exclude-editable` 迂回パターンを CI に埋め込み。PR 経由 + 2 系統 CI(docs-check + unit-test)全 Pass 後マージ(admin bypass 不使用、Step 17b 教訓継続)| k-abe |
 | 0.11 | 2026-04-23 | **Step 19 B2**(UNIT-001.1 State Machine TDD 第一巡、RCM-019 実装完了)を追記。TDD Red-Green-Refactor を厳守:(1) Red = `tests/unit/test_state_machine.py` に UT-001.1-01〜12 を 62 ケースに展開して先に記述(パラメータ化で TRANSITION_TABLE 全 13 エントリ Pass 側 + 非登録 45 組合せを RCM-019 試験として自動網羅、hypothesis プロパティ 2 件、並行性 1 件、ロックタイムアウト 1 件、キュー満杯 1 件、冪等性 1 件)、(2) Green = `src/vip_ctrl/state_machine.py` 148 stmt を最小実装(State/EventKind/WatchdogReason enum、frozen dataclass、TRANSITION_TABLE 13 エントリ、RLock + _LockGuard、Result 型 TransitionOk/TransitionErr)、(3) Refactor = ruff 11 エラー(D107/D413/EM102/TRY003/PYI034/PERF401/RUF100/F841)解消、mypy `--strict` Pass、bandit 0、Self 型使用。**カバレッジ 100.00%(stmt / branch)達成**、RCM-019 は UT-001.1-05 の 45 組合せ + UT-001.1-04 の 13 組合せ = 計 58 組合せ全網羅で **試験設計レベルで MC/DC 100% を担保**。`pyproject.toml` の `coverage.fail_under` を Step 19 B1 計画通り 0 → 95 に復帰(戻し忘れ防止が成立)。連動:UTPR-VIP-001 v0.1 → v0.2(§9.2 UNIT-001.1 行・§11 トレーサビリティ結果欄を Pass に更新)、CIL-VIP-001 v0.8 → v0.9(CI-SRC-001 UNIT-001.1 運用中化、CI-SRC-005/006/007/008/009 骨格、CI-TD-001b 新規、自己参照 v0.9)。SOUP-004 hypothesis 実運用開始。§202 達成状況表を更新(5.5 UTPR v0.2 実施反映、CIL v0.9、DEVSTEPS v0.11)、Phase 4 範囲を Step 19 B2 含む記述に拡張。「次ステップ計画(Step 19 B1 完了時点)」を「当時の記録」化、新規「次ステップ計画(Step 19 B2 完了時点)」で Step 19 B3(UNIT-001.4 TDD 推奨)/ B4(UNIT-002.4)/ B5(UNIT-003.3)/ B6(UNIT-004.1)の TDD 第二〜五巡と Step 19 C(CR-0003)/ D(ITPR 骨格)を整理。PR 経由 + 2 系統 CI 全 Pass 後マージ(admin bypass 不使用)| k-abe |
+| 0.12 | 2026-04-23 | **Step 19 B3**(UNIT-001.4 Flow Command Validator TDD 第二巡、RCM-001 実装完了 + UTPR §7.3.2 SRS/SDD 整合化)を追記。TDD Red-Green-Refactor 第二巡:(1) **着手前クロスレビュー**で UTPR §7.3.2(v0.2)と SRS-O-001 / SDD §4.2 の 3 件不整合(指令値域 vs 設定値域 / ValidationReason 名 / `state==RUNNING` 前提)を発見、ユーザー合意の上で SRS/SDD を真として UTPR を整合化(MINOR 区分・CR 不要)。(2) Red = `tests/unit/test_flow_validator.py` に UT-001.4-01〜12 を 34 ケースに展開して先に記述(`pytest.parametrize` で UT-001.4-07 NaN/+Inf/-Inf 3 サブケース・UT-001.4-09 ±2%/±5.00% 境界/+5.01% 3 サブケース・補助観点として 5 状態 × 設定値検証スキップ + 純粋性 + frozen 4 件 + 範囲定数 2 件、hypothesis プロパティ 2 件)。(3) Green = `src/vip_ctrl/flow_validator.py` 56 stmt を最小実装(`ValidationReason` enum 4 値、4 frozen dataclass、`ValidationOk/ValidationErr` ユニオン、純粋関数 validate、SDD §4.2.C アルゴリズム逐語実装、State enum を `vip_ctrl.state_machine` から import)。(4) Refactor = ruff 16 件(FURB157/RUF003/RUF100/SIM300)解消、mypy `--strict` Pass、bandit 0、pip-audit Pass、TOTAL カバレッジ 100.00%(stmt 204 / branch 28、`fail_under=95` 超過)。**RCM-001 の MC/DC は試験設計で 100% 担保**(範囲 + 設定値整合性 + 状態別スキップ全分岐網羅)。連動:UTPR-VIP-001 v0.2 → v0.3(§7.3.2 整合化注釈追加 + テーブル全面差し替え + §9.2/§11 Pass 反映)、CIL-VIP-001 v0.9 → v0.10(CI-SRC-001 に UNIT-001.4 v0.1 追記、CI-TD-001d 新規、CI-DOC-UTPR v0.3 / DEVSTEPS v0.12 / 自己参照 v0.10、**冒頭バージョン表記の累積更新漏れも遡及補正**)。§202 達成状況表 / Phase 区分表を Step 19 B3 反映。「次ステップ計画(Step 19 B2 完了時点)」を「当時の記録」化、新規「次ステップ計画(Step 19 B3 完了時点)」で Step 19 B4(UNIT-002.4 TDD 推奨)以降を再整理。教訓 2 件追加:「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ(着手前検出+整合化運用)」「CIL 冒頭バージョン表記の累積更新漏れ(派生ドキュメント教訓の自己メタへの拡張)」。PR 経由 + 2 系統 CI(docs-check + unit-test)全 Pass 後マージ予定(admin bypass 不使用、Step 17b 教訓継続)| k-abe |

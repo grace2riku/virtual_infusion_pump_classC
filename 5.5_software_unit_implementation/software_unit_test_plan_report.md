@@ -1,7 +1,7 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.2
+**バージョン:** 0.3
 **作成日:** 2026-04-23
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -221,23 +221,34 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 
 **関連 SRS:** SRS-O-001, SRS-RCM-001, SRS-005、**関連 RCM:** RCM-001、**関連 HZ:** HZ-001(過量投与)、HZ-002(過少投与)
 
+> **Step 19 B3 整合化(2026-04-23、本節 v0.3):** v0.2 までの本節は UTPR 初版(Step 19 A)で SRS/SDD クロスレビューが不十分だったため、(a) 指令値域を **設定値域** と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`、設定値域 SRS-I-001 とは異なる)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致(`OutOfRangeError` 等の擬似名)、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で SRS-O-001 / SRS-RCM-001 / SDD §4.2 と齟齬していた。本節を SRS/SDD に整合化(MINOR 区分、CR 不要、SRS/SDD/RMF/SAD は不変)。教訓は DEVELOPMENT_STEPS §教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」に記録。
+
 | 試験 ID | 対象 API / 観点 | 入力 / 条件 | 期待結果 | 種別 |
 |---------|---------------|-----------|---------|------|
-| UT-001.4-01 | `validate(cmd, setting)` 正常範囲内 | 流量 = 100 mL/h、設定 = 100 mL/h | `Ok(cmd)` | 正常系 |
-| UT-001.4-02 | 範囲最小境界 | 流量 = 0.1 mL/h(SRS 最小) | `Ok(cmd)` | 境界値 |
-| UT-001.4-03 | 範囲最大境界 | 流量 = 1200 mL/h(SRS 最大) | `Ok(cmd)` | 境界値 |
-| UT-001.4-04 | 範囲下限 − ε | 流量 = 0.09 mL/h | `Err(OutOfRangeError)` | RCM(RCM-001) |
-| UT-001.4-05 | 範囲上限 + ε | 流量 = 1200.1 mL/h | `Err(OutOfRangeError)` | RCM |
-| UT-001.4-06 | 負値 | 流量 = -1 mL/h | `Err(OutOfRangeError)` | 異常系 |
-| UT-001.4-07 | NaN / Inf | 流量 = `float('nan')` / `float('inf')` | `Err(InvalidValueError)` | 異常系 |
-| UT-001.4-08 | 設定値との不一致(許容誤差超) | 流量 = 100、設定 = 50(SRS-005 許容誤差 ±5% 超) | `Err(SettingMismatchError)` | RCM |
-| UT-001.4-09 | 設定値との不一致(許容誤差内) | 流量 = 100、設定 = 102(+2% 以内) | `Ok(cmd)` | 正常系 |
-| UT-001.4-10 | プロパティ:範囲内は常に Ok | hypothesis:0.1 ≤ rate ≤ 1200、設定 一致 | `Ok` | プロパティ |
-| UT-001.4-11 | プロパティ:範囲外は常に Err | hypothesis:rate < 0.1 or rate > 1200 | `Err` | プロパティ |
-| UT-001.4-12 | Decimal 入力(浮動小数点誤差回避) | `Decimal("100.00")` | `Ok`、精度 2 桁保持 | 正常系 |
+| UT-001.4-01 | `validate(cmd, ctx)` 正常範囲内 | 流量 = 100 mL/h、設定 = 100、`state=RUNNING` | `ValidationOk(validated)` | 正常系 |
+| UT-001.4-02 | 範囲最小境界(指令最小、停止指令を含む) | 流量 = 0.0 mL/h、`state=STOPPED`(設定値検証スキップ) | `ValidationOk` | 境界値 |
+| UT-001.4-03 | 範囲最大境界 | 流量 = 1200.0 mL/h、設定 = 1200.0、`state=RUNNING` | `ValidationOk` | 境界値 |
+| UT-001.4-04 | 範囲下限 - ε(負側) | 流量 = -0.01 mL/h | `ValidationErr(NEGATIVE)` | RCM(RCM-001) |
+| UT-001.4-05 | 範囲上限 + ε | 流量 = 1200.01 mL/h | `ValidationErr(OUT_OF_RANGE)` | RCM |
+| UT-001.4-06 | 負値 | 流量 = -1 mL/h | `ValidationErr(NEGATIVE)` | 異常系 |
+| UT-001.4-07 | NaN / +Inf / -Inf | 流量 = `Decimal('NaN')` / `Decimal('Infinity')` / `Decimal('-Infinity')` | `ValidationErr(NAN_OR_INFINITE)` | 異常系 |
+| UT-001.4-08 | 設定値との不一致(許容誤差超)、`state=RUNNING` | 流量 = 100、設定 = 50(SRS-005 許容誤差 ±5% 超) | `ValidationErr(MISMATCH_WITH_SETTINGS)` | RCM |
+| UT-001.4-09 | 設定値との不一致(許容誤差内)、`state=RUNNING` | 流量 = 102、設定 = 100(+2% 以内、および境界 +5.00%) | `ValidationOk` | 正常系 |
+| UT-001.4-10 | プロパティ:`state=STOPPED` で範囲内は常に Ok | hypothesis:`0.0 ≤ rate ≤ 1200.0`(設定値検証スキップ) | `ValidationOk` | プロパティ |
+| UT-001.4-11 | プロパティ:範囲外は常に Err | hypothesis:`rate < 0.0` or `rate > 1200.0` | `ValidationErr` | プロパティ |
+| UT-001.4-12 | Decimal 入力(精度 2 桁保持) | `Decimal("100.00")` | `ValidationOk`、`flow_rate.as_tuple().exponent == -2` | 正常系 |
 
-**ケース数目安:** 正常系 3、境界値 2、異常系 2、RCM 3、プロパティ 2 = **合計 ≥ 12**
-**MC/DC 目標:** 100%(RCM-001、範囲チェック複合条件)
+**展開実装(Step 19 B3 時点、`tests/unit/test_flow_validator.py`):**
+
+- UT-001.4-07 を NaN / +Inf / -Inf の 3 サブケースに `pytest.parametrize` 展開
+- UT-001.4-09 を「±2% 以内」「±5.00% 境界」「+5.01%(MISMATCH 側)」の 3 サブケースに展開
+- 補助観点:`state ∈ {INITIALIZING, IDLE, PAUSED, STOPPED, ERROR}` で設定値検証がスキップされることを 5 状態 × 1 件で網羅(RCM-001 の状態依存分岐 MC/DC を試験設計で担保)
+- 補助観点:純粋性(同一入力 2 回呼出の冪等)、frozen 検証(4 dataclass)、範囲定数(MIN/MAX)
+- `hypothesis` は `max_examples=200, deadline=None` でプロパティ 2 件を実行
+- **実測ケース数 34 件、全 Pass(2026-04-23)**
+
+**ケース数目安:** 正常系 3、境界値 2、異常系 2、RCM 3、プロパティ 2 = **合計 ≥ 12**(展開後 34)
+**MC/DC 目標:** 100%(RCM-001、範囲チェック + 設定値整合性の複合条件)
 
 #### 7.3.3 UNIT-002.4 HW-side Failsafe Timer(代表・詳細)
 
@@ -361,10 +372,10 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 
 | ユニット ID | 試験 ID 総数 | Pass | Fail | Skip | カバレッジ(stmt / branch / MC/DC) | 実施日 | コミット SHA |
 |------------|----------|------|------|------|--------------------------|-------|-----------|
-| UNIT-001.1 | **62**(うち UT-001.1-01..12 = 12 + パラメータ化展開 45 + スモーク 5)| **62** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 目視確認、RCM-019 全分岐)** | 2026-04-23 | Step 19 B2 PR マージコミット(TBD)|
+| UNIT-001.1 | **62**(うち UT-001.1-01..12 = 12 + パラメータ化展開 45 + スモーク 5)| **62** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 目視確認、RCM-019 全分岐)** | 2026-04-23 | Step 19 B2 PR マージコミット `27dd1cd`(マージ後 SHA は `git log` 参照)|
 | UNIT-001.2 | ≥ 12 | — | — | — | — | — | — |
 | UNIT-001.3 | ≥ 10 | — | — | — | — | — | — |
-| UNIT-001.4 | ≥ 12 | — | — | — | — | — | — |
+| UNIT-001.4 | **34**(うち UT-001.4-01..12 = 12 + パラメータ化展開 14 + 補助観点 8)| **34** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐)** | 2026-04-23 | Step 19 B3 PR マージコミット(TBD)|
 | UNIT-001.5 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-002.1 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-002.2 | ≥ 6 | — | — | — | — | — | — |
@@ -404,7 +415,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-001.1 State Machine | UT-001.1-01 〜 UT-001.1-12 | SRS-020, 021, 025, SRS-RCM-020, SRS-ALM-003 | RCM-019 | HZ-001, HZ-002 | **Pass(100 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B2、2026-04-23)** |
 | UNIT-001.2 Control Loop | UT-001.2-01 〜(≥ 12) | SRS-011, 012, 031, SRS-P02, SRS-RCM-004 | RCM-004(SW 送出)| HZ-001, HZ-002 | 未実施 |
 | UNIT-001.3 Command Handler | UT-001.3-01 〜(≥ 10) | SRS-010, 013, 014, SRS-P03, SRS-P04 | —(State Machine と連携)| HZ-001, HZ-002 | 未実施 |
-| UNIT-001.4 Flow Command Validator | UT-001.4-01 〜 UT-001.4-12 | SRS-O-001, SRS-RCM-001, SRS-005 | RCM-001 | HZ-001, HZ-002 | 未実施 |
+| UNIT-001.4 Flow Command Validator | UT-001.4-01 〜 UT-001.4-12 | SRS-O-001, SRS-RCM-001, SRS-005 | RCM-001 | HZ-001, HZ-002 | **Pass(34 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B3、2026-04-23)** |
 | UNIT-001.5 Watchdog (SW) | UT-001.5-01 〜(≥ 8) | SRS-RCM-003 | RCM-003 | HZ-001, HZ-002 | 未実施 |
 | UNIT-002.1 Pump Simulator | UT-002.1-01 〜(≥ 10) | SRS-030, 031, SRS-P01 | RCM-004(HW 被呼出側)| HZ-001, HZ-002 | 未実施 |
 | UNIT-002.2 Pump Observer | UT-002.2-01 〜(≥ 6) | SRS-031, SRS-I-020 | — | — | 未実施 |
@@ -427,3 +438,4 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 |----------|------|---------|--------|
 | 0.1 | 2026-04-23 | 初版作成(計画、Step 19 A)。Inc.1 の全 17 ユニットに UT-UID(UT-001.1〜UT-005.3)を採番。代表 5 ユニット(UNIT-001.1, 001.4, 002.4, 003.3, 004.1、SDD v0.1 時点で詳細設計された 5 件)について試験ケースを詳細記述(正常系 / 境界値 / 異常系 / RCM / 並行 / タイミング / プロパティ 分類合計 59 件)。残 12 ユニットは試験観点とケース数目安のみ骨格記述(合計目安 ≥ 95 件)。カバレッジ目標を本プロジェクト固有に強化(RCM 実装 6 ユニットで MC/DC 100%)。試験環境、試験 ID 体系、クラス C 追加基準 9 項目(§5.5.4 準拠)、問題発見時の手続(SPRP/CR 連携)を確立。第 II 部(報告)は骨格のみ、Step 19 B 以降の TDD Red-Green-Refactor で埋めていく | k-abe |
 | 0.2 | 2026-04-23 | **Step 19 B2(UNIT-001.1 State Machine TDD 実装)の実施結果を第 II 部に反映**。§9.2 UNIT-001.1 行を 62 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-019 全分岐)で確定。§11 トレーサビリティマトリクス UNIT-001.1 行の結果欄を「Pass」に更新。他 16 ユニットは未実施のまま据置(Step 19 B2+ 以降で TDD を継続)。UT-001.1-04 パラメータ化展開で TRANSITION_TABLE 全 13 エントリ × Pass 方向を網羅、UT-001.1-05 で (State, EventKind) 非登録全組合せ 45 ケースを網羅(RCM-019 確認)、UT-001.1-11/12 で hypothesis プロパティ試験 2 件を実装 | k-abe |
+| 0.3 | 2026-04-23 | **Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)の実施結果を反映 + §7.3.2 を SRS/SDD に整合化**。**(1) 第 I 部 §7.3.2 整合化(MINOR、CR 不要):** v0.2 までの本節は (a) 指令値域を「設定値域 0.1〜1200」と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で齟齬していた。SRS/SDD を真として本節のテーブル(UT-001.4-01〜12)を全面差し替え、整合化注釈を本節冒頭に追記。SRS / SDD / RMF / SAD 本体は不変。**(2) 第 II 部 §9.2:** UNIT-001.4 行を 34 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐、試験設計担保)で確定。§11 トレーサビリティマトリクス UNIT-001.4 行を「Pass」に更新。**(3) 試験設計:** UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% の 3 サブケースに `pytest.parametrize` 展開、補助観点として 5 状態 × 設定値検証スキップ確認 + 純粋性 + frozen 4 件 + 範囲定数 2 件を追加。`hypothesis` プロパティ 2 件は `max_examples=200, deadline=None` で実装。教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
