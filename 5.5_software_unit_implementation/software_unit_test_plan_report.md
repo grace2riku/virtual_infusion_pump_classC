@@ -1,7 +1,7 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.4
+**バージョン:** 0.5
 **作成日:** 2026-04-23
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -286,21 +286,37 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 
 **関連 SRS:** SRS-DATA-002, SRS-DATA-003、**関連 RCM:** RCM-015 前提、**関連 HZ:** HZ-007(永続化破損)
 
+> **Step 19 B5 整合化(2026-04-23、本節 v0.5):** Step 19 B3 / B4 教訓を運用化した着手前クロスレビューで、SDD §4.4 と v0.4 までの本節の間に 4 件の不整合を発見、ユーザー合意のもとで SRS / SDD を真として本節を整合化(MINOR 区分・CR 不要、SRS / SDD / RMF / SAD 本体は不変)。**(1) API 名と引数順:** SDD §4.4.A の `write(data, target_path)` / `read(target_path)` / `rollback(target_path)` の 3 API に統一(UTPR v0.4 までの `write_atomic(path, data)` 単独記述から変更)。**(2) UT-003.3-07 並行書込の前提:** SDD §4.4.C 「並行書き込みは呼出側責任、本ユニットはロックしない」に整合化し、本節では **異なる target_path への並行書込が独立して成功しデッドロック/内部状態破壊が起きない** ことを検証する「ステートレス確認」に変更(UTPR v0.4 までの「ロック機構動作」表現は撤回)。**(3) UT-003.3-08 戻り値型:** 独自型 `Err(DiskFullError)` ではなく SDD §4.4.E 整合の `WriteErr(OSError)` + `error.errno == ENOSPC` で検出するパターンに統一。**(4) UT-003.3-10 電源断シミュレーション:** subprocess + SIGKILL は本 UT 段階では行わず(ファイルシステム挙動差 + プロセス管理 flake のリスク、SDD §4.4.E「原理的に検知不可能 / load 側で整合性検証が担保」にも整合)、ITPR §5.6(将来 Step 19 D)に申し送り。本 UT では SDD §4.4.B の不変条件「target か bak のどちらかが旧データを保持」を内部ステップ観測で検証 + `os.fsync` 呼出をモック記録で検証する形に整合化。
+
 | 試験 ID | 対象 API / 観点 | 入力 / 条件 | 期待結果 | 種別 |
 |---------|---------------|-----------|---------|------|
-| UT-003.3-01 | `write_atomic(path, data)` 新規書込 | 存在しないパス | ファイル生成、内容一致 | 正常系 |
-| UT-003.3-02 | 上書き | 既存ファイル | 原子的に置換(途中状態が観測されない) | 正常系 |
-| UT-003.3-03 | 一時ファイル残存確認 | 正常終了時 | `.tmp` が残らない | 正常系 |
-| UT-003.3-04 | 書込中の例外(モック `os.rename` 失敗) | 書込途中で失敗を注入 | 元ファイル不変、`.tmp` がクリーンアップ対象に | 異常系 |
-| UT-003.3-05 | 空データ書込 | `data = b""` | 空ファイル生成 | 境界値 |
-| UT-003.3-06 | 大容量書込 | `data = b"x" * 10**6`(1 MB) | 正常終了、メモリリークなし | 境界値・資源 |
-| UT-003.3-07 | 並行書込(同一パス) | 2 スレッドが同時に書込 | 一方成功、他方失敗(ロック機構動作)、ファイルは必ず一方の内容 | 並行 |
-| UT-003.3-08 | ディスクフル(モック) | `OSError(ENOSPC)` 注入 | `Err(DiskFullError)` | 異常系 |
-| UT-003.3-09 | 読込専用ディレクトリ | 書込不可パス | `Err(PermissionError)`、元ファイル不変 | 異常系 |
-| UT-003.3-10 | 書込中の電源断シミュレーション | `os.fsync` 直前で SIGKILL 注入(サブプロセス試験) | 元ファイルが保持されている(原子性) | RCM 前提・異常系 |
+| UT-003.3-01 | `write(data, target_path)` 新規書込 | 存在しないパス | `WriteOk(bytes_written)`、ファイル生成、内容一致 | 正常系 |
+| UT-003.3-02 | 上書き(原子性 + 旧データ → bak 退避) | 既存ファイル `target` | `target` 最新内容、`target.bak` に旧内容(SRS-DATA-003 1 世代) | 正常系 |
+| UT-003.3-02b | 既存の古い bak は新しい bak に置換 | `target` と `target.bak` の両方が既存 | 新 bak は旧 target 内容に更新、2 世代は保持しない | 正常系 |
+| UT-003.3-03 | `.tmp` 残存しない | 正常終了時 | temp サフィックスを持つ兄弟ファイル 0 件 | 正常系 |
+| UT-003.3-04 | リネーム失敗時、target 不変 + `.tmp` クリーンアップ | 2 回目の `os.replace`(temp → target)に `OSError(EIO)` 注入 | `WriteErr`、target か bak に旧データ「original」保持、`.tmp` 残存なし | 異常系 |
+| UT-003.3-05 | 空データ書込 | `data = b""` | `WriteOk(bytes_written=0)`、空ファイル生成 | 境界値 |
+| UT-003.3-06 | 1 MB 大容量書込 | `data = b"x" * 10**6` | `WriteOk(bytes_written=10**6)`、ファイルサイズ一致 | 境界値・資源 |
+| UT-003.3-07 | ステートレス確認(並行書込は呼出側責任) | **異なる** target_path への 2 スレッド × 20 回 write | デッドロックなし、各 target は最後の書込内容を保持 | 並行 |
+| UT-003.3-08 | ディスクフル(ENOSPC) | `os.fsync` が `OSError(ENOSPC)` を投げる | `WriteErr`、`error.errno == ENOSPC`、target 不在、`.tmp` 残存なし | 異常系 |
+| UT-003.3-09 | 読込専用ディレクトリ(PermissionError) | 親ディレクトリを `chmod 0o500` | `WriteErr(OSError)`、元 target 不変 | 異常系 |
+| UT-003.3-10a | `os.fsync` 呼出検証 | 通常 write のモック記録 | `os.fsync` が ≥ 1 回呼ばれる(temp fd、POSIX ならディレクトリ fd も) | RCM 前提 |
+| UT-003.3-10b | 不変条件(target or bak 常在) | 2 回目の `os.replace` 失敗注入後の状態観測 | target か bak のいずれかから旧データ「original」が復元可能 | RCM 前提・異常系 |
 
-**ケース数目安:** 正常系 3、境界値 2、異常系 3、並行 1、RCM 前提 1 = **合計 ≥ 10**
-**MC/DC 目標:** 95%(RCM 前提、直接の RCM 実装ではないため)
+**展開実装(Step 19 B5 時点、`tests/unit/test_atomic_writer.py`):**
+
+- 上記 12 試験ケースに加え、補助観点として:
+  - **`read` API**: 2 件(正常読込 / `FileNotFoundError`)
+  - **`rollback` API**: 3 件(bak から target 復元 / bak なし `NoBackupError` / `os.replace` 失敗)
+  - **write → read 往復 + バイナリデータ保持**: 1 件(`\x00\x01\x02binary\xff\xfe`)
+  - **連続 2 回書込で 1 世代のみ保持**: 1 件(SRS-DATA-003 実地確認、3 回書込で v1 が失われ v2 が bak)
+  - **`_best_effort_unlink` の OSError 握りつぶし**: 1 件(SDD §4.4.E「temp クリーンアップ失敗は許容」の分岐検証)
+  - **非 POSIX(`hasattr(os, "O_DIRECTORY") is False`)の早期リターン**: 1 件(Windows 相当環境の `_try_fsync_directory` 不実行)
+- **実測ケース数 21 件、全 Pass(2026-04-23、3 連続実行 173 tests stable 確認)**
+- subprocess + SIGKILL 電源断試験は ITPR §5.6(将来 Step 19 D)に申し送り
+
+**ケース数目安:** 正常系 3、境界値 2、異常系 3、並行 1、RCM 前提 1 = **合計 ≥ 10**(展開後 21)
+**MC/DC 目標:** **100%** に引き上げ(v0.4 の 95% から強化、コード規模 78 stmt / 6 branch で網羅可能、試験設計で完全担保)
 
 #### 7.3.5 UNIT-004.1 Integrity Validator(代表・詳細)
 
@@ -394,10 +410,10 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-002.1 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-002.2 | ≥ 6 | — | — | — | — | — | — |
 | UNIT-002.3 | ≥ 3 | — | — | — | — | — | — |
-| UNIT-002.4 | **18**(うち UT-002.4-01..08 展開後 10 + 補助観点 8)| **18** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-004 HW 側 + クロック逆転 + Tripped 分岐)** | 2026-04-23 | Step 19 B4 PR マージコミット(TBD)|
+| UNIT-002.4 | **18**(うち UT-002.4-01..08 展開後 10 + 補助観点 8)| **18** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-004 HW 側 + クロック逆転 + Tripped 分岐)** | 2026-04-23 | Step 19 B4 PR #12 マージコミット `3c7a933` |
 | UNIT-003.1 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-003.2 | ≥ 6 | — | — | — | — | — | — |
-| UNIT-003.3 | ≥ 10 | — | — | — | — | — | — |
+| UNIT-003.3 | **21**(うち UT-003.3-01..10 展開後 12 + 補助観点 9)| **21** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、write/read/rollback + bak 世代管理 + 例外経路 + 非 POSIX 早期リターン)** | 2026-04-23 | Step 19 B5 PR マージコミット(TBD)|
 | UNIT-004.1 | ≥ 12 | — | — | — | — | — | — |
 | UNIT-004.2 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-005.1 | ≥ 10 | — | — | — | — | — | — |
@@ -437,7 +453,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-002.4 HW-side Failsafe Timer | UT-002.4-01 〜 UT-002.4-08 | SRS-RCM-004, SRS-032 | RCM-004(HW 側)| HZ-001, HZ-002 | **Pass(18 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B4、2026-04-23)** |
 | UNIT-003.1 Serializer | UT-003.1-01 〜(≥ 8) | SRS-DATA-001, 004 | RCM-015 前提 | HZ-007 | 未実施 |
 | UNIT-003.2 Checksum Verifier | UT-003.2-01 〜(≥ 6) | SRS-SEC-001 | RCM-015 構成要素 | HZ-007 | 未実施 |
-| UNIT-003.3 Atomic File Writer | UT-003.3-01 〜 UT-003.3-10 | SRS-DATA-002, 003 | RCM-015 前提 | HZ-007 | 未実施 |
+| UNIT-003.3 Atomic File Writer | UT-003.3-01 〜 UT-003.3-10 | SRS-DATA-002, 003 | RCM-015 前提 | HZ-007 | **Pass(21 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B5、2026-04-23)** |
 | UNIT-004.1 Integrity Validator | UT-004.1-01 〜 UT-004.1-12 | SRS-026, 027, SRS-RCM-015 | RCM-015 | HZ-007 | 未実施 |
 | UNIT-004.2 Resume Confirmation Gate | UT-004.2-01 〜(≥ 8) | SRS-028, SRS-RCM-016 | RCM-016 | HZ-007 | 未実施 |
 | UNIT-005.1 Control API | UT-005.1-01 〜(≥ 10) | SRS-IF-002, SRS-010〜014 | —(委譲)| HZ-001, HZ-002 | 未実施 |
@@ -454,3 +470,4 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | 0.2 | 2026-04-23 | **Step 19 B2(UNIT-001.1 State Machine TDD 実装)の実施結果を第 II 部に反映**。§9.2 UNIT-001.1 行を 62 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-019 全分岐)で確定。§11 トレーサビリティマトリクス UNIT-001.1 行の結果欄を「Pass」に更新。他 16 ユニットは未実施のまま据置(Step 19 B2+ 以降で TDD を継続)。UT-001.1-04 パラメータ化展開で TRANSITION_TABLE 全 13 エントリ × Pass 方向を網羅、UT-001.1-05 で (State, EventKind) 非登録全組合せ 45 ケースを網羅(RCM-019 確認)、UT-001.1-11/12 で hypothesis プロパティ試験 2 件を実装 | k-abe |
 | 0.3 | 2026-04-23 | **Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)の実施結果を反映 + §7.3.2 を SRS/SDD に整合化**。**(1) 第 I 部 §7.3.2 整合化(MINOR、CR 不要):** v0.2 までの本節は (a) 指令値域を「設定値域 0.1〜1200」と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で齟齬していた。SRS/SDD を真として本節のテーブル(UT-001.4-01〜12)を全面差し替え、整合化注釈を本節冒頭に追記。SRS / SDD / RMF / SAD 本体は不変。**(2) 第 II 部 §9.2:** UNIT-001.4 行を 34 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐、試験設計担保)で確定。§11 トレーサビリティマトリクス UNIT-001.4 行を「Pass」に更新。**(3) 試験設計:** UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% の 3 サブケースに `pytest.parametrize` 展開、補助観点として 5 状態 × 設定値検証スキップ確認 + 純粋性 + frozen 4 件 + 範囲定数 2 件を追加。`hypothesis` プロパティ 2 件は `max_examples=200, deadline=None` で実装。教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
 | 0.4 | 2026-04-23 | **Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)の実施結果を反映 + §7.3.3 整合化**。**(1) 第 I 部 §7.3.3 整合化(MINOR、CR 不要):** Step 19 B3 教訓を運用化し着手前クロスレビューを実施、(a) Logger 注入据置(SDD §4.3.B に `_logger` フィールドなし、UNIT-004+ で正式化、HW failsafe 識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` で代替)、(b) クロック注入(DI)採用(`clock: Callable[[], float]` をコンストラクタ注入、UT-002.4-07 クロック逆転試験のため)、(c) クロック逆転時挙動を「安全側 = 発火」と設計判断(SDD §4.3 未定義、RCM-004 安全側原則 + UNIT-001.1 と整合)、の 3 件を整合化注釈に明記。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.3 試験テーブル:** UT-002.4-04 を 04a(500 ms ちょうどで発火しない)/ 04b(500 ms + ε で発火)に分割、UT-002.4-06 を「ログ記録」から「`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出識別」に整合化、UT-002.4-08 を 08a(heartbeat 無視)/ 08b(`check_once` 冪等)に分割、各ケースに `check_once` API 経由のテスト前提を明記。**(3) 第 II 部 §9.2:** UNIT-002.4 行を 18 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-002.4 行を「Pass」更新。UNIT-001.4 行のコミット欄を Step 19 B3 マージ SHA `72d474e` で確定。**(4) 試験設計:** 補助観点 8 件(start/stop ライフサイクル 4、pump 例外耐性 1、定数値 2、実時間スレッド統合スモーク 1)、連打側スモークは macOS sleep ジッタ flaky のため fake_clock UT-002.4-01/05 に委任(教訓記録)。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
+| 0.5 | 2026-04-23 | **Step 19 B5(UNIT-003.3 Atomic File Writer TDD 実装)の実施結果を反映 + §7.3.4 整合化**。**(1) 第 I 部 §7.3.4 整合化(MINOR、CR 不要):** Step 19 B3 / B4 教訓の運用継続で着手前クロスレビュー実施、4 件の不整合を発見:(a) API 名 `write_atomic(path, data)` → SDD §4.4.A の `write(data, target_path)` + `read` + `rollback` 3 API へ整合化、(b) UT-003.3-07 並行書込を「ロック機構動作」→ SDD §4.4.C「呼出側責任、本ユニットはロックしない」と整合な「ステートレス確認(異なる target_path への並行書込)」へ整合化、(c) UT-003.3-08 `Err(DiskFullError)` → SDD §4.4.E 整合の `WriteErr(OSError)` + `errno==ENOSPC` へ、(d) UT-003.3-10 subprocess + SIGKILL 電源断試験は CI 安定性 + SDD §4.4.E「原理的に検知不可能 / load 側で担保」により ITPR §5.6 申し送り、本 UT では内部ステップ観測 + `os.fsync` 呼出モック検証で代替(UT-003.3-10a/10b に分割)。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.4 試験テーブル:** 12 行へ再整備(UT-003.3-02b bak 置換、UT-003.3-10a/10b 分割、引数順を SDD に統一)。MC/DC 目標を 95% → **100%** に引き上げ(コード規模 78 stmt / 6 branch、試験設計で完全網羅可能)。**(3) 第 II 部 §9.2:** UNIT-003.3 行を 21 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-003.3 行を「Pass」更新。UNIT-002.4 行のコミット欄を Step 19 B4 マージ SHA `3c7a933` で確定。**(4) 試験設計:** 補助観点 9 件(read 2 + rollback 3 + 往復 1 + bak 世代管理 1 + best-effort unlink 1 + 非 POSIX 1)、`tmp_path` fixture + `unittest.mock.patch` で `os.replace`/`os.fsync`/`Path.unlink` を注入して OSError 経路を網羅。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録(着手前クロスレビューの運用 3 度目定着 + OSError 注入パターンの再利用性) | k-abe |
