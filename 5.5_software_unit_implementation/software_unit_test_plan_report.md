@@ -1,7 +1,7 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.8
+**バージョン:** 0.9
 **作成日:** 2026-04-23
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -414,13 +414,43 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 **ケース数目安:** 基本 2、ラウンドトリップ 5、境界値・異常系 7(パラメータ化展開後)、正規化 2、決定論 1、資源 1、契約 2、プロパティ 2 = **合計 ≥ 10**(展開後 **32**)
 **MC/DC 目標:** **100%**(v0.7 骨格の 95% から引き上げ、コード規模 17 stmt / 4 branch で網羅可能)
 
-#### 7.3.8 残 10 ユニット骨格(Step 19 B の TDD Red で詳細化)
+#### 7.3.8 UNIT-001.5 SW Watchdog(実施済、詳細)
+
+**関連 SRS:** SRS-RCM-003(SW Watchdog タイムアウト監視)、**関連 RCM:** RCM-003(SW 側、ハートビート監視)、**関連 HZ:** HZ-001, HZ-002
+
+> **Step 19 B9 整合化(2026-04-24、本節 v0.9 新規詳細化):** v0.8 までは §7.3.8 残骨格表で「**500 ms** 判定(境界 499/500/501)」と誤記されていたが、SDD v0.2 §4.8 / SRS-RCM-003 / RMF RCM-003 のいずれも SW 側は **300 ms**(HW 側が 500 ms)と規定している。本節で詳細化する際に訂正(MINOR 区分・CR 不要、SRS / SDD / RMF / SAD 本体不変)。B9 着手前クロスレビュー(7 度目運用)で運用性 1 論点 + 専門性 5 論点を抽出、ユーザー合意のもと推奨方針で進行:**運用性:** ① `WatchdogReason` enum 名 — SDD §4.8.C 擬似コードの `SW_HEARTBEAT_TIMEOUT` は state_machine.py 実装の既存 `SW_WATCHDOG` を使う(state_machine.py 不変、SDD 擬似コードは参考名扱い。B7/B8 「add-only / 既存成果物不変」の継続)。**専門性:** ① クロック DI(`clock: Callable[[], float]`、B4 パターン踏襲で決定論試験)、② クロック逆転時は安全側 = Trip(B4 判断の継続)、③ `check_once` テストフック公開(B4 パターン)、④ Logger 据置(SDD §4.8.B に `_logger` なし、B4 判断)、⑤ MC/DC 目標 100%(RCM 実装ユニット規定)。**UT 申し送り:** なし(階層防御の時間順序試験は UT で fake_clock を使えば決定論的に可能、subprocess / 実時間は不要)。
+
+| 試験 ID | 対象 API / 観点 | 入力 / 条件 | 期待結果 | 種別 |
+|---------|---------------|-----------|---------|------|
+| UT-001.5-01 | 正常ハートビート | 100 ms 周期 × 10 回 | `is_tripped == False`、`on_watchdog_timeout` 未呼出 | 正常系 |
+| UT-001.5-02 | ハートビート途絶 | 301 ms 経過 + `check_once` | `is_tripped == True`、`on_watchdog_timeout(SW_WATCHDOG)` 1 回 | RCM(003) |
+| UT-001.5-03a | 境界 299 ms(Trip しない) | heartbeat 後 299 ms | `is_tripped == False` | 境界値 |
+| UT-001.5-03b | 境界 300 ms ちょうど(Trip しない、`>` 判定) | heartbeat 後 `HEARTBEAT_TIMEOUT` | `is_tripped == False` | 境界値 |
+| UT-001.5-03c | 境界 300 ms + ε(Trip) | heartbeat 後 `HEARTBEAT_TIMEOUT + 0.0001` | `is_tripped == True` | 境界値 |
+| UT-001.5-03d | 最大検出遅延 350 ms(Trip) | heartbeat 後 `HEARTBEAT_TIMEOUT + MONITOR_INTERVAL` | `is_tripped == True`(SDD §4.8.D 最大検出遅延) | 境界値 |
+| UT-001.5-04 | 並行 heartbeat | 2 スレッド × 50 回 × 1 ms | データ競合なし、`last_heartbeat == fake_clock()` | 並行 |
+| UT-001.5-05 | クロック逆転 → Trip(安全側) | heartbeat 後に `set_to(0.05)` | `is_tripped == True`、`on_watchdog_timeout(SW_WATCHDOG)` 1 回 | 安全側設計判断 |
+| UT-001.5-06a | Tripped 後 heartbeat 無視 | Trip 後に heartbeat + 0.1 s | `last_heartbeat` 不変 | 異常系(自動復帰禁止) |
+| UT-001.5-06b | `check_once` 冪等 | Trip 後 `check_once` × 3 | `on_watchdog_timeout` 1 回のみ | 冪等性 |
+| UT-001.5-07a | start/stop 正常 | `start()` → `stop()` | `is_running` が True → False | ライフサイクル |
+| UT-001.5-07b | 2 重 start | `start()` × 2 | `RuntimeError("already started")` | 異常系 |
+| UT-001.5-07c | 2 重 stop | `start()` → `stop()` × 2 | no-op(例外なし) | ライフサイクル |
+| UT-001.5-07d | stop before start | 初期状態で `stop()` | no-op(例外なし) | ライフサイクル |
+| UT-001.5-08 | State Machine 例外耐性 | `on_watchdog_timeout` が `RuntimeError` | `is_tripped == True`、`check_once` 例外伝播なし(SDD §4.8.E) | 異常系 |
+| UT-001.5-09 | 定数 `HEARTBEAT_TIMEOUT == 0.3` | — | 300 ms 一致 | 契約 |
+| UT-001.5-10 | 定数 `MONITOR_INTERVAL == 0.05` | — | 50 ms 一致 | 契約 |
+| UT-001.5-11 | 実時間スレッド統合スモーク | `time.monotonic` + `start()` + 1 秒境界 | 1 秒以内に Trip、`on_watchdog_timeout(SW_WATCHDOG)` 呼出 | 統合スモーク |
+| UT-001.5-12 | 階層防御(SW < HW 時間順序) | 同一 fake_clock に SW/HW 並列、301 ms → 501 ms | 301 ms 時点で SW のみ Trip、501 ms で HW も Trip(SW が先) | 二重冗長独立性 |
+
+**ケース数目安:** 正常系 1、境界値 4、並行 1、安全側 1、異常系 4、冪等 1、ライフサイクル 4、契約 2、スモーク 1、階層防御 1 = **合計 19 件**(展開後 **19**、v0.8 骨格の「≥ 8」を大幅超過)
+**MC/DC 目標:** **100%**(v0.8 骨格 100% を維持、コード規模 78 stmt / 12 branch で網羅可能)
+
+#### 7.3.9 残 9 ユニット骨格(Step 19 B の TDD Red で詳細化)
 
 | ユニット ID | 主要試験観点 | ケース数目安 | MC/DC 目標 | 備考 |
 |------------|-----------|-----------|-----------|------|
 | UNIT-001.2 Control Loop | タイミング(100 ms 周期 ±10%、SRS-P02)、heartbeat 送出、SRS-031 自動停止判定、ERROR 誘発、並行 | ≥ 12 | 100%(RCM-004 SW 側送出)| `pytest-benchmark` でサイクル計測 |
 | UNIT-001.3 Command Handler | コマンドキュー、stop ファストパス(SRS-P04 ≤ 50 ms)、順次処理、境界値 | ≥ 10 | 95% | stop ファストパスの応答時間計測必須 |
-| UNIT-001.5 Watchdog (SW side) | 500 ms 判定(境界 499/500/501)、冪等、並行、クロック逆転 | ≥ 8 | 100%(RCM-003)| |
 | UNIT-002.1 Pump Simulator | 指令反映、`force_stop_failsafe` 冪等、SRS-030/031 準拠、積算量計算 | ≥ 10 | 95% | `force_stop_failsafe` は RCM-004 HW 側の被呼出側 |
 | UNIT-002.2 Pump Observer | 観測 API の不変性(pure)、状態整合性 | ≥ 6 | — | 観測のみ、RCM なし |
 | UNIT-002.3 Event Injection Stub | Inc.2 以降のスタブ、本 Inc.1 では空動作の確認のみ | ≥ 3 | — | Inc.2 着手時に拡張 |
@@ -429,7 +459,7 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 | UNIT-005.2 State Observer API | 薄いラッパー、observer 委譲、非 block | ≥ 6 | — | |
 | UNIT-005.3 Validation API(クラス B) | **SEP-001 分離検証**、内部例外握りつぶし契約、境界値 | ≥ 8 | 90% | `mypy` でインポートグラフ分離を機械検証 |
 
-**合計ケース数目安(全 17 ユニット):** **≥ 145 件**(代表 5 + UNIT-003.1 + UNIT-003.2 = 117 件実測 + 骨格 10 = 73 件の目安)。最終的な件数は Step 19 B の TDD で増減する見込み。
+**合計ケース数目安(全 17 ユニット):** **≥ 145 件**(代表 5 + UNIT-003.1 + UNIT-003.2 + UNIT-001.5 = 136 件実測 + 骨格 9 = 66 件の目安)。最終的な件数は Step 19 B の TDD で増減する見込み。
 
 ### 7.4 カバレッジ目標
 
@@ -478,7 +508,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-001.2 | ≥ 12 | — | — | — | — | — | — |
 | UNIT-001.3 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-001.4 | **34**(うち UT-001.4-01..12 = 12 + パラメータ化展開 14 + 補助観点 8)| **34** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐)** | 2026-04-23 | Step 19 B3 PR #11 マージコミット `72d474e` |
-| UNIT-001.5 | ≥ 8 | — | — | — | — | — | — |
+| UNIT-001.5 | **19**(うち UT-001.5-01..12 展開後 19、内訳:境界 4 + ライフサイクル 4 + 異常系 4 + その他 7) | **19** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、RCM-003 SW 側 + クロック逆転 + Tripped 分岐 + 階層防御 SW<HW)** | 2026-04-24 | Step 19 B9 PR マージコミット(TBD) |
 | UNIT-002.1 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-002.2 | ≥ 6 | — | — | — | — | — | — |
 | UNIT-002.3 | ≥ 3 | — | — | — | — | — | — |
@@ -518,7 +548,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-001.2 Control Loop | UT-001.2-01 〜(≥ 12) | SRS-011, 012, 031, SRS-P02, SRS-RCM-004 | RCM-004(SW 送出)| HZ-001, HZ-002 | 未実施 |
 | UNIT-001.3 Command Handler | UT-001.3-01 〜(≥ 10) | SRS-010, 013, 014, SRS-P03, SRS-P04 | —(State Machine と連携)| HZ-001, HZ-002 | 未実施 |
 | UNIT-001.4 Flow Command Validator | UT-001.4-01 〜 UT-001.4-12 | SRS-O-001, SRS-RCM-001, SRS-005 | RCM-001 | HZ-001, HZ-002 | **Pass(34 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B3、2026-04-23)** |
-| UNIT-001.5 Watchdog (SW) | UT-001.5-01 〜(≥ 8) | SRS-RCM-003 | RCM-003 | HZ-001, HZ-002 | 未実施 |
+| UNIT-001.5 Watchdog (SW) | UT-001.5-01 〜 UT-001.5-12 | SRS-RCM-003 | RCM-003 | HZ-001, HZ-002 | **Pass(19 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B9、2026-04-24)** |
 | UNIT-002.1 Pump Simulator | UT-002.1-01 〜(≥ 10) | SRS-030, 031, SRS-P01 | RCM-004(HW 被呼出側)| HZ-001, HZ-002 | 未実施 |
 | UNIT-002.2 Pump Observer | UT-002.2-01 〜(≥ 6) | SRS-031, SRS-I-020 | — | — | 未実施 |
 | UNIT-002.3 Event Injection Stub | UT-002.3-01 〜(≥ 3) | SRS-032, SRS-I-040(Inc.2)| —(Inc.2 で追加)| HZ-004 | 未実施 |
@@ -542,6 +572,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | 0.2 | 2026-04-23 | **Step 19 B2(UNIT-001.1 State Machine TDD 実装)の実施結果を第 II 部に反映**。§9.2 UNIT-001.1 行を 62 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-019 全分岐)で確定。§11 トレーサビリティマトリクス UNIT-001.1 行の結果欄を「Pass」に更新。他 16 ユニットは未実施のまま据置(Step 19 B2+ 以降で TDD を継続)。UT-001.1-04 パラメータ化展開で TRANSITION_TABLE 全 13 エントリ × Pass 方向を網羅、UT-001.1-05 で (State, EventKind) 非登録全組合せ 45 ケースを網羅(RCM-019 確認)、UT-001.1-11/12 で hypothesis プロパティ試験 2 件を実装 | k-abe |
 | 0.3 | 2026-04-23 | **Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)の実施結果を反映 + §7.3.2 を SRS/SDD に整合化**。**(1) 第 I 部 §7.3.2 整合化(MINOR、CR 不要):** v0.2 までの本節は (a) 指令値域を「設定値域 0.1〜1200」と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で齟齬していた。SRS/SDD を真として本節のテーブル(UT-001.4-01〜12)を全面差し替え、整合化注釈を本節冒頭に追記。SRS / SDD / RMF / SAD 本体は不変。**(2) 第 II 部 §9.2:** UNIT-001.4 行を 34 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐、試験設計担保)で確定。§11 トレーサビリティマトリクス UNIT-001.4 行を「Pass」に更新。**(3) 試験設計:** UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% の 3 サブケースに `pytest.parametrize` 展開、補助観点として 5 状態 × 設定値検証スキップ確認 + 純粋性 + frozen 4 件 + 範囲定数 2 件を追加。`hypothesis` プロパティ 2 件は `max_examples=200, deadline=None` で実装。教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
 | 0.4 | 2026-04-23 | **Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)の実施結果を反映 + §7.3.3 整合化**。**(1) 第 I 部 §7.3.3 整合化(MINOR、CR 不要):** Step 19 B3 教訓を運用化し着手前クロスレビューを実施、(a) Logger 注入据置(SDD §4.3.B に `_logger` フィールドなし、UNIT-004+ で正式化、HW failsafe 識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` で代替)、(b) クロック注入(DI)採用(`clock: Callable[[], float]` をコンストラクタ注入、UT-002.4-07 クロック逆転試験のため)、(c) クロック逆転時挙動を「安全側 = 発火」と設計判断(SDD §4.3 未定義、RCM-004 安全側原則 + UNIT-001.1 と整合)、の 3 件を整合化注釈に明記。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.3 試験テーブル:** UT-002.4-04 を 04a(500 ms ちょうどで発火しない)/ 04b(500 ms + ε で発火)に分割、UT-002.4-06 を「ログ記録」から「`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出識別」に整合化、UT-002.4-08 を 08a(heartbeat 無視)/ 08b(`check_once` 冪等)に分割、各ケースに `check_once` API 経由のテスト前提を明記。**(3) 第 II 部 §9.2:** UNIT-002.4 行を 18 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-002.4 行を「Pass」更新。UNIT-001.4 行のコミット欄を Step 19 B3 マージ SHA `72d474e` で確定。**(4) 試験設計:** 補助観点 8 件(start/stop ライフサイクル 4、pump 例外耐性 1、定数値 2、実時間スレッド統合スモーク 1)、連打側スモークは macOS sleep ジッタ flaky のため fake_clock UT-002.4-01/05 に委任(教訓記録)。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
+| 0.9 | 2026-04-24 | **Step 19 B9(UNIT-001.5 SW Watchdog TDD 実装)の実施結果を反映 + §7.3.8 新規詳細化(残 10 → 9 骨格)**。**(1) 第 I 部 §7.3.8 新規詳細化(MINOR、CR 不要):** v0.8 までは §7.3.8 残骨格表で「**500 ms** 判定(境界 499/500/501)」と誤記されていたが、SDD v0.2 §4.8 / SRS-RCM-003 / RMF RCM-003 のいずれも SW 側は **300 ms**(HW 側が 500 ms)。新 §7.3.8 として詳細 UT テーブル(UT-001.5-01〜12)を書き下ろし、既存の残 10 ユニット骨格は §7.3.9 に移動して 9 ユニットに繰り下げ。本節冒頭に整合化注釈を追記。**(2) 判断論点(B9 着手前クロスレビュー、7 度目運用):** 運用性 1 — `WatchdogReason` enum は state_machine.py 既存の `SW_WATCHDOG` を使う(SDD §4.8.C 擬似コード `SW_HEARTBEAT_TIMEOUT` は参考名扱い、state_machine.py 不変、B7/B8 「add-only / 既存成果物不変」継続);専門性 5 — ① クロック DI、② クロック逆転 → Trip(安全側、B4 判断継続)、③ `check_once` テストフック、④ Logger 据置(B4 判断継続)、⑤ MC/DC 目標 100%。SRS / SDD / RMF / SAD 本体不変。**(3) UT 申し送り:** なし(階層防御の時間順序試験 UT-001.5-12 は fake_clock で決定論的に可能、subprocess / 実時間不要)。**(4) 第 II 部 §9.2:** UNIT-001.5 行を 19 tests Pass / カバレッジ 100% / MC/DC 100% で確定。§11 UNIT-001.5 行を「Pass」更新。UNIT-003.2 行のコミット欄を Step 19 B8 PR #16 マージ SHA `5c56cea` で確定。**(5) 試験設計:** UT-001.5-02/05/06b で State Machine の `on_watchdog_timeout(WatchdogReason.SW_WATCHDOG)` 呼出を `assert_called_once_with` で検証、UT-001.5-03a/b/c/d で境界 299/300/300+ε/350 ms の 4 点網羅、UT-001.5-12 で SW(301 ms Trip)→ HW(501 ms Trip)の階層防御時間順序を同一 fake_clock に対して並列動作で検証、UT-001.5-08 で state_machine.on_watchdog_timeout 例外耐性(SDD §4.8.E)を検証。B4 パターン踏襲により一発 Pass 達成(ruff / mypy / bandit / pip-audit 追加修正 0 件) | k-abe |
 | 0.8 | 2026-04-24 | **Step 19 B8(UNIT-003.2 Checksum Verifier TDD 実装)の実施結果を反映 + §7.3.7 新規詳細化(残 11 → 10 骨格)**。**(1) 第 I 部 §7.3.7 新規詳細化(MINOR、CR 不要):** B7 までは骨格のみの節を、着手前クロスレビュー(運用性 1 + 専門性 4)解消後に詳細 UT テーブル(UT-003.2-01〜15)として書き下ろし、既存の残 11 ユニット骨格は §7.3.8 に移動して 10 ユニットに繰り下げ。本節冒頭に整合化注釈を追記。**(2) 判断論点:** 運用性 — 既存の `compute_sha256` / `compute_payload_checksum` 重複は不変維持(B7 教訓「add-only 拡張」踏襲);専門性 — ① `hmac.compare_digest` 定数時間比較、② 大小 hex の `.lower()` 正規化、③ 不正 `expected` は例外なし `False`、④ MC/DC 目標 95% → **100%** 引き上げ。SRS / SDD / RMF / SAD 本体不変。**(3) UT 申し送り:** SDD §4.13.F 末尾「タイミング試験(参考)」は B4/B5 教訓(非決定論的試験は IT へ)に従い **ITPR §5.6 申し送り**。**(4) 第 II 部 §9.2:** UNIT-003.2 行を 32 tests Pass / カバレッジ 100% / MC/DC 100% で確定、§9.2 テーブル内の UNIT-003.1 行重複(骨格行と実績行の二重状態、B7 で発生)を整理して UNIT-003.2 正しい位置に配置。§11 UNIT-003.2 行を「Pass」更新。UNIT-003.1 行のコミット欄を Step 19 B7 PR #15 マージ SHA `982c568` で確定。**(5) 試験設計:** NIST 既知ベクタ 2 種、`pytest.parametrize` で UT-003.2-05/06/10/11 を 16 サブケースに展開、`hypothesis` プロパティ 2 種(`max_examples=200` のラウンドトリップ + 異なるバイト列の digest 相違)。専門性/運用性の論点分離により、5 論点中 4 論点を専門性に分類して提示を簡潔化できたことを実証(B7 教訓の運用化) | k-abe |
 | 0.7 | 2026-04-24 | **Step 19 B7(UNIT-003.1 Serializer TDD 実装)の実施結果を反映 + §7.3.6 新規詳細化(残 12 → 11 骨格)**。**(1) 第 I 部 §7.3.6 新規詳細化(MINOR、CR 不要):** B6 までは骨格のみの節を、着手前クロスレビュー 7 論点(別途 1 論点を実装時発覚)解消後に詳細 UT テーブル(UT-003.1-01〜17)として書き下ろし、既存の残 12 ユニット骨格は §7.3.7 に移動して 11 ユニットに繰り下げ。本節冒頭に整合化注釈を追記(推奨方針全 7 + 8 論点を箇条書きで記録)。**(2) 判断論点:** ① `PersistedRecord`/`RawPersistedRecord` の別 pydantic モデル化、② `build_persisted_record` ファクトリを Serializer 側に配置、③ `State` 名前シリアライズ(auto() リファクタリングリスク回避)、④ records.py 不変(B6 スコープ境界維持)、⑤ hypothesis `max_examples=200`、⑥ `current_schema_version()` 関数実装、⑦ MC/DC 目標 95%→100% 引き上げ、⑧ `bytes` 型の `__bytes__` base64 タグ(実装時発覚、§4.12.C `_default` 擬似コード拡張 MINOR)。SRS / SDD / RMF / SAD 本体不変。**(3) 第 II 部 §9.2:** UNIT-003.1 行を 26 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-003.1 行を「Pass」更新。UNIT-004.1 行のコミット欄を Step 19 B6 PR #14 マージ SHA `faf743b` で確定。**(4) 試験設計:** Decimal / State / bytes の 3 種タグ(`__decimal__` / `__state__` / `__bytes__`)ラウンドトリップ、hypothesis `max_examples=200` で SRS-004 一貫 settings + 任意 runtime_state のラウンドトリップ網羅、決定論性 hypothesis `max_examples=50` で 5 回 `to_json` 全一致、Integrity Validator との統合試験で E2E 検証。教訓 1 件を DEVELOPMENT_STEPS §教訓に追記(「判断材料の抽象度調整 — ユーザーフィードバック『書いてもらってもよくわからくて判断できない』への応答」) | k-abe |
 | 0.6 | 2026-04-23 | **Step 19 B6(UNIT-004.1 Integrity Validator TDD 実装)の実施結果を反映 + §7.3.5 整合化**。**(1) 第 I 部 §7.3.5 整合化(MINOR、CR 不要):** Step 19 B3 / B4 / B5 で定着した着手前クロスレビューで SDD §4.5 と v0.5 までの本節の間に 4 件の不整合を発見、ユーザー合意のもとで SDD を真として本節を整合化:(a) 戻り値型を `Err([...])` / `Ok(snapshot)` → SDD §4.5.A の `FailsafeRecommended(reasons: list[IntegrityFailure])` / `Ok(TrustedRecord)` に統一、(b) UT-004.1-03/04/08 を pydantic 管轄(§4.5.E 「本ユニット到達前に `ValidationError`」)から §4.5.B 未網羅項目(`SchemaVersionUnsupported` / `DoseVolumeOutOfRange` / `SettingsInconsistent`)に差し替え、(c) UT-004.1-09 `FutureTimestamp` を §4.5.B 非存在検証(SRS-026/027 にも未要求)から `AccumulationExceedsDose`(HZ-001 過量投与直結)に差し替え、(d) UT-004.1-10 `ERROR ∧ error_reason==None` を §4.5 非存在から `StateContradiction("RUNNING but current_flow=0")` に差し替え。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.5 試験テーブル:** 12 行を SDD §4.5.B 擬似コード 9 検証項目に全整合化、補助観点 9 件(UT-004.1-13〜20 + hypothesis 2 件)を展開。MC/DC 目標 100% を維持(`validate` の複合条件 + `check_settings_consistency` の dose==0 分岐)。**(3) 第 II 部 §9.2:** UNIT-004.1 行を 33 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-004.1 行を「Pass」更新。UNIT-003.3 行のコミット欄を Step 19 B5 マージ SHA `0a1cc34` で確定。**(4) 試験設計:** hypothesis プロパティ 3 件(`_consistent_valid_settings` 戦略、1 bit 反転、2+ 破損)、`pytest.parametrize` で UT-004.1-03/04/05/17/19 を計 14 サブケースに展開、FrozenInstanceError / `SUPPORTED_SCHEMA_VERSIONS` 契約 / `compute_sha256` 既知ベクタで補助観点を実装。依存型(`Settings` / `RuntimeState` / `RawPersistedRecord` / `TrustedRecord`)は `src/vip_persist/records.py` に先行実装し UNIT-003.1 Serializer(Step 19 B7 以降予定)で再利用。教訓を DEVELOPMENT_STEPS §教訓に追記 | k-abe |
