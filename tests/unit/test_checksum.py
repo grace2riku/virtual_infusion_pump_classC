@@ -32,12 +32,8 @@ from vip_persist.checksum import compute, verify
 # NIST known-answer vectors for SHA-256
 # ---------------------------------------------------------------------------
 
-_SHA256_EMPTY: Final[str] = (
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-)
-_SHA256_ABC: Final[str] = (
-    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-)
+_SHA256_EMPTY: Final[str] = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+_SHA256_ABC: Final[str] = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
 
 
 # ---------------------------------------------------------------------------
@@ -141,9 +137,7 @@ def test_ut_003_2_07_verify_accepts_uppercase_hex() -> None:
 def test_ut_003_2_07b_verify_accepts_mixed_case_hex() -> None:
     """Mixed-case hex `expected` still matches."""
     payload = b"abc"
-    mixed = "".join(
-        c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(_SHA256_ABC)
-    )
+    mixed = "".join(c.upper() if i % 2 == 0 else c.lower() for i, c in enumerate(_SHA256_ABC))
     assert verify(payload, mixed) is True
 
 
