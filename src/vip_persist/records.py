@@ -32,6 +32,7 @@ from vip_ctrl.state_machine import State  # noqa: TC001  (pydantic v2 runtime ty
 __all__ = [
     "CURRENT_SCHEMA_VERSION",
     "SUPPORTED_SCHEMA_VERSIONS",
+    "PersistedRecord",
     "RawPersistedRecord",
     "RuntimeState",
     "Settings",
@@ -72,6 +73,25 @@ class RuntimeState(BaseModel):
 
 class RawPersistedRecord(BaseModel):
     """Deserialised persisted record prior to integrity validation."""
+
+    model_config = ConfigDict(frozen=True)
+
+    schema_version: int
+    settings: Settings
+    runtime_state: RuntimeState
+    payload_bytes: bytes
+    checksum: str
+    saved_at: str
+
+
+class PersistedRecord(BaseModel):
+    """Serialisation-ready persisted record (SDD §4.12.B).
+
+    Structurally identical to `RawPersistedRecord` but distinct in type so
+    producer and consumer sides of the persistence boundary cannot be
+    confused. Use `vip_persist.serializer.build_persisted_record` to
+    construct instances -- payload_bytes and checksum are computed there.
+    """
 
     model_config = ConfigDict(frozen=True)
 

@@ -1,7 +1,7 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.6
+**バージョン:** 0.7
 **作成日:** 2026-04-23
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -356,7 +356,37 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 **ケース数目安:** 正常系 1、境界値 0、異常系 4、RCM 3、プロパティ 3 = **合計 ≥ 12**(展開後 33)
 **MC/DC 目標:** **100%**(RCM-015、整合性検証の 9 複合条件、試験設計で全分岐網羅を担保)
 
-#### 7.3.6 残 12 ユニット骨格(Step 19 B の TDD Red で詳細化)
+#### 7.3.6 UNIT-003.1 Serializer(実施済、詳細)
+
+**関連 SRS:** SRS-DATA-001, SRS-DATA-004、**関連 RCM:** RCM-015 前提(復元データの型保証)、**関連 HZ:** HZ-007
+
+> **Step 19 B7 整合化(2026-04-24、本節 v0.7 新規詳細化):** B6 までは骨格記述のみだったが、B7 着手前クロスレビューで 7 論点(別途 1 論点を実装時発覚)を SDD §4.12 + SRS-DATA + B6 の `records.py` と突き合わせて検討、ユーザー合意のもと推奨方針(MINOR 区分・CR 不要、SRS / SDD / RMF / SAD 本体不変)で進行:**(1) `PersistedRecord` / `RawPersistedRecord` を別 pydantic モデルで定義**(フィールド同一、SDD §4.12.B の意味論分離を型で表現)、**(2) `build_persisted_record` ファクトリ関数**を Serializer 側に置き payload_bytes + SHA-256 checksum を生成(SDD §4.12 で責務が未明示だった、生成は Serializer / 検証は UNIT-003.2 の分離)、**(3) `State` enum は名前シリアライズ**(`auto()` の値は enum メンバ追加順序で変わるため永続レコード互換性を破壊するリスク、`{"__state__": "<name>"}` タグで回避)、**(4) records.py 不変**(B6 スコープ境界維持、`extra="forbid"` 等の挙動変更は B8 以降で再検討)、**(5) hypothesis `max_examples=200`** でラウンドトリップ + 決定論性検証(SDD「1000 件 / 100 回」の目安は hypothesis 多様性で代替)、**(6) `current_schema_version()` は関数**(§4.12.A 署名整合、将来マイグレーション時の柔軟性)、**(7) MC/DC 目標 95% → 100%** に引き上げ(B5 Atomic Writer 前例、RCM-015 前提の位置付け)。**(8、実装時発覚)`bytes` 型のタグ付け:**SDD §4.12.C 擬似コードの `_default` は Decimal / datetime のみ扱う。`payload_bytes: bytes` を JSON 化するため `{"__bytes__": "<base64>"}` タグを追加(既存の Decimal / State タグ戦略と一貫)。
+
+| 試験 ID | 対象 API / 観点 | 入力 / 条件 | 期待結果 | 種別 |
+|---------|---------------|-----------|---------|------|
+| UT-003.1-01 | `build_persisted_record` + `to_json` 正常 | SRS-004 一貫な有効 record | `bytes`(UTF-8 JSON)、`schema_version` が JSON 先頭ソートで読める | 正常系 |
+| UT-003.1-02 | `from_json` 正常 → `RawPersistedRecord` | `to_json` 出力を復元 | 全フィールド等価(schema_version / settings / runtime_state / payload_bytes / checksum / saved_at) | 正常系 |
+| UT-003.1-03 | 決定論性(同レコード 20 回) | 同じ record で 20 回 `to_json` | 全バイト列同一 | RCM 前提(SDD §4.12.F) |
+| UT-003.1-04 | Decimal 精度保持 | `Decimal("0.1") + Decimal("0.2") = Decimal("0.3")` を保存・復元 | 復元値が `Decimal("0.3")`、型も `Decimal` | RCM 前提(SDD §4.12.F) |
+| UT-003.1-05 | 不正 JSON → 例外 | truncated / 空 / 配列 / null | `JSONDecodeError` または `ValidationError` | 異常系 |
+| UT-003.1-05b | 不正 UTF-8 → 例外 | `b"\xff\xfe\xfd"` | `UnicodeDecodeError` | 異常系 |
+| UT-003.1-06 | 必須フィールド欠落 | `{"schema_version": 1}` だけ | pydantic `ValidationError` | 異常系 |
+| UT-003.1-07 | 未知 schema_version は通過 | `schema_version=999` で to→from | `RawPersistedRecord.schema_version == 999`、Integrity Validator 側で拒否 | 責務分離 |
+| UT-003.1-08 | hypothesis ラウンドトリップ | `max_examples=200`、SRS-004 一貫 settings + 任意 runtime_state | 全フィールド等価(型保証 + プロパティ) | プロパティ |
+| UT-003.1-09 | State 名前シリアライズ | 全 6 State(INITIALIZING / IDLE / RUNNING / PAUSED / STOPPED / ERROR) | JSON 中に enum 名が現れ、`State[...]` で復元一致 | RCM 前提・パラメータ化 |
+| UT-003.1-10 | `payload_bytes` の base64 ラウンドトリップ | `build_persisted_record` 出力の `payload_bytes` | 復元バイト列が完全一致、JSON 中に `__bytes__` タグ出現 | 正常系 |
+| UT-003.1-11 | `current_schema_version()` | 関数呼び出し | `CURRENT_SCHEMA_VERSION == 1` の int | 契約 |
+| UT-003.1-12 | 統合(Serializer → Integrity Validator) | `build → to_json → from_json → validate` | `Ok(TrustedRecord)` | 統合 |
+| UT-003.1-13 | `compute_payload_checksum` 決定論性 | 同一入力を 2 回 | `(payload_bytes, checksum)` ペアが同一、checksum が 64 文字 hex | 決定論 |
+| UT-003.1-14 | JSON キーが sort_keys=True でソート済 | `to_json` 出力 | トップレベルキーが辞書順 | RCM 前提(SDD §4.12.C) |
+| UT-003.1-15 | `_default` 未知型で TypeError | 任意クラスのインスタンスを渡す | `TypeError` | 異常系(SDD §4.12.E) |
+| UT-003.1-16 | `_hook` パススルー | タグなし dict | 同一オブジェクト(identity 保存) | 正常系 |
+| UT-003.1-17 | hypothesis 決定論性プロパティ | `max_examples=50`、任意有効 record で 5 回 `to_json` | 全バイト列同一 | プロパティ |
+
+**ケース数目安:** 正常系 4、境界値 0、異常系 3、RCM 前提 3、プロパティ 2、契約 1、統合 1 = **合計 ≥ 14**(展開後 **26**、State パラメータ化 6 + JSON 不正 4 + 補助観点 4 を含む)
+**MC/DC 目標:** **100%**(v0.6 の 95% から引き上げ、B5 Atomic Writer 前例、RCM-015 前提の位置付け、規模 47 stmt / 12 branch で網羅可能)
+
+#### 7.3.7 残 11 ユニット骨格(Step 19 B の TDD Red で詳細化)
 
 | ユニット ID | 主要試験観点 | ケース数目安 | MC/DC 目標 | 備考 |
 |------------|-----------|-----------|-----------|------|
@@ -366,14 +396,13 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 | UNIT-002.1 Pump Simulator | 指令反映、`force_stop_failsafe` 冪等、SRS-030/031 準拠、積算量計算 | ≥ 10 | 95% | `force_stop_failsafe` は RCM-004 HW 側の被呼出側 |
 | UNIT-002.2 Pump Observer | 観測 API の不変性(pure)、状態整合性 | ≥ 6 | — | 観測のみ、RCM なし |
 | UNIT-002.3 Event Injection Stub | Inc.2 以降のスタブ、本 Inc.1 では空動作の確認のみ | ≥ 3 | — | Inc.2 着手時に拡張 |
-| UNIT-003.1 Serializer | 正常 / 破損検出、ラウンドトリップ、型保証、プロパティ(対称性)| ≥ 8 | 95%(RCM-015 前提)| hypothesis 適用 |
 | UNIT-003.2 Checksum Verifier | 既知ベクタ、衝突試験(SEC-001)、hashlib 委譲 | ≥ 6 | 95%(RCM-015 構成要素)| |
 | UNIT-004.2 Resume Confirmation Gate | needs_confirm トグル、期限チェック、状態遷移連携 | ≥ 8 | 100%(RCM-016)| |
 | UNIT-005.1 Control API | 7 コマンド(start/stop/pause/resume/reset/error_reset/confirm_resume)の委譲、例外伝搬 | ≥ 10 | 90% | 委譲先の mock 検証主体 |
 | UNIT-005.2 State Observer API | 薄いラッパー、observer 委譲、非 block | ≥ 6 | — | |
 | UNIT-005.3 Validation API(クラス B) | **SEP-001 分離検証**、内部例外握りつぶし契約、境界値 | ≥ 8 | 90% | `mypy` でインポートグラフ分離を機械検証 |
 
-**合計ケース数目安(全 17 ユニット):** **≥ 145 件**(代表 5 = 59 件 + 骨格 12 = 95 件の目安)。最終的な件数は Step 19 B の TDD で増減する見込み。
+**合計ケース数目安(全 17 ユニット):** **≥ 145 件**(代表 5 + UNIT-003.1 = 85 件実測 + 骨格 11 = 80 件の目安)。最終的な件数は Step 19 B の TDD で増減する見込み。
 
 ### 7.4 カバレッジ目標
 
@@ -430,7 +459,8 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-003.1 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-003.2 | ≥ 6 | — | — | — | — | — | — |
 | UNIT-003.3 | **21**(うち UT-003.3-01..10 展開後 12 + 補助観点 9)| **21** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、write/read/rollback + bak 世代管理 + 例外経路 + 非 POSIX 早期リターン)** | 2026-04-23 | Step 19 B5 PR #13 マージコミット `0a1cc34` |
-| UNIT-004.1 | **33**(うち UT-004.1-01..12 展開後 24 + 補助観点 9)| **33** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、§4.5.B 9 検証項目 + settings consistency tolerance 境界 + dose==0 分岐 + 列挙順序 + hypothesis 破損注入)** | 2026-04-23 | Step 19 B6 PR マージコミット(TBD)|
+| UNIT-004.1 | **33**(うち UT-004.1-01..12 展開後 24 + 補助観点 9)| **33** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、§4.5.B 9 検証項目 + settings consistency tolerance 境界 + dose==0 分岐 + 列挙順序 + hypothesis 破損注入)** | 2026-04-23 | Step 19 B6 PR #14 マージコミット `faf743b` |
+| UNIT-003.1 | **26**(うち UT-003.1-01..17 展開後 22 + 補助観点 4 - State パラメータ化 6 + JSON 不正 4 含む)| **26** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、Decimal / State / bytes 3 種タグ往復 + 決定論性 + 不正 JSON / UTF-8 例外 + hypothesis ラウンドトリップ)** | 2026-04-24 | Step 19 B7 PR マージコミット(TBD)|
 | UNIT-004.2 | ≥ 8 | — | — | — | — | — | — |
 | UNIT-005.1 | ≥ 10 | — | — | — | — | — | — |
 | UNIT-005.2 | ≥ 6 | — | — | — | — | — | — |
@@ -467,7 +497,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-002.2 Pump Observer | UT-002.2-01 〜(≥ 6) | SRS-031, SRS-I-020 | — | — | 未実施 |
 | UNIT-002.3 Event Injection Stub | UT-002.3-01 〜(≥ 3) | SRS-032, SRS-I-040(Inc.2)| —(Inc.2 で追加)| HZ-004 | 未実施 |
 | UNIT-002.4 HW-side Failsafe Timer | UT-002.4-01 〜 UT-002.4-08 | SRS-RCM-004, SRS-032 | RCM-004(HW 側)| HZ-001, HZ-002 | **Pass(18 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B4、2026-04-23)** |
-| UNIT-003.1 Serializer | UT-003.1-01 〜(≥ 8) | SRS-DATA-001, 004 | RCM-015 前提 | HZ-007 | 未実施 |
+| UNIT-003.1 Serializer | UT-003.1-01 〜 UT-003.1-17 | SRS-DATA-001, 004 | RCM-015 前提 | HZ-007 | **Pass(26 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B7、2026-04-24)** |
 | UNIT-003.2 Checksum Verifier | UT-003.2-01 〜(≥ 6) | SRS-SEC-001 | RCM-015 構成要素 | HZ-007 | 未実施 |
 | UNIT-003.3 Atomic File Writer | UT-003.3-01 〜 UT-003.3-10 | SRS-DATA-002, 003 | RCM-015 前提 | HZ-007 | **Pass(21 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B5、2026-04-23)** |
 | UNIT-004.1 Integrity Validator | UT-004.1-01 〜 UT-004.1-12 | SRS-026, 027, SRS-RCM-015 | RCM-015 | HZ-007 | **Pass(33 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B6、2026-04-23)** |
@@ -486,5 +516,6 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | 0.2 | 2026-04-23 | **Step 19 B2(UNIT-001.1 State Machine TDD 実装)の実施結果を第 II 部に反映**。§9.2 UNIT-001.1 行を 62 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-019 全分岐)で確定。§11 トレーサビリティマトリクス UNIT-001.1 行の結果欄を「Pass」に更新。他 16 ユニットは未実施のまま据置(Step 19 B2+ 以降で TDD を継続)。UT-001.1-04 パラメータ化展開で TRANSITION_TABLE 全 13 エントリ × Pass 方向を網羅、UT-001.1-05 で (State, EventKind) 非登録全組合せ 45 ケースを網羅(RCM-019 確認)、UT-001.1-11/12 で hypothesis プロパティ試験 2 件を実装 | k-abe |
 | 0.3 | 2026-04-23 | **Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)の実施結果を反映 + §7.3.2 を SRS/SDD に整合化**。**(1) 第 I 部 §7.3.2 整合化(MINOR、CR 不要):** v0.2 までの本節は (a) 指令値域を「設定値域 0.1〜1200」と誤記(SRS-O-001 では指令値域は `0.0 ≤ value ≤ 1200.0`)、(b) ValidationReason 名が SDD §4.2.B の enum 名と不一致、(c) 設定値整合性検証が `state == State.RUNNING` のときのみ発火する SDD §4.2.C の前提を未明示、の 3 点で齟齬していた。SRS/SDD を真として本節のテーブル(UT-001.4-01〜12)を全面差し替え、整合化注釈を本節冒頭に追記。SRS / SDD / RMF / SAD 本体は不変。**(2) 第 II 部 §9.2:** UNIT-001.4 行を 34 tests Pass / カバレッジ 100.00%(stmt / branch)/ MC/DC 100%(RCM-001 範囲 + 設定値整合性 + 状態別スキップ全分岐、試験設計担保)で確定。§11 トレーサビリティマトリクス UNIT-001.4 行を「Pass」に更新。**(3) 試験設計:** UT-001.4-07 を NaN/+Inf/-Inf 3 サブケース、UT-001.4-09 を ±2%/±5.00% 境界/+5.01% の 3 サブケースに `pytest.parametrize` 展開、補助観点として 5 状態 × 設定値検証スキップ確認 + 純粋性 + frozen 4 件 + 範囲定数 2 件を追加。`hypothesis` プロパティ 2 件は `max_examples=200, deadline=None` で実装。教訓「UTPR v0.1 作成時の SRS/SDD クロスレビュー漏れ」を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
 | 0.4 | 2026-04-23 | **Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)の実施結果を反映 + §7.3.3 整合化**。**(1) 第 I 部 §7.3.3 整合化(MINOR、CR 不要):** Step 19 B3 教訓を運用化し着手前クロスレビューを実施、(a) Logger 注入据置(SDD §4.3.B に `_logger` フィールドなし、UNIT-004+ で正式化、HW failsafe 識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` で代替)、(b) クロック注入(DI)採用(`clock: Callable[[], float]` をコンストラクタ注入、UT-002.4-07 クロック逆転試験のため)、(c) クロック逆転時挙動を「安全側 = 発火」と設計判断(SDD §4.3 未定義、RCM-004 安全側原則 + UNIT-001.1 と整合)、の 3 件を整合化注釈に明記。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.3 試験テーブル:** UT-002.4-04 を 04a(500 ms ちょうどで発火しない)/ 04b(500 ms + ε で発火)に分割、UT-002.4-06 を「ログ記録」から「`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出識別」に整合化、UT-002.4-08 を 08a(heartbeat 無視)/ 08b(`check_once` 冪等)に分割、各ケースに `check_once` API 経由のテスト前提を明記。**(3) 第 II 部 §9.2:** UNIT-002.4 行を 18 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-002.4 行を「Pass」更新。UNIT-001.4 行のコミット欄を Step 19 B3 マージ SHA `72d474e` で確定。**(4) 試験設計:** 補助観点 8 件(start/stop ライフサイクル 4、pump 例外耐性 1、定数値 2、実時間スレッド統合スモーク 1)、連打側スモークは macOS sleep ジッタ flaky のため fake_clock UT-002.4-01/05 に委任(教訓記録)。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
+| 0.7 | 2026-04-24 | **Step 19 B7(UNIT-003.1 Serializer TDD 実装)の実施結果を反映 + §7.3.6 新規詳細化(残 12 → 11 骨格)**。**(1) 第 I 部 §7.3.6 新規詳細化(MINOR、CR 不要):** B6 までは骨格のみの節を、着手前クロスレビュー 7 論点(別途 1 論点を実装時発覚)解消後に詳細 UT テーブル(UT-003.1-01〜17)として書き下ろし、既存の残 12 ユニット骨格は §7.3.7 に移動して 11 ユニットに繰り下げ。本節冒頭に整合化注釈を追記(推奨方針全 7 + 8 論点を箇条書きで記録)。**(2) 判断論点:** ① `PersistedRecord`/`RawPersistedRecord` の別 pydantic モデル化、② `build_persisted_record` ファクトリを Serializer 側に配置、③ `State` 名前シリアライズ(auto() リファクタリングリスク回避)、④ records.py 不変(B6 スコープ境界維持)、⑤ hypothesis `max_examples=200`、⑥ `current_schema_version()` 関数実装、⑦ MC/DC 目標 95%→100% 引き上げ、⑧ `bytes` 型の `__bytes__` base64 タグ(実装時発覚、§4.12.C `_default` 擬似コード拡張 MINOR)。SRS / SDD / RMF / SAD 本体不変。**(3) 第 II 部 §9.2:** UNIT-003.1 行を 26 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-003.1 行を「Pass」更新。UNIT-004.1 行のコミット欄を Step 19 B6 PR #14 マージ SHA `faf743b` で確定。**(4) 試験設計:** Decimal / State / bytes の 3 種タグ(`__decimal__` / `__state__` / `__bytes__`)ラウンドトリップ、hypothesis `max_examples=200` で SRS-004 一貫 settings + 任意 runtime_state のラウンドトリップ網羅、決定論性 hypothesis `max_examples=50` で 5 回 `to_json` 全一致、Integrity Validator との統合試験で E2E 検証。教訓 1 件を DEVELOPMENT_STEPS §教訓に追記(「判断材料の抽象度調整 — ユーザーフィードバック『書いてもらってもよくわからくて判断できない』への応答」) | k-abe |
 | 0.6 | 2026-04-23 | **Step 19 B6(UNIT-004.1 Integrity Validator TDD 実装)の実施結果を反映 + §7.3.5 整合化**。**(1) 第 I 部 §7.3.5 整合化(MINOR、CR 不要):** Step 19 B3 / B4 / B5 で定着した着手前クロスレビューで SDD §4.5 と v0.5 までの本節の間に 4 件の不整合を発見、ユーザー合意のもとで SDD を真として本節を整合化:(a) 戻り値型を `Err([...])` / `Ok(snapshot)` → SDD §4.5.A の `FailsafeRecommended(reasons: list[IntegrityFailure])` / `Ok(TrustedRecord)` に統一、(b) UT-004.1-03/04/08 を pydantic 管轄(§4.5.E 「本ユニット到達前に `ValidationError`」)から §4.5.B 未網羅項目(`SchemaVersionUnsupported` / `DoseVolumeOutOfRange` / `SettingsInconsistent`)に差し替え、(c) UT-004.1-09 `FutureTimestamp` を §4.5.B 非存在検証(SRS-026/027 にも未要求)から `AccumulationExceedsDose`(HZ-001 過量投与直結)に差し替え、(d) UT-004.1-10 `ERROR ∧ error_reason==None` を §4.5 非存在から `StateContradiction("RUNNING but current_flow=0")` に差し替え。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.5 試験テーブル:** 12 行を SDD §4.5.B 擬似コード 9 検証項目に全整合化、補助観点 9 件(UT-004.1-13〜20 + hypothesis 2 件)を展開。MC/DC 目標 100% を維持(`validate` の複合条件 + `check_settings_consistency` の dose==0 分岐)。**(3) 第 II 部 §9.2:** UNIT-004.1 行を 33 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-004.1 行を「Pass」更新。UNIT-003.3 行のコミット欄を Step 19 B5 マージ SHA `0a1cc34` で確定。**(4) 試験設計:** hypothesis プロパティ 3 件(`_consistent_valid_settings` 戦略、1 bit 反転、2+ 破損)、`pytest.parametrize` で UT-004.1-03/04/05/17/19 を計 14 サブケースに展開、FrozenInstanceError / `SUPPORTED_SCHEMA_VERSIONS` 契約 / `compute_sha256` 既知ベクタで補助観点を実装。依存型(`Settings` / `RuntimeState` / `RawPersistedRecord` / `TrustedRecord`)は `src/vip_persist/records.py` に先行実装し UNIT-003.1 Serializer(Step 19 B7 以降予定)で再利用。教訓を DEVELOPMENT_STEPS §教訓に追記 | k-abe |
 | 0.5 | 2026-04-23 | **Step 19 B5(UNIT-003.3 Atomic File Writer TDD 実装)の実施結果を反映 + §7.3.4 整合化**。**(1) 第 I 部 §7.3.4 整合化(MINOR、CR 不要):** Step 19 B3 / B4 教訓の運用継続で着手前クロスレビュー実施、4 件の不整合を発見:(a) API 名 `write_atomic(path, data)` → SDD §4.4.A の `write(data, target_path)` + `read` + `rollback` 3 API へ整合化、(b) UT-003.3-07 並行書込を「ロック機構動作」→ SDD §4.4.C「呼出側責任、本ユニットはロックしない」と整合な「ステートレス確認(異なる target_path への並行書込)」へ整合化、(c) UT-003.3-08 `Err(DiskFullError)` → SDD §4.4.E 整合の `WriteErr(OSError)` + `errno==ENOSPC` へ、(d) UT-003.3-10 subprocess + SIGKILL 電源断試験は CI 安定性 + SDD §4.4.E「原理的に検知不可能 / load 側で担保」により ITPR §5.6 申し送り、本 UT では内部ステップ観測 + `os.fsync` 呼出モック検証で代替(UT-003.3-10a/10b に分割)。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.4 試験テーブル:** 12 行へ再整備(UT-003.3-02b bak 置換、UT-003.3-10a/10b 分割、引数順を SDD に統一)。MC/DC 目標を 95% → **100%** に引き上げ(コード規模 78 stmt / 6 branch、試験設計で完全網羅可能)。**(3) 第 II 部 §9.2:** UNIT-003.3 行を 21 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-003.3 行を「Pass」更新。UNIT-002.4 行のコミット欄を Step 19 B4 マージ SHA `3c7a933` で確定。**(4) 試験設計:** 補助観点 9 件(read 2 + rollback 3 + 往復 1 + bak 世代管理 1 + best-effort unlink 1 + 非 POSIX 1)、`tmp_path` fixture + `unittest.mock.patch` で `os.replace`/`os.fsync`/`Path.unlink` を注入して OSError 経路を網羅。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録(着手前クロスレビューの運用 3 度目定着 + OSError 注入パターンの再利用性) | k-abe |
