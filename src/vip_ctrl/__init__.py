@@ -1,5 +1,5 @@
 """Control subsystem (UNIT-001.* per SDD-VIP-001 §4). Safety class C.
 
-Flow-control core: state machine (RCM-019), control loop, command handler,
-flow command validator (RCM-001), SW watchdog (RCM-003).
+Flow-control core: state machine (RCM-019), control loop (RCM-004 SW dispatch),
+command handler, flow command validator (RCM-001), SW watchdog (RCM-003).
 """
