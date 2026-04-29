@@ -176,7 +176,7 @@ def test_ut_002_2_08_observer_satisfies_control_loop_protocol(
     """B10 Control Loop の `PumpSnapshotObserver` Protocol(observe() メソッド)を
     structural typing で満たす。
     """
-    proto: ControlLoopObserverProto = observer  # type: ignore[assignment]
+    proto: ControlLoopObserverProto = observer
     snap = proto.observe()
     assert hasattr(snap, "accumulated_volume")
     assert hasattr(snap, "elapsed_min")
@@ -191,7 +191,7 @@ def test_ut_002_2_09_snapshot_satisfies_control_loop_protocol(
 ) -> None:
     """B10 Control Loop の `PumpSnapshot` Protocol(3 プロパティ)を満たす。"""
     snap = observer.observe()
-    proto: ControlLoopPumpSnapshotProto = snap  # type: ignore[assignment]
+    proto: ControlLoopPumpSnapshotProto = snap
     assert isinstance(proto.accumulated_volume, Decimal)
     assert isinstance(proto.elapsed_min, Decimal)
     assert isinstance(proto.current_flow, Decimal)
