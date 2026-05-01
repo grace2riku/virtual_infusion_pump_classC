@@ -122,9 +122,13 @@ class PumpSnapshotObserver(Protocol):
 
 
 class _HeartbeatSink(Protocol):
-    """Both SW and HW watchdogs accept `heartbeat(ts)` (SDD IF-U-010/011)."""
+    """Both SW and HW watchdogs expose `heartbeat()` (SDD §4.8.A / §4.3.A).
 
-    def heartbeat(self, ts: float) -> None:
+    CR-0005 (a) per CRR-VIP-001:制御ループは外部から timestamp を渡さず、
+    各 Watchdog 実装が内部 clock(`time.monotonic` 注入可)で取得する。
+    """
+
+    def heartbeat(self) -> None:
         """Refresh the watchdog's last-heartbeat timestamp."""
 
 
@@ -219,9 +223,11 @@ class ControlLoop:
 
         now = self._clock()
         # 1. Heartbeat both watchdogs FIRST so a downstream exception still
-        # records "alive" (SDD §4.6 keypoint).
-        self._sw_watchdog.heartbeat(now)
-        self._hw_watchdog.heartbeat(now)
+        # records "alive" (SDD §4.6 keypoint). Each watchdog reads its own
+        # clock per CR-0005 (a); the dispatched timestamps may differ by a
+        # few microseconds, with no functional impact on RCM-003/004.
+        self._sw_watchdog.heartbeat()
+        self._hw_watchdog.heartbeat()
 
         # 2-4. Run the rest of the tick under exception guard.
         try:
