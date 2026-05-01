@@ -251,7 +251,7 @@ UT 完了時に各 UNIT で申し送られた試験種別を、性質ごとに �
 
 #### 6.1.1 試験目的
 
-RCM-001(指令範囲チェック、HZ-001 過量投与・HZ-002 流量異常)が **ControlAPI(005.1)→ ValidationApi(005.3 等価)経路** で結合状態でも維持され、範囲外指令が CommandHandler 経路に到達しないことを検証する。Step 19 F1 着手時に発見した **`vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数 `-> Ok | Err`)の型不整合** に対しては Mock(spec=ValidationApi)ベースで Protocol 契約を検証し、本物注入による SEP-001 越え経路検証は §6.7 IT-SEP に分散配置(契約整合化は **CR-0004** として別途起票予定)。
+RCM-001(指令範囲チェック、HZ-001 過量投与・HZ-002 流量異常)が **ControlAPI(005.1)→ ValidationApi(005.3 等価)経路** で結合状態でも維持され、範囲外指令が CommandHandler 経路に到達しないことを検証する。Step 19 F1 着手時に発見した **`vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数で `Ok` または `Err` を返す)の型不整合** に対しては Mock(spec=ValidationApi)ベースで Protocol 契約を検証し、本物注入による SEP-001 越え経路検証は §6.7 IT-SEP に分散配置(契約整合化は **CR-0004** として別途起票予定)。
 
 #### 6.1.2 結合経路と検証スコープ
 
@@ -290,8 +290,6 @@ RCM-001(指令範囲チェック、HZ-001 過量投与・HZ-002 流量異常)が
 
 - **CR-0004(契約整合化)**:`vip_api.ValidationApi` Protocol 戻り値と `vip_api_b.validate_settings` 関数戻り値の型不整合(本 F1 着手時発見)。修正候補: (a) Protocol を `ValidationResult` に統一、(b) Adapter 層追加、(c) 現状維持で Mock ベース。Step 19 F1 完了後に別途起票・検討予定。
 - **§6.7 IT-SEP(Step 19 F4)で本物 vip_api_b 注入経路検証**:本 §6.1 で Mock ベースに留めた SEP-001 越え経路検証は、§6.7 で本物注入(または Adapter 経由注入)で再検証する。
-
-### 6.2 RCM-003 結合(SW Watchdog + 階層防御 SW<HW)— **骨格**
 
 ### 6.2 RCM-003 結合(SW Watchdog + 階層防御 SW<HW)— **骨格**
 
@@ -589,6 +587,6 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
-| 0.3 | 2026-05-01 | **Step 19 F1(§6.1 RCM-001 詳細化)を反映。** §6.1 を骨格 → 詳細化(IT-RCM001.1-01〜08、8 ケース表 + 結合経路 + 設計判断 + CR-0004 申し送り + §6.7 IT-SEP への本物注入分散配置を明文化)。§11.2 IT-RCM001 行を 8 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM001 行を **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証)** に更新。**着手時発見:** `vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数 `-> Ok | Err`)の型不整合を確認 → **CR-0004 として別途起票予定**(F1 完了後)、本観点は Mock ベースで進め本物注入の SEP-001 越え経路検証は §6.7 IT-SEP(Step 19 F4)に分散配置 | k-abe |
+| 0.3 | 2026-05-01 | **Step 19 F1(§6.1 RCM-001 詳細化)を反映。** §6.1 を骨格 → 詳細化(IT-RCM001.1-01〜08、8 ケース表 + 結合経路 + 設計判断 + CR-0004 申し送り + §6.7 IT-SEP への本物注入分散配置を明文化)。§11.2 IT-RCM001 行を 8 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM001 行を **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証)** に更新。**着手時発見:** `vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数で `Ok` または `Err` を返す)の型不整合を確認 → **CR-0004 として別途起票予定**(F1 完了後)、本観点は Mock ベースで進め本物注入の SEP-001 越え経路検証は §6.7 IT-SEP(Step 19 F4)に分散配置 | k-abe |
 | 0.2 | 2026-05-01 | **Step 19 F0(自動化骨格整備)を反映。** §8.3 自動化状況を「未着手」→「骨格整備済」に更新(`tests/integration/{__init__.py, conftest.py, test_smoke.py}` + `pyproject.toml` markers / `addopts = ["-m", "not integration"]` + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` の `integration-fast` / `integration-nightly` 2 ジョブ構成)。スモーク 2 件で CI 経路の動作確認済(UT 441 / IT 2 / coverage 100% / mypy `--strict` / ruff Pass)。Step 19 F1 以降の各観点詳細化の前提整備が完了 | k-abe |
 | 0.1 | 2026-05-01 | **初版作成(計画、Step 19 D-2)。** Inc.1 全 17 ユニット UT 完了(UTPR v0.19)を前提に、結合戦略(IS-1 永続化 → IS-2 制御系コア → IS-3 仮想 HW → IS-4 API 層 → IS-5 全層統合)を確立。**RCM 軸での代表 3 観点詳細化**(§6.4 RCM-015 永続化 E2E 8 ケース / §6.5 RCM-016 再開ガード 8 ケース / §6.6 RCM-019 状態遷移結合 8 ケース、合計 24 詳細化ケース)+ **残 7 観点骨格**(§6.1 RCM-001 / §6.2 RCM-003 / §6.3 RCM-004 / §6.7 SEP ランタイム / §6.8 IT-PERF 統計時間 / §6.9 IT-PWR 電源断 / §6.10 IT-SIDE サイドチャネル、合計目安 ≥ 35 件)。**UT 申し送り 6 件を性質別に分散配置**(電源断 → §6.9、統計時間 → §6.8、サイドチャネル → §6.10、SEP ランタイム → §6.7、E2E ラウンドトリップ → §6.4、Resume API → §6.5)。試験 ID 体系(`IT-{プレフィックス}.{サブ番号}-{連番}`)、IF-U 14 件 + IF-E 3 件一覧、結合戦略チェックリスト、受入基準 5 項目、回帰試験基盤計画を確立。第 II 部(報告)は骨格のみ、Step 19 F の試験実施で埋めていく(UTPR v0.1 と同じ「代表 + 骨格」段階成熟方式) | k-abe |
