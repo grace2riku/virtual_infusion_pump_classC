@@ -33,8 +33,27 @@ from vip_ctrl.command_handler import (
     CommandHandler,
 )
 from vip_ctrl.state_machine import State, StateMachine
+from vip_ctrl.watchdog import (
+    HEARTBEAT_TIMEOUT as SW_HEARTBEAT_TIMEOUT,  # 0.3 sec
+)
+from vip_ctrl.watchdog import (
+    MONITOR_INTERVAL as SW_MONITOR_INTERVAL,  # 0.05 sec
+)
+from vip_ctrl.watchdog import (
+    SwWatchdog,
+)
 from vip_integrity.resume_gate import ResumeConfirmationGate
 from vip_persist.records import Settings
+from vip_sim.failsafe_timer import (
+    HEARTBEAT_TIMEOUT as HW_HEARTBEAT_TIMEOUT,  # 0.5 sec
+)
+from vip_sim.failsafe_timer import (
+    MONITOR_INTERVAL as HW_MONITOR_INTERVAL,  # 0.1 sec
+)
+from vip_sim.failsafe_timer import (
+    HwFailsafeTimer,
+    PumpController,
+)
 
 
 def make_consistent_settings(
@@ -122,4 +141,49 @@ def control_api_with_real_state_machine(
         command_handler=handler,
         resume_gate=mock_resume_gate,
         validation_api=mock_validation_api,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Step 19 F2(IT-RCM003): SW / HW Watchdog 階層防御 fixture
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def mock_state_machine() -> Mock:
+    """`StateMachine` を Mock 化(SwWatchdog の `on_watchdog_timeout` 呼出捕捉用)."""
+    return Mock(spec=StateMachine)
+
+
+@pytest.fixture
+def mock_pump_controller() -> Mock:
+    """`PumpController` Protocol を Mock 化(HwFailsafeTimer の `force_stop_failsafe` 呼出捕捉用)."""
+    return Mock(spec=PumpController)
+
+
+@pytest.fixture
+def sw_watchdog_real(mock_state_machine: Mock) -> SwWatchdog:
+    """本物 `SwWatchdog`(SDD §4.8 デフォルト:timeout=0.3 sec、monitor=0.05 sec).
+
+    本物 `time.monotonic` を内部で使用、Mock(spec=StateMachine)を注入。
+    `start()` は各試験で必要に応じて呼ぶ(IT-RCM003.1-05 のみ起動)、
+    その他試験は `check_once()` 直接呼出ベース。
+    """
+    return SwWatchdog(
+        mock_state_machine,
+        timeout=SW_HEARTBEAT_TIMEOUT,  # 0.3 sec
+        monitor_interval=SW_MONITOR_INTERVAL,  # 0.05 sec
+    )
+
+
+@pytest.fixture
+def hw_failsafe_timer_real(mock_pump_controller: Mock) -> HwFailsafeTimer:
+    """本物 `HwFailsafeTimer`(SDD §4.3 デフォルト:timeout=0.5 sec、monitor=0.1 sec).
+
+    本物 `time.monotonic` を内部で使用、Mock(spec=PumpController)を注入。
+    """
+    return HwFailsafeTimer(
+        mock_pump_controller,
+        timeout=HW_HEARTBEAT_TIMEOUT,  # 0.5 sec
+        monitor_interval=HW_MONITOR_INTERVAL,  # 0.1 sec
     )
