@@ -1,7 +1,7 @@
 # 構成アイテム一覧(CI List)
 
 **ドキュメント ID:** CIL-VIP-001
-**バージョン:** 0.28
+**バージョン:** 0.29
 **最終更新日:** 2026-05-01
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
 **対象リリース:** 0.1.0(初期開発)以降
@@ -61,7 +61,7 @@ Phase 3(M0 基盤整備期)終了 + Inc.1 設計凍結時点。バージョン�
 | CI-DOC-SAD | ソフトウェアアーキテクチャ設計書 | `5.3_software_architecture_design/software_architecture_design.md` | 0.1 | ドラフト(セルフ承認、Inc.1 範囲確定、Step 12c 反映、Step 15a で §8 CCB §5.4 参照整合バージョン据置) |
 | CI-DOC-SDD | ソフトウェア詳細設計書 | `5.4_software_detailed_design/software_detailed_design.md` | 0.2 | ドラフト(セルフ承認、Inc.1 全 17 ユニット §5.4.2 完全充足、CR-0001 反映) |
 | CI-DOC-UTPR | ユニットテスト計画書/報告書 | `5.5_software_unit_implementation/software_unit_test_plan_report.md` | 0.19 | ドラフト(セルフ承認、Step 19 D-1:§9.2 試験ケース結果テーブルのコミット SHA 欄 6 件(UNIT-001.2 / 001.5 / 002.1 / 002.2 / 003.2 / 005.3)を実 SHA で一括確定、計画変更ではなく報告セルの SHA 確定のみ、MINOR 区分・CR 不要)|
-| CI-DOC-ITPR | 結合試験計画書/報告書 | `5.6_software_integration_testing/software_integration_test_plan_report.md` | 0.1 | ドラフト(セルフ承認、Step 19 D-2:Inc.1 全 17 ユニット UT 完了を前提に骨格化、結合戦略 IS-1〜IS-5、RCM 軸代表 3 観点詳細化(§6.4 RCM-015 永続化 E2E / §6.5 RCM-016 再開ガード / §6.6 RCM-019 状態遷移結合、各 8 ケース)+ 残 7 観点骨格(§6.1〜§6.3 RCM 残 / §6.7 SEP ランタイム / §6.8 IT-PERF / §6.9 IT-PWR / §6.10 IT-SIDE)、UT 申し送り 6 件を性質別に分散配置、IF-U 14 件 + IF-E 3 件一覧確立、第 II 部は骨格のみ Step 19 F で実施) |
+| CI-DOC-ITPR | 結合試験計画書/報告書 | `5.6_software_integration_testing/software_integration_test_plan_report.md` | 0.2 | ドラフト(セルフ承認、Step 19 F0 反映:§8.3 自動化状況を「未着手」→「骨格整備済」に更新(`tests/integration/{__init__.py, conftest.py, test_smoke.py}` + `pyproject.toml` markers + `addopts -m "not integration"` + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` の `integration-fast` / `integration-nightly` 2 ジョブ構成)、スモーク 2 件で CI 経路の動作確認済 — Step 19 F1 以降の各観点詳細化の前提整備が完了) |
 | CI-DOC-STPR | システム試験計画書/報告書 | `5.7_software_system_testing/software_system_test_plan_report.md` | — | 未着手(Inc.1 予定) |
 | CI-DOC-SMS | ソフトウェアマスタ仕様書 | `5.8_software_release/software_master_specification.md` | — | 未着手(M_final 予定) |
 | CI-DOC-SMP | ソフトウェア保守計画書 | `6_software_maintenance_process/software_maintenance_plan.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §4.6 変更区分表 1 分インターバル反映) |
@@ -69,13 +69,13 @@ Phase 3(M0 基盤整備期)終了 + Inc.1 設計凍結時点。バージョン�
 | CI-DOC-SSC | ソフトウェア安全クラス決定記録 | `7_software_risk_management_process/software_safety_class_determination_record.md` | 0.1 | ドラフト(セルフ承認) |
 | CI-DOC-RMF | リスクマネジメントファイル(ISO 14971) | `7_software_risk_management_process/risk_management_file.md` | 0.2 | ドラフト(セルフ承認、継続更新。RCM-019 登録済) |
 | CI-DOC-SCMP | ソフトウェア構成管理計画書 | `8_software_configuration_management_process/software_configuration_management_plan.md` | 0.3 | ドラフト(セルフ承認、Step 15a で §4.1 表・§4.1.1 手順 2 の 1 分インターバル反映) |
-| CI-DOC-CIL | 構成アイテム一覧(本書) | `8_software_configuration_management_process/configuration_item_list.md` | 0.28 | ドラフト(セルフ承認、Step 19 E 反映:§10 ベースライン履歴に BL-20260501-001 `inc1-units-frozen` 確定エントリ追加(commit `b859a53` 直接付与)、§10 末尾注記を更新(主要運用変更を明文化:BL-20260501-001 以降は main HEAD 直接付与方針)、CI-DOC-DEVSTEPS v0.30 反映、自己参照 v0.28) |
+| CI-DOC-CIL | 構成アイテム一覧(本書) | `8_software_configuration_management_process/configuration_item_list.md` | 0.29 | ドラフト(セルフ承認、Step 19 F0 反映:§5 SOUP に CI-SOUP-012 `pytest-benchmark` 正式登録、§6 開発ツール CI-TOOL-011 試験フレームワークに SOUP-012 追記、§7 CFG に CI-CFG-012 `integration-test.yml` 新規登録、§8 試験資産に CI-TD-002 / 002a / 002b 確定登録 + CI-TD-002.1〜002.7 を Step 19 F1〜F7 予定として整理、CI-DOC-ITPR v0.1 → v0.2 反映、CI-DOC-DEVSTEPS v0.30 → v0.31 反映、自己参照 v0.29) |
 | CI-DOC-CCB | CCB 運用規程 | `8_software_configuration_management_process/ccb_operating_rules.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §5.4 大改訂 — 学習/実機 2 系統表記・1 分インターバル採用) |
 | CI-DOC-CRR | 変更要求台帳 | `8_software_configuration_management_process/change_request_register.md` | 0.5 | ドラフト(セルフ承認、Step 15b 後段で CR-0002 CLOSED 記録反映 — 実装 PR #6、マージ 2026-04-22T23:46:05Z、SHA a741cda、インターバル実績 約 47h 14m) |
 | CI-DOC-SPRP | ソフトウェア問題解決手順書 | `9_software_problem_resolution_process/software_problem_resolution_procedure.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §5 CCB 通知行の 1 分インターバル反映) |
 | CI-DOC-ACL | IEC 62304 監査チェックリスト | `compliance/audit_checklist.md` | テンプレートのまま | 未編集(Inc.1 以降で本プロジェクト向けに整備予定) |
 | CI-DOC-README | プロジェクト README | `README.md` | — | 継続更新 |
-| CI-DOC-DEVSTEPS | 開発ステップ記録(お手本) | `DEVELOPMENT_STEPS.md` | 0.30 | 継続更新(ステップ毎に追記、Step 19 E 反映:`inc1-units-frozen` ベースラインタグ付与(BL-20260501-001、commit `b859a53` 直接付与)— Inc.1 V 字左側完成 + V 字右側計画着手の境界を不変化、過去 BL-20260421-001 のタグ参照不可問題を反省して main HEAD 直接付与方針に運用変更)|
+| CI-DOC-DEVSTEPS | 開発ステップ記録(お手本) | `DEVELOPMENT_STEPS.md` | 0.31 | 継続更新(ステップ毎に追記、Step 19 F0 反映:Inc.1 結合試験自動化骨格 — `pyproject.toml` integration マーカー登録 + `addopts -m "not integration"` で UT/IT 分離 + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` 2 ジョブ構成(integration-fast / integration-nightly)+ `tests/integration/{__init__.py, conftest.py, test_smoke.py}` 骨格 + スモーク 2 件 CI 経路動作確認、Step 19 F1〜F7 の前提整備完了)|
 | CI-DOC-CLAUDE | 編集ガイド(AI 支援含む) | `CLAUDE.md` | — | 本プロジェクト固有ルール追記済、Step 15a で単独開発下の独立性擬制セクションを 24h → 1 分に更新 |
 | CI-DOC-UPSTREAM | iec62304_template への修正要望台帳 | `UPSTREAM_FEEDBACK.md` | 0.3 | ドラフト(セルフ承認、UF-001〜UF-009 全 9 件 upstream 受領済み反映 — PR #15〜#23 マージ、2026-04-21。※v0.2 時点 Step 17a で本 CIL 反映漏れを Step 17b で遡及補正) |
 
@@ -96,6 +96,7 @@ Phase 3(M0 基盤整備期)終了 + Inc.1 設計凍結時点。バージョン�
 | CI-SOUP-009 | pydantic | Pydantic | `>=2.6,<3.0` | 2.13.3 | MIT | 実行時型検証 | HZ-003、HZ-008 |
 | CI-SOUP-010 | pip-audit | PyPA | `>=2.7` | 2.10.0 | Apache-2.0 | SOUP 脆弱性スキャン(`--strict`) | — |
 | CI-SOUP-011 | pytest-timeout | pytest-dev | `>=2.3` | 2.4.0 | MIT | 試験タイムアウト保護(デフォルト 30 秒) | — |
+| CI-SOUP-012 | pytest-benchmark | ionelmc | `>=4.0` | 5.2.3 | BSD-2-Clause | 統計時間試験(ITPR §6.8 IT-PERF、SRS-P02/P03/P04 P95 / 平均 / 標準偏差、Step 19 F0 で正式採用)| — |
 
 SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、脆弱性履歴、バージョン更新の追跡性)は Step 19 B2 以降で UNIT-001.1 から順次、各 SOUP の利用が始まる時点に実施する。SHA-256 固定は上記の通り `inc1-baseline` 付与時に実施。
 
@@ -115,7 +116,7 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | CI-TOOL-008 | Python ランタイム | CPython | 3.12.8(Step 19 B1 時点、SOUP-001 と共通) | 実行環境 | — |
 | CI-TOOL-009 | パッケージ管理 | pip + venv(標準ライブラリ) | pip 26.0.1、venv 標準 | 依存管理(`pip install -e ".[dev]"` で editable インストール) | — |
 | CI-TOOL-010 | 静的解析スイート | ruff / pylint / mypy / bandit | SOUP-005〜008 参照 | 品質・型・セキュリティ検査 | — |
-| CI-TOOL-011 | 試験フレームワーク | pytest / pytest-cov / hypothesis / pytest-timeout | SOUP-002〜004, 011 参照 | ユニット試験、網羅率、プロパティ試験、タイムアウト保護 | — |
+| CI-TOOL-011 | 試験フレームワーク | pytest / pytest-cov / hypothesis / pytest-timeout / pytest-benchmark | SOUP-002〜004, 011, 012 参照 | ユニット試験、網羅率、プロパティ試験、タイムアウト保護、統計時間試験(IT-PERF) | — |
 | CI-TOOL-012 | 脆弱性スキャン | pip-audit | SOUP-010 参照 | SOUP 脆弱性検出(CI `unit-test.yml` に統合済) | — |
 
 ## 7. 構成定義ファイル(CFG)
@@ -132,7 +133,8 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | CI-CFG-008 | .gitignore | `.gitignore` | Git 対象外ファイルの定義 |
 | CI-CFG-009 | Python プロジェクト設定 | `pyproject.toml` | 依存、ビルド、ruff / mypy / pytest / coverage / pylint / bandit の統合設定(Step 19 B1 で追加) |
 | (予定) CI-CFG-010 | 依存ロックファイル(SHA-256 付) | `requirements-lock.txt`(計画) | 依存の完全固定。Step 19 B2 後段 or `inc1-baseline` 付与時に `pip hash` ベースで生成する計画 |
-| CI-CFG-011 | コード CI ワークフロー | `.github/workflows/unit-test.yml` | ruff / ruff format / mypy / bandit / pytest(カバレッジ付)/ pip-audit を実行(Step 19 B1 で追加、`docs-check.yml` と並行)|
+| CI-CFG-011 | コード CI ワークフロー(UT)| `.github/workflows/unit-test.yml` | ruff / ruff format / mypy / bandit / pytest(カバレッジ付、`addopts = ["-m", "not integration"]` で IT 自動排除)/ pip-audit を実行(Step 19 B1 で追加、`docs-check.yml` と並行) |
+| CI-CFG-012 | コード CI ワークフロー(IT)| `.github/workflows/integration-test.yml` | `pytest -m "integration and not nightly"`(integration-fast、PR / push)+ `pytest -m integration`(integration-nightly、cron `0 2 * * *` UTC)、Linux runner 限定、Step 19 F0 で新設、ITPR §8.1 自動化方針実装 |
 
 ## 8. 試験データ・試験資産
 
@@ -160,7 +162,16 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | CI-TD-001r | UNIT-005.2 State Observer API 試験 | `tests/unit/test_state_observer_api.py` | UT-005.2-01〜12 を parametrize 展開して 19 ケース(基本観測 / 100 回 idempotent + mutating API 不呼出契約 / machine_state 5 状態反映 parametrize / pump_snapshot 透過 / Inc.1 範囲では resume_set_at is None 契約 / resume_pending=False / ERROR 状態の error_reason 文字列化(内部 enum 非露出契約) / 非 ERROR 4 状態 parametrize / pairwise observed_at 単調性 / `dataclasses.FrozenInstanceError` / 注入オブジェクト例外伝播 SDD §4.16.E / observed_at は UTC tzinfo)、100% カバレッジ / MC/DC 「—」据置(読み取り専用)(Step 19 B17 で新規追加)。Inc.4 で Resume Gate API 拡張(`pending_set_at_wall` accessor)で `set_at_wall` 透過試験を追加予定 |
 | CI-TD-001s | UNIT-005.3 Validation API クラス B 試験 | `tests/unit/test_validation_api.py` | UT-005.3-01〜13 を parametrize 展開して 16 ケース(SRS-004 整合 → Ok / flow_rate 範囲外 OutOfRange / dose_volume 範囲外 OutOfRange / duration_min 範囲外 0 と 6000 parametrize / 整合性違反 Inconsistency / 整合性境界 0%/+0.998%/+1.002% parametrize / 多重失敗集約 / 内部例外握りつぶし契約 SDD §4.17.E `patch("Decimal")` 注入 / 純粋関数副作用なし / `dataclasses.FrozenInstanceError` 3 失敗値オブジェクト / `ValidationResult` Union 網羅性 / `ValidationFailure` 基底型整合性 / **SEP-001 AST import グラフ機械検証** `vip_api_b/validation_api.py` が `vip_ctrl` / `vip_sim` / `vip_integrity` / `vip_api` を import しないこと)、100% カバレッジ / MC/DC 100%(骨格 90% から引き上げ)(Step 19 B18 で新規追加)。Inc.4 で `Settings(drug_name)` 拡張時に MissingField 検証試験を追加予定 |
 | (完了) CI-TD-001c | Inc.1 全 17 ユニット試験完成 | — | **Step 19 B18 完了で Inc.1 残骨格ゼロ達成**。CI-TD-001c は Inc.1 範囲では完了状態に到達 |
-| (予定) CI-TD-002 | 結合試験シナリオ | `tests/integration/` | 故障注入シナリオ含む結合試験(§5.6、ITPR v0.1 作成時) |
+| CI-TD-002 | 結合試験パッケージマーカー | `tests/integration/__init__.py` | `tests.integration` パッケージ化(`tests/conftest.py` と `tests/integration/conftest.py` の mypy モジュール名衝突回避、Step 19 F0 で新規追加) |
+| CI-TD-002a | 結合試験共通フィクスチャ | `tests/integration/conftest.py` | F1+ で各観点(RCM 結合 / pytest-benchmark / subprocess+SIGKILL ヘルパ等)を拡充する基盤、Step 19 F0 で骨格追加 |
+| CI-TD-002b | 結合試験スモーク | `tests/integration/test_smoke.py` | F0 動作確認用スモーク 2 件(`integration` マーカー登録確認 + Inc.1 全 6 パッケージ import 健全性、Step 19 F0 で新規追加)|
+| (予定) CI-TD-002.1 | RCM-001 結合試験 | `tests/integration/test_rcm001_command_range.py` | Step 19 F1 で追加予定、ITPR §6.1 詳細化 |
+| (予定) CI-TD-002.2 | RCM-003 結合試験 | `tests/integration/test_rcm003_watchdog_layer.py` | Step 19 F2 で追加予定、ITPR §6.2 詳細化 |
+| (予定) CI-TD-002.3 | RCM-004 結合試験 | `tests/integration/test_rcm004_dispatch_interval.py` | Step 19 F3 で追加予定、ITPR §6.3 詳細化 |
+| (予定) CI-TD-002.4 | SEP-001 ランタイム検証 | `tests/integration/test_sep001_runtime.py` | Step 19 F4 で追加予定、ITPR §6.7 詳細化 |
+| (予定) CI-TD-002.5 | IT-PERF 統計時間試験 | `tests/integration/test_perf_*.py` | Step 19 F5 で追加予定、ITPR §6.8 詳細化(pytest-benchmark 利用) |
+| (予定) CI-TD-002.6 | IT-PWR 電源断試験 | `tests/integration/test_power_loss.py` | Step 19 F6 で追加予定、ITPR §6.9 詳細化(`linux_only` マーカー) |
+| (予定) CI-TD-002.7 | IT-SIDE サイドチャネル試験 | `tests/integration/test_side_timing.py` | Step 19 F7 で追加予定、ITPR §6.10 詳細化 |
 | (予定) CI-TD-003 | システム試験シナリオ | `tests/system/` | 要求ベースのシステム試験(§5.7、STPR v0.1 作成時) |
 | (予定) CI-TD-004 | プロパティベース試験仕様 | `tests/properties/` or `tests/unit/` 直下 | hypothesis 用プロパティ定義(UNIT-001.1 / UNIT-004.1 中心) |
 | (予定) CI-TD-005 | 試験入力データ | `tests/data/` | YAML/JSON 形式の試験データ |
@@ -205,6 +216,7 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | 0.9 | 2026-04-23 | Step 19 B2(UNIT-001.1 State Machine TDD 実装)に伴う整合化。**(1) §3 ソースコード:** CI-SRC-001(流量制御コア、UNIT-001.1 v0.1 運用中 = `src/vip_ctrl/state_machine.py`、148 stmt、カバレッジ 100%、MC/DC 100%、RCM-019 実装、UT-001.1-01〜12 Pass)に昇格、残 UNIT-001.2〜001.5 は骨格として同エントリに注記。CI-SRC-005〜009 を「UNIT-002〜005 対応サブパッケージの骨格(Step 19 B1 追加)」として新規登録。**(2) §8 試験資産:** CI-TD-001b(`tests/unit/test_state_machine.py`、62 ケース)を新規登録、CI-TD-001c(UNIT-001.2 以降の試験)を「予定」として追記。**(3) 連動反映:** CI-DOC-UTPR v0.1 → v0.2(第 II 部 §9.2 / §11 反映)、CI-DOC-DEVSTEPS v0.10 → v0.11(Step 19 B2 追記反映)、CI-DOC-CIL 自己参照 v0.9。**(4) coverage `fail_under` 復帰:** Step 19 B1 で 0 に一時緩和していた `pyproject.toml` の `coverage.fail_under` を 95 に戻す(戻し忘れ防止が成立、Step 19 B1 計画通り実行)。実績は UNIT-001.1 実装後で TOTAL 100.00%、`fail_under=95` を超えて CI Pass 確認済 | k-abe |
 | 0.10 | 2026-04-23 | Step 19 B3(UNIT-001.4 Flow Command Validator TDD 実装)に伴う整合化。**(1) §3 ソースコード:** CI-SRC-001 行に **UNIT-001.4 Flow Command Validator v0.1**(`src/vip_ctrl/flow_validator.py`、56 stmt、カバレッジ 100%、MC/DC 100%、RCM-001 実装、UT-001.4-01〜12 Pass)を追記、状態を「UNIT-001.1 / 001.4 完了、UNIT-001.2 / 001.3 / 001.5 は TDD 未着手」に更新。**(2) §8 試験資産:** CI-TD-001d(`tests/unit/test_flow_validator.py`、34 ケース)を新規登録、CI-TD-001c の対象を残ユニット(UNIT-001.2 / 001.3 / 001.5 / 002.* 以降)に絞った表記へ更新。**(3) 連動反映:** CI-DOC-UTPR v0.2 → v0.3(第 I 部 §7.3.2 を SRS-O-001 / SDD §4.2 に整合化、第 II 部 §9.2 / §11 を Pass 反映、MINOR 区分・CR 不要)、CI-DOC-DEVSTEPS v0.11 → v0.12(Step 19 B3 追記反映)、CI-DOC-CIL 自己参照 v0.10。**(4) Step 14d / 17b / 15b 後段教訓「派生ドキュメント更新漏れ」の五度目試行:** UTPR・CI-SRC-001 行・CI-DOC-UTPR・CI-DOC-DEVSTEPS・自己参照 v0.10・新規 CI-TD-001d・改訂履歴の 7 箇所を事前リストアップして網羅レビュー実施。Step 19 B2 と同様、TOTAL カバレッジ 100.00% で CI `fail_under=95` Pass | k-abe |
 | 0.11 | 2026-04-23 | Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)に伴う整合化。**(1) §3 ソースコード:** CI-SRC-005 行を骨格 → **UNIT-002.4 HW-side Failsafe Timer v0.1**(`src/vip_sim/failsafe_timer.py`、78 stmt、カバレッジ 100%、MC/DC 100%、RCM-004 HW 側実装、UT-002.4-01〜08 Pass)に昇格、UNIT-002.1〜002.3 は骨格として注記。**(2) §8 試験資産:** CI-TD-001e(`tests/unit/test_failsafe_timer.py`、18 ケース)を新規登録、CI-TD-001c の対象を UNIT-002.1〜002.3 / 003.x / 004.x / 005.x に絞った表記へ更新。**(3) 連動反映:** CI-DOC-UTPR v0.3 → v0.4(§7.3.3 を SDD §4.3 に整合化:Logger 据置 + DI 採用 + 逆転安全側、第 II 部 §9.2 / §11 Pass 反映、MINOR 区分・CR 不要)、CI-DOC-DEVSTEPS v0.12 → v0.13(Step 19 B4 追記反映)、CI-DOC-CIL 自己参照 v0.11、CIL 冒頭バージョン v0.11 + 最終更新日 2026-04-23 を整合更新(Step 19 B3 教訓「冒頭バージョン表記の累積更新漏れ」の運用継続)。**(4) Step 14d / 17b / 15b 後段教訓「派生ドキュメント更新漏れ」の六度目試行:** UTPR・CI-SRC-005 行・CI-DOC-UTPR・CI-DOC-DEVSTEPS・自己参照 v0.11・新規 CI-TD-001e・冒頭メタ・改訂履歴の 8 箇所を事前リストアップして網羅レビュー実施。TOTAL カバレッジ 100.00%(stmt 282 + branch 40)で CI `fail_under=95` Pass | k-abe |
+| 0.29 | 2026-05-01 | Step 19 F0(Inc.1 結合試験自動化骨格整備)に伴う整合化。**(1) §5 SOUP:** CI-SOUP-012 `pytest-benchmark>=4.0`(実測 5.2.3、BSD-2-Clause、ITPR §6.8 IT-PERF 用)を正式登録。**(2) §6 開発・検証ツール:** CI-TOOL-011 試験フレームワーク行に `pytest-benchmark` を追記、参照 SOUP に 012 を追加。**(3) §7 CFG:** CI-CFG-012 `.github/workflows/integration-test.yml` 新規登録(integration-fast / integration-nightly 2 ジョブ、Linux runner 限定)、CI-CFG-011 を「コード CI ワークフロー(UT)」に明示し `addopts = ["-m", "not integration"]` で IT 自動排除を記載。**(4) §8 試験資産:** CI-TD-002 / 002a / 002b を予定 → 確定エントリに昇格(`tests/integration/__init__.py` / `conftest.py` / `test_smoke.py`)、CI-TD-002.1〜002.7 を Step 19 F1〜F7 の予定エントリとして整理。**(5) §4 ドキュメント:** CI-DOC-ITPR v0.1 → v0.2(§8.3 自動化状況更新)、CI-DOC-DEVSTEPS v0.30 → v0.31、CI-DOC-CIL 自己参照 v0.29、冒頭バージョン v0.29 + 最終更新日 2026-05-01。**(6) §3 影響なし**(ソースコード不変)。**(7) MINOR 区分・CR 不要**(計画ドキュメントの段階成熟 + 自動化基盤整備、SRS / SDD / RMF / SAD / 既存 UT 実装 いずれも不変。`pyproject.toml` への新規 SOUP 追加 + 設定追加は SCMP §4.1 の軽微区分に該当)。**(8) 意義:** Step 19 F1〜F7 の各観点詳細化の前提となる **CI 経路 + マーカー設計 + テスト骨格 + SOUP 整備** を一括完了、F1 以降は本骨格上に試験を追加するだけで済む構造を確立 | k-abe |
 | 0.28 | 2026-05-01 | Step 19 E(Inc.1 ベースラインタグ `inc1-units-frozen` 付与)に伴う整合化。**(1) §10 ベースライン履歴:** BL-20260501-001 `inc1-units-frozen`(2026-05-01、commit `b859a53` = Step 19 D-2 PR #28 マージコミット = main HEAD 直接付与)を確定エントリとして追加。含まれる主要 CI:CI-SRC-{001〜009}(全 17 ユニット v0.1、stmt/branch 100% / MC/DC 100% on RCM 6 件)+ CI-DOC-{UTPR v0.19, ITPR v0.1(新規昇格), SDD v0.2 据置, CIL v0.27, DEVSTEPS v0.29}+ CI-CFG-{001〜011}+ CI-SOUP-{001〜011}+ CI-TD-001a〜001s。**(2) §10 末尾注記更新:** タグ付与済状況を全 4 件分明記(`planning-baseline` / `inc1-requirements-frozen` / `inc1-design-frozen` / `inc1-units-frozen`)、運用変更(BL-20260421-001 はタグが main から到達不可だった反省を踏まえ、BL-20260501-001 以降は main HEAD の確定 commit に直接付与する方針に変更)を明文化。**(3) §4 ドキュメント:** CI-DOC-DEVSTEPS v0.29 → v0.30(Step 19 E 追記反映)、CI-DOC-CIL 自己参照 v0.28、冒頭バージョン v0.28 + 最終更新日 2026-05-01。**(4) §3 / §6 / §8 影響なし**(ベースライン記録 + 注記更新のみ、ソースコード / SOUP / 試験資産は不変)。**(5) MINOR 区分・CR 不要**(SCMP §4.1 表「軽微 / ベースライン記録の事後追記」に該当、SRS / SDD / RMF / SAD / 既存実装コード いずれも不変)。**(6) 意義:** Inc.1 V 字左側完成 + V 字右側計画着手の境界 を Git タグで永続化、Step 19 F(ITPR 残 7 観点詳細化)の起点参照点を確定 | k-abe |
 | 0.27 | 2026-05-01 | Step 19 D-2(Inc.1 ITPR-VIP-001 v0.1 骨格化、V 字右側着手の節目)に伴う整合化。**(1) §4 ドキュメント:** CI-DOC-ITPR を「未着手」→ **v0.1** に昇格(Inc.1 全 17 ユニット UT 完了を前提に骨格化、結合戦略 IS-1〜IS-5、RCM 軸代表 3 観点詳細化(§6.4 RCM-015 永続化 E2E / §6.5 RCM-016 再開ガード / §6.6 RCM-019 状態遷移結合、各 8 ケース)+ 残 7 観点骨格、UT 申し送り 6 件を性質別に分散配置、IF-U 14 件 + IF-E 3 件一覧確立)。CI-DOC-DEVSTEPS v0.28 → v0.29(Step 19 D-2 追記反映)、CI-DOC-CIL 自己参照 v0.27、冒頭バージョン v0.27 + 最終更新日 2026-05-01。**(2) §3 / §6 / §8 影響なし**(計画ドキュメントのみ昇格、ソースコード / SOUP / 試験資産 は不変。SOUP-012 候補 = `pytest-benchmark` のみ計画書内で言及、正式登録は Step 19 F で判断)。**(3) MINOR 区分・CR 不要**(SCMP §4.1 表「軽微 / 計画文書の段階成熟」に該当、SRS / SDD / RMF / SAD 本体不変)。**(4) 意義:** Inc.1 V 字右側着手の節目 — V 字左側(SDD § 詳細設計 + UT)が完了し、右側(IT + ST)の起点が確立。Step 19 F の ITPR 完了 + Step 19 G の STPR 骨格化 + Step 19 H の RCM 結合検証 + Inc.1 完了タグ `v0.1.0-inc1` 付与へつながる | k-abe |
 | 0.26 | 2026-05-01 | Step 19 D-1(過去 Step PR / マージコミット SHA 一括清算)に伴う整合化。**(1) §4 ドキュメント:** CI-DOC-UTPR を v0.18 → v0.19(§9.2 試験ケース結果テーブルのコミット SHA 欄 6 件 = UNIT-001.2 / 001.5 / 002.1 / 002.2 / 003.2 / 005.3 を実 SHA で一括確定)、CI-DOC-DEVSTEPS を v0.27 → v0.28(Step 19 D-1 追記 + 過去 Step 成果物欄 `PR #TBD` 全 19 件清算)、CI-DOC-CIL 自己参照 v0.26、冒頭バージョン v0.26 + 最終更新日 2026-05-01。**(2) §3 / §6 / §8 影響なし**(報告セルの SHA 確定のみ、ソースコード / SOUP / 試験資産は不変)。**(3) MINOR 区分・CR 不要**(SCMP §4.1 表「軽微 / 形式のみ・原文意味不変」に該当、計画変更ではない)。**(4) 意義:** Inc.1 V 字右側着手(Step 19 D ITPR v0.1 骨格化)の前提として §9.2 + DEVELOPMENT_STEPS のトレーサビリティをマージコミット SHA レベルで完全閉路化、TBD ノイズを除去 | k-abe |
