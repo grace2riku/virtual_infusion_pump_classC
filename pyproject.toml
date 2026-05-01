@@ -33,6 +33,9 @@ dev = [
     "pytest-timeout>=2.3",
     # Property-based testing (CI-SOUP-004 predicted), UNIT-001.1 / UNIT-004.1 targeted
     "hypothesis>=6.98",
+    # Integration test statistical timing (CI-SOUP-012 — Step 19 F0 正式採用、
+    # ITPR §6.8 IT-PERF: SRS-P02/P03/P04 統計時間試験用)
+    "pytest-benchmark>=4.0",
     # Static analysis stack (per SDP §, UTPR §3.1)
     "ruff>=0.5",
     "pylint>=3.2",
@@ -53,13 +56,24 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Step 19 F0: `-m "not integration"` を addopts に組み込み、UT 実行(unit-test.yml)
+# では integration マーカーを除外する。IT 実行(integration-test.yml)では
+# `pytest -m integration` で明示指定して上書きする(pytest は `-m` の最後の指定を採用)。
 addopts = [
     "--strict-markers",
     "--strict-config",
     "-ra",
     "--tb=short",
+    "-m",
+    "not integration",
 ]
 timeout = 30
+markers = [
+    "integration: integration test (ITPR-VIP-001 §6、Step 19 F0+ で実装、unit-test.yml では除外、integration-test.yml で実行)",
+    "linux_only: Linux 限定試験(IT-PWR で `subprocess.SIGKILL` を使用するなど、macOS / Windows ではスキップ)",
+    "nightly: 長時間試験(IT-PERF / IT-PWR / IT-SIDE で nightly schedule のみ実行)",
+    "perf: 統計時間試験(`pytest-benchmark` を使用、ITPR §6.8 IT-PERF カテゴリ)",
+]
 # Fail if any test emits a DeprecationWarning from our code
 filterwarnings = [
     "error",

@@ -1,0 +1,75 @@
+name: Integration Tests
+
+# Step 19 F0(ITPR-VIP-001 §8.1 自動化方針): UT と分離した IT 専用 CI。
+# - PR / push (main) で軽量 IT(機能整合性 + SEP ランタイム)を実行
+# - nightly schedule で重い IT(IT-PERF 統計時間 / IT-PWR 電源断 / IT-SIDE
+#   サイドチャネル)を含めた全 IT を実行
+# - IT-PWR は `linux_only` マーカーで他 OS 自動スキップ
+# - F1 以降の各観点 PR で当該カテゴリのテストファイルを順次追加していく
+#   (本 F0 ではスモーク 1 件のみ、CI 経路の動作確認用)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 毎日 UTC 02:00(JST 11:00)に nightly 全 IT 実行
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  integration-fast:
+    name: Fast IT (PR / push) — RCM + SEP, no heavy timing
+    # Linux 限定: ITPR §6.9 IT-PWR で SIGKILL を扱う前提のため。
+    # 軽量 IT(RCM / SEP)も同 runner で揃えるとマトリクスがシンプル。
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run integration tests (excluding nightly-only)
+        # `-m integration` で IT のみ選択(addopts の `not integration` を上書き)
+        # `and not nightly` で nightly 限定試験を除外
+        run: pytest -m "integration and not nightly" --no-cov -ra --tb=short
+
+  integration-nightly:
+    name: Nightly IT — full suite (PERF / PWR / SIDE included)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run all integration tests (incl. nightly-only)
+        run: pytest -m integration --no-cov -ra --tb=short

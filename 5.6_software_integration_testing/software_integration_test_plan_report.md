@@ -1,7 +1,7 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.1
+**バージョン:** 0.2
 **作成日:** 2026-05-01
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -460,8 +460,8 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 ### 8.3 自動化状況
 
-- v0.1 時点:**未着手**(Step 19 F で `tests/integration/` 配下と CI integration job を整備予定)
-- v0.2 以降:CI 自動実行 + nightly schedule 統合
+- **v0.2(Step 19 F0)時点:骨格整備済。** `tests/integration/{__init__.py, conftest.py, test_smoke.py}` 配置 + `pyproject.toml` に `integration` / `linux_only` / `nightly` / `perf` マーカー登録 + `addopts = ["-m", "not integration"]` で UT 実行時の自動排除 + `.github/workflows/integration-test.yml` 新設(`integration-fast` job:PR / push の `-m "integration and not nightly"` + `integration-nightly` job:cron `0 2 * * *` UTC で `-m integration` 全実行)+ `pytest-benchmark` を SOUP-012 として正式登録(IT-PERF §6.8 用)+ スモーク 2 件で CI 経路の動作確認済(`pytest -m "integration and not nightly"` で 2 collected / 441 deselected、UT 側は 441 passed / 2 deselected)。
+- **v0.3 以降(Step 19 F1〜F7):** 各観点(§6.1〜§6.10 のうち骨格 7 件)の `tests/integration/test_X.py` を順次追加し、§11.2 試験ケース結果テーブルに実施結果を記入していく(B2〜B18 と同じ漸進パターン)。
 
 ## 9. 結合試験記録の内容(箇条 5.6.7)
 
@@ -555,4 +555,5 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.2 | 2026-05-01 | **Step 19 F0(自動化骨格整備)を反映。** §8.3 自動化状況を「未着手」→「骨格整備済」に更新(`tests/integration/{__init__.py, conftest.py, test_smoke.py}` + `pyproject.toml` markers / `addopts = ["-m", "not integration"]` + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` の `integration-fast` / `integration-nightly` 2 ジョブ構成)。スモーク 2 件で CI 経路の動作確認済(UT 441 / IT 2 / coverage 100% / mypy `--strict` / ruff Pass)。Step 19 F1 以降の各観点詳細化の前提整備が完了 | k-abe |
 | 0.1 | 2026-05-01 | **初版作成(計画、Step 19 D-2)。** Inc.1 全 17 ユニット UT 完了(UTPR v0.19)を前提に、結合戦略(IS-1 永続化 → IS-2 制御系コア → IS-3 仮想 HW → IS-4 API 層 → IS-5 全層統合)を確立。**RCM 軸での代表 3 観点詳細化**(§6.4 RCM-015 永続化 E2E 8 ケース / §6.5 RCM-016 再開ガード 8 ケース / §6.6 RCM-019 状態遷移結合 8 ケース、合計 24 詳細化ケース)+ **残 7 観点骨格**(§6.1 RCM-001 / §6.2 RCM-003 / §6.3 RCM-004 / §6.7 SEP ランタイム / §6.8 IT-PERF 統計時間 / §6.9 IT-PWR 電源断 / §6.10 IT-SIDE サイドチャネル、合計目安 ≥ 35 件)。**UT 申し送り 6 件を性質別に分散配置**(電源断 → §6.9、統計時間 → §6.8、サイドチャネル → §6.10、SEP ランタイム → §6.7、E2E ラウンドトリップ → §6.4、Resume API → §6.5)。試験 ID 体系(`IT-{プレフィックス}.{サブ番号}-{連番}`)、IF-U 14 件 + IF-E 3 件一覧、結合戦略チェックリスト、受入基準 5 項目、回帰試験基盤計画を確立。第 II 部(報告)は骨格のみ、Step 19 F の試験実施で埋めていく(UTPR v0.1 と同じ「代表 + 骨格」段階成熟方式) | k-abe |
