@@ -1,7 +1,7 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.4
+**バージョン:** 0.5
 **作成日:** 2026-05-01
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -339,16 +339,52 @@ RCM-003(SW Watchdog 300 ms、SDD §4.8)+ RCM-004(HW Watchdog 500 ms、SDD §4.3)
 
 - なし(本観点は CR-0004 や `vip_api_b` と独立、SW/HW Watchdog 系のみで完結)。
 
-### 6.3 RCM-004 結合(送出間隔、Control Loop + Pump Simulator + HW Failsafe Timer)— **骨格**
+### 6.3 RCM-004 結合(送出間隔、Control Loop + Pump Simulator + HW Failsafe Timer)— **詳細化(Step 19 F3)**
 
-- **目的:** RCM-004(送出間隔 200 ms ± 10%、SRS-P02)が結合状態で維持され、Control Loop の周期性 + Pump への heartbeat 送出 + HW Failsafe Timer の監視 が時間整合していることを検証する。
-- **関連 IF-U:** IF-U-003 / IF-U-005 / IF-U-007
-- **関連 SRS:** SRS-031、SRS-P02、SRS-RCM-004
-- **関連 HZ:** HZ-001、HZ-002
-- **関連 RCM:** RCM-004(送出 SW 側 + HW 側)
-- **元 UT:** UT-001.2-01〜19(21 ケース)、UT-002.1-01〜21(21 ケース)、UT-002.4-01〜08(18 ケース)
-- **試験ケース数目安:** ≥ 5 件(SRS-P02 統計時間試験は §6.8 IT-PERF に分散配置、本節は機能整合性のみ)
-- **Step 19 F で詳細化予定**
+#### 6.3.1 試験目的
+
+RCM-004(送出間隔 200 ms ± 10%、SRS-P02、SDD §4.6 / §4.9)が結合状態でも維持され、Control Loop の `tick()` が **本物 PumpSimulator + 本物 PumpObserver + 本物 Flow Validator** を経由して機能整合的に動作することを検証する。SRS-P02 ±10% 統計時間試験は §6.8 IT-PERF(Step 19 F5)に分散配置済のため、本観点は **機能整合性のみ** に焦点。
+
+#### 6.3.2 結合経路
+
+```
+[RUNNING tick]   StateMachine.current() == RUNNING
+                 → SwWatchdog.heartbeat(now) + HwFailsafeTimer.heartbeat(now)
+                 → settings_provider() → Flow Validator.validate(cmd, ctx)
+                 → Pump.set_flow_rate(target)(IF-U-003)
+                 → Auto-stop check(SRS-012、accumulated_volume >= dose)
+
+[NEGATIVE tick]  StateMachine.current() == RUNNING
+                 → 両 Watchdog heartbeat 送出
+                 → Flow Validator が NEGATIVE 検出
+                 → StateMachine.request_transition(WDT_TIMEOUT, reason='validation_failed')
+                 → Pump dispatch 行わず
+
+[IDLE skip]      StateMachine.current() != RUNNING
+                 → tick が False を返し早期 return(heartbeat / dispatch なし)
+```
+
+#### 6.3.3 設計判断(Step 19 F3 着手前クロスレビュー)
+
+- **本物 SUT 比率を F2 からさらに増加**(F1 Mock 中心 → F2 本物 Watchdog 中心 → F3 本物 ControlLoop / Pump / Observer / Validator):本物 ControlLoop + 本物 PumpSimulator + 本物 PumpObserver + 本物 Flow Validator(ControlLoop 内ハードコード呼出)+ Mock(spec=StateMachine)+ MagicMock(spec なし)Watchdog 2 件。
+- **CR-0005 待ち**:`ControlLoop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と `SwWatchdog/HwFailsafeTimer.heartbeat`(引数なし、内部 `self._clock()` で取得)のシグネチャ不整合を本 F3 着手前クロスレビューで発見。本物 Watchdog を ControlLoop に注入できないため `MagicMock`(spec なし)で `heartbeat(ts)` 呼出を捕捉する契約検証で代替。**CR-0005 を F3 完了後に Step 19 F3.5 として別途起票予定**(F1.5 と同パターン)、F4 着手前に CR-0004 + CR-0005 を Adapter 層追加 or Protocol 統一でまとめて決着。
+- **`tick()` 直接呼出ベース**:UT-001.2-19 で本物スレッド経由の `start/stop` lifecycle は網羅済 + IT-RCM003.1-05 で SwWatchdog 監視スレッドの実時間検証済のため、本 F3 は `tick()` 直接呼出による「結合状態での dispatch + heartbeat 経路の機能整合性」に焦点。
+- **MC/DC 目標は据置「—」**:UT-001.2 / UT-002.1 / UT-002.2 で 100% 達成済、IT は契約検証中心。
+
+#### 6.3.4 試験ケース(詳細)
+
+| 試験 ID | 観点 | シナリオ | 期待結果 | 関連 IF-U | 関連 UT |
+|--------|------|---------|---------|----------|--------|
+| IT-RCM004.1-01 | 正常系(RUNNING tick) | RUNNING + 整合 Settings(flow=60)→ `tick()` | tick=True、本物 Pump `_target_flow=60`、両 Watchdog `heartbeat(ts)` 各 1 回呼出 | IF-U-003/004/005 | UT-001.2-01、UT-002.1-01 |
+| IT-RCM004.1-02 | tick + advance_time 連続 → 過渡応答機能 | RUNNING + 連続 tick × 5 + `pump.advance_time(0.5)` | 本物 Pump current_flow が 0 → target=60 方向に増加(機能整合のみ、SRS-P01 ±5% は §6.8 へ) | IF-U-003 | UT-002.1-03/04(SRS-P01 過渡応答) |
+| IT-RCM004.1-03 | heartbeat 引数透過 | tick 1 回 → 両 Watchdog の heartbeat 引数比較 | SW/HW 両方に **同一 timestamp**(positional 1 引数)が渡る(SDD §4.6 キーポイント「heartbeat は tick 先頭で同一 now」) | IF-U-004/005 | UT-001.2-15(timestamp 透過) |
+| IT-RCM004.1-04 | 異常入力 → State Machine WDT_TIMEOUT 経路 | flow_rate=-1.0(本物 Validator NEGATIVE)+ tick | tick=True、heartbeat 送出済、`request_transition(WDT_TIMEOUT, reason='validation_failed')` 1 回呼出、Pump dispatch なし | IF-U-002/003/004/005 | UT-001.2-04(NEGATIVE) |
+| IT-RCM004.1-05 | IDLE 状態 → tick 早期 return | StateMachine.current() == IDLE + tick | tick=False、heartbeat 送出なし、dispatch なし、状態遷移なし(SDD §4.6.A 早期 return 仕様) | — | UT-001.2-01(IDLE skip) |
+
+#### 6.3.5 申し送り
+
+- **CR-0005 起票候補**:`vip_ctrl.control_loop._HeartbeatSink` Protocol 改修候補:(a) Protocol を `heartbeat() -> None`(引数なし)に変更し ControlLoop 側で `self._sw_watchdog.heartbeat()` (引数なし) に修正、(b) Adapter 層追加(IT 内 or 本体)、(c) SwWatchdog/HwFailsafeTimer の `heartbeat` を `heartbeat(ts: float)` に変更(内部 clock を使わず外部から ts 注入)。**推奨 (a)**(SwWatchdog/HwFailsafeTimer の `heartbeat()` は内部 clock で `_last_heartbeat` を更新するので、外部から ts を渡す必要は機能的にない、最小修正)。Step 19 F3.5 で正式起票、F4 着手前に CR-0004 と併せて決着。
+- **SRS-P02 統計時間 + 過渡応答精度**:§6.8 IT-PERF(Step 19 F5)へ申し送り済(本 F3 は機能整合のみ)。
 
 ### 6.4 RCM-015 結合(永続化 E2E + 整合性検証)— **詳細化(代表 1)**
 
@@ -574,7 +610,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | IT-RCM019(状態遷移結合、§6.6)| **8**(目安、IT-RCM019.1-01〜08)| TBD | TBD | TBD | TBD | TBD |
 | IT-RCM001(指令範囲、§6.1 詳細化済 Step 19 F1)| **8**(IT-RCM001.1-01〜08)| **8** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-RCM003(SW/HW Watchdog、§6.2 詳細化済 Step 19 F2)| **6**(IT-RCM003.1-01〜06)| **6** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
-| IT-RCM004(送出間隔、§6.3 骨格)| **≥ 5**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
+| IT-RCM004(送出間隔、§6.3 詳細化済 Step 19 F3)| **5**(IT-RCM004.1-01〜05)| **5** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-SEP(SEP-001 ランタイム、§6.7 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-PERF(統計時間、§6.8 骨格)| **≥ 6**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-PWR(電源断、§6.9 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
@@ -611,7 +647,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | RCM-019 状態遷移 | IT-RCM019.1-01 〜 08(§6.6)| SRS-010〜014、SRS-020/021/025、SRS-RCM-020、SRS-ALM-003 | RCM-019 | HZ-001、HZ-002 | IF-U-001/002/004/006、IF-E-002 | UT-001.1、UT-001.3、UT-005.1 | TBD |
 | RCM-001 指令範囲 | IT-RCM001.1-01〜08(§6.1 詳細化済 Step 19 F1) | SRS-O-001、SRS-RCM-001、SRS-UX-001/004/005、SRS-005 | RCM-001 | HZ-001、HZ-002 | IF-U-001/011/013 | UT-001.4、UT-005.1、UT-005.3 | **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証、Step 19 F1)** |
 | RCM-003 SW Watchdog 階層 | IT-RCM003.1-01〜06(§6.2 詳細化済 Step 19 F2)| SRS-RCM-003、SRS-RCM-004 | RCM-003、RCM-004 | HZ-001、HZ-002 | IF-U-004/005/006/007 | UT-001.5、UT-002.4 | **Pass(6 tests、本物実時間連動 + 階層防御時間順序実証 + 監視スレッド lifecycle 検証、Step 19 F2、3 連続安定確認)** |
-| RCM-004 送出間隔 | IT-RCM004.* (§6.3 骨格)| SRS-031、SRS-P02、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-003/005/007 | UT-001.2、UT-002.1、UT-002.4 | TBD |
+| RCM-004 送出間隔 | IT-RCM004.1-01〜05(§6.3 詳細化済 Step 19 F3)| SRS-031、SRS-P02(機能整合のみ)、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-002/003/004/005 | UT-001.2、UT-002.1、UT-002.2、UT-001.4 | **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、Step 19 F3、3 連続安定確認)** |
 | SEP-001 ランタイム | IT-SEP.* (§6.7 骨格)| SRS-UX-001/004/005、SRS-005 | — | — | — | UT-005.3 | TBD |
 | 統計時間 | IT-PERF.* (§6.8 骨格)| SRS-P02、SRS-P03、SRS-P04 | — | — | IF-U-001/002/003/005 | UT-001.2、UT-001.3、UT-002.4 | TBD |
 | 電源断耐性 | IT-PWR.* (§6.9 骨格)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3 | TBD |
@@ -623,6 +659,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.5 | 2026-05-01 | **Step 19 F3(§6.3 RCM-004 送出間隔 詳細化、本物 ControlLoop + Pump + Observer + Validator 結合)を反映。** §6.3 を骨格 → 詳細化(IT-RCM004.1-01〜05、5 ケース表 + 結合経路 + 設計判断 + CR-0005 申し送り)。§11.2 IT-RCM004 行を 5 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM004 行を **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、3 連続安定確認)** に更新。**着手時発見:** `ControlLoop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と `SwWatchdog/HwFailsafeTimer.heartbeat`(引数なし)のシグネチャ不整合を確認 → **CR-0005 として別途起票予定**(F3 完了後 Step 19 F3.5)、本物 Watchdog 注入は F4 着手前に CR-0004 と併せて決着 | k-abe |
 | 0.4 | 2026-05-01 | **Step 19 F2(§6.2 RCM-003 SW/HW Watchdog 階層防御 詳細化)を反映。** §6.2 を骨格 → 詳細化(IT-RCM003.1-01〜06、6 ケース表 + 結合経路 + 設計判断 + 本物 `time.monotonic` 連動 + 監視スレッド lifecycle 検証)。§11.2 IT-RCM003 行を 6 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM003 行を **Pass(6 tests、本物実時間連動 + 階層防御時間順序実証 + 監視スレッド lifecycle 検証、3 連続安定確認)** に更新。**設計変更(Step 19 F2 着手前クロスレビュー)**:当初検討した「IT-RCM003.1-05 クロック逆転耐性」を「**監視スレッド経由の自動トリップ**(本物 `start/stop` lifecycle + 実時間 timer 精度)」に置換 — クロック逆転は UT-001.5-04 等の fake_clock 試験で網羅済のため重複回避、IT は本物実時間連動が本旨。**macOS sleep ジッタ対策**(Step 19 B4 教訓継続):実時間境界判定は緩い余裕(timeout + 50 ms 以上)、3 連続実行 stable 確認済 | k-abe |
 | 0.3 | 2026-05-01 | **Step 19 F1(§6.1 RCM-001 詳細化)を反映。** §6.1 を骨格 → 詳細化(IT-RCM001.1-01〜08、8 ケース表 + 結合経路 + 設計判断 + CR-0004 申し送り + §6.7 IT-SEP への本物注入分散配置を明文化)。§11.2 IT-RCM001 行を 8 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM001 行を **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証)** に更新。**着手時発見:** `vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数で `Ok` または `Err` を返す)の型不整合を確認 → **CR-0004 として別途起票予定**(F1 完了後)、本観点は Mock ベースで進め本物注入の SEP-001 越え経路検証は §6.7 IT-SEP(Step 19 F4)に分散配置 | k-abe |
 | 0.2 | 2026-05-01 | **Step 19 F0(自動化骨格整備)を反映。** §8.3 自動化状況を「未着手」→「骨格整備済」に更新(`tests/integration/{__init__.py, conftest.py, test_smoke.py}` + `pyproject.toml` markers / `addopts = ["-m", "not integration"]` + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` の `integration-fast` / `integration-nightly` 2 ジョブ構成)。スモーク 2 件で CI 経路の動作確認済(UT 441 / IT 2 / coverage 100% / mypy `--strict` / ruff Pass)。Step 19 F1 以降の各観点詳細化の前提整備が完了 | k-abe |
