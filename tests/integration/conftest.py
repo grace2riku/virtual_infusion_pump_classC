@@ -187,3 +187,77 @@ def hw_failsafe_timer_real(mock_pump_controller: Mock) -> HwFailsafeTimer:
         timeout=HW_HEARTBEAT_TIMEOUT,  # 0.5 sec
         monitor_interval=HW_MONITOR_INTERVAL,  # 0.1 sec
     )
+
+
+# ---------------------------------------------------------------------------
+# Step 19 F3(IT-RCM004): Control Loop + Pump Simulator + Watchdog 結合 fixture
+# ---------------------------------------------------------------------------
+#
+# 設計判断(Step 19 F3):
+# `vip_ctrl.control_loop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と
+# `vip_ctrl.watchdog.SwWatchdog.heartbeat`(引数なし、内部 `self._clock()` で取得)+
+# `vip_sim.failsafe_timer.HwFailsafeTimer.heartbeat`(同上、引数なし)の
+# シグネチャ不整合を着手前クロスレビューで発見(CR-0005 候補、F3 完了後に起票予定)。
+# 本物 SwWatchdog/HwFailsafeTimer を ControlLoop に注入すると `TypeError` で動作不能。
+# 本観点では `MagicMock`(spec なし、`heartbeat(ts)` 許容)で進め、CR-0005 決着後に
+# §6.3 を本物 Watchdog 注入経路で再強化する想定(F1 / F1.5 と同じパターン継続)。
+
+
+@pytest.fixture
+def mock_running_state_machine() -> Mock:
+    """`StateMachine` を Mock 化、`current()` は `State.RUNNING` を返す.
+
+    `request_transition` / `on_watchdog_timeout` は呼出捕捉用に MagicMock デフォルト。
+    """
+    sm: Mock = Mock(spec=StateMachine)
+    sm.current.return_value = State.RUNNING
+    return sm
+
+
+@pytest.fixture
+def magicmock_sw_heartbeat_sink() -> Mock:
+    """MagicMock(spec なし)で `_HeartbeatSink` を偽装(SwWatchdog 役、CR-0005 待ち).
+
+    spec を指定しないことで `heartbeat(ts: float)` の呼出を許容。
+    `assert_called_with(now)` で IF-U-004(Control Loop → SW Watchdog)を検証。
+    """
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    return MagicMock()
+
+
+@pytest.fixture
+def magicmock_hw_heartbeat_sink() -> Mock:
+    """MagicMock(spec なし)で `_HeartbeatSink` を偽装(HwFailsafeTimer 役、CR-0005 待ち)."""
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    return MagicMock()
+
+
+@pytest.fixture
+def pump_simulator_real() -> object:
+    """本物 `PumpSimulator`(UNIT-002.1)— Decimal 演算 + RLock 保護."""
+    from vip_sim.pump_simulator import PumpSimulator  # noqa: PLC0415
+
+    return PumpSimulator()
+
+
+@pytest.fixture
+def pump_observer_real(pump_simulator_real: object) -> object:
+    """本物 `PumpObserver`(UNIT-002.2)、Pump に紐付け SDD §4.10 整合."""
+    from vip_sim.pump_observer import PumpObserver  # noqa: PLC0415
+
+    return PumpObserver(pump=pump_simulator_real)  # type: ignore[arg-type]
+
+
+def make_consistent_record_settings(
+    flow_rate: Decimal = Decimal("60.0"),
+    dose_volume: Decimal = Decimal("60.0"),
+    duration_min: int = 60,
+) -> Settings:
+    """`vip_persist.records.Settings` を生成(`make_consistent_settings` の alias)."""
+    return Settings(
+        flow_rate=flow_rate,
+        dose_volume=dose_volume,
+        duration_min=duration_min,
+    )
