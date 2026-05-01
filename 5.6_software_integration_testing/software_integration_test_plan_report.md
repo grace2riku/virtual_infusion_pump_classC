@@ -1,7 +1,7 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.2
+**バージョン:** 0.3
 **作成日:** 2026-05-01
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
@@ -247,17 +247,49 @@ UT 完了時に各 UNIT で申し送られた試験種別を、性質ごとに �
 
 > **本節は v0.1 時点で「代表 3 観点詳細化 + 残 7 観点骨格」の段階成熟方式を採る(UTPR v0.1 採用根拠 L804「代表 5 + 骨格 12」と同パターン)。** 詳細化対象は **§6.4 RCM-015 永続化 E2E**、**§6.6 RCM-019 状態遷移結合**、**§6.5 RCM-016 再開ガード**(Inc.1 で SAD 全層を駆動する代表観点 3 つ)。残 7 観点(§6.1 / §6.2 / §6.3 / §6.7 / §6.8 / §6.9 / §6.10)は試験観点・ケース数目安・関連 IF-U / SRS / RCM のみを記述する骨格。Step 19 F(ITPR 完了)で残骨格を詳細化する。
 
-### 6.1 RCM-001 結合(指令範囲チェック、Validator + Control API + Validation API クラス B)— **骨格**
+### 6.1 RCM-001 結合(指令範囲チェック、Validator + Control API + Validation API クラス B)— **詳細化(Step 19 F1)**
 
-- **目的:** RCM-001(指令範囲チェック、HZ-001/002 過量投与・流量異常)が **API 層 → Validation API クラス B(SEP-001 越え)→ Flow Validator(クラス C)** の経路で結合状態でも維持されることを検証する。
-- **関連 IF-U:** IF-U-001 / IF-U-011 / IF-U-013
-- **関連 SRS:** SRS-O-001、SRS-RCM-001、SRS-UX-001/004/005、SRS-005
-- **関連 HZ:** HZ-001、HZ-002
-- **関連 RCM:** RCM-001
-- **元 UT:** UT-001.4-01〜12(34 ケース)、UT-005.1-01〜20(21 ケース)、UT-005.3-01〜13(16 ケース)
-- **試験ケース数目安:** ≥ 8 件(SEP-001 越え経路、Validation API クラス B → Control API クラス C 経路、範囲外指令の 3 段階拒否、`drug_name` Inc.1 削除契約)
-- **MC/DC 目標:** UT 側で 100% 達成済のため IT は契約検証中心(MC/DC 据置「—」)
-- **Step 19 F で詳細化予定**
+#### 6.1.1 試験目的
+
+RCM-001(指令範囲チェック、HZ-001 過量投与・HZ-002 流量異常)が **ControlAPI(005.1)→ ValidationApi(005.3 等価)経路** で結合状態でも維持され、範囲外指令が CommandHandler 経路に到達しないことを検証する。Step 19 F1 着手時に発見した **`vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数で `Ok` または `Err` を返す)の型不整合** に対しては Mock(spec=ValidationApi)ベースで Protocol 契約を検証し、本物注入による SEP-001 越え経路検証は §6.7 IT-SEP に分散配置(契約整合化は **CR-0004** として別途起票予定)。
+
+#### 6.1.2 結合経路と検証スコープ
+
+```
+[拒否経路]   ControlApi.start(settings)
+              -> ValidationApi.validate_settings(settings) -> [ValidationError(...)] (非空 list)
+              -> ValidationFailed(errors=[...])  ※ CommandHandler は呼ばれない
+              -> StateMachine 不変(IT-RCM001.1-08 で本物実証)
+
+[正常経路]   ControlApi.start(settings)
+              -> ValidationApi.validate_settings(settings) -> [] (空 list = Pass)
+              -> CommandHandler.enqueue(START Command) -> Accepted
+              -> Ok(token=...)
+```
+
+**設計判断(Step 19 F1):**
+
+- 本観点は **Mock(spec=ValidationApi) ベース**で Protocol 契約整合を検証(UT-005.1 の `validation_api_mock` パターン継承)。
+- IT-RCM001.1-01〜07 は全 Mock の `control_api_with_mocks` fixture(`tests/integration/conftest.py`)で契約検証。
+- IT-RCM001.1-08 のみ **本物 StateMachine + 本物 CommandHandler + Mock ValidationApi** の組み合わせで「Validation 拒否時の State Machine 不変」を実証(SEP-001 縮小版検証、§6.7 IT-SEP の予告)。
+
+#### 6.1.3 試験ケース(詳細)
+
+| 試験 ID | 観点 | 入力・操作 | 期待結果 | 関連 IF-U | 関連 UT |
+|--------|------|-----------|---------|----------|--------|
+| IT-RCM001.1-01 | 正常系(範囲内 + SRS-004 整合) | flow=60, dose=60, duration=60(整合)/ Mock = `[]` | `Ok(token=...)`、`validate_settings` 1 回呼出、`enqueue` 1 回呼出 | IF-U-001/011 | UT-005.1-01 |
+| IT-RCM001.1-02 | flow_rate 上限超(SRS-O-001 1200 超) | flow=1200.01 / Mock = `[ValidationError("flow_rate", ...)]` | `ValidationFailed`、`enqueue` **不発火** | IF-U-011 | UT-005.1-02、UT-001.4-01 |
+| IT-RCM001.1-03 | flow_rate 負(SRS-O-001 下限超) | flow=-1.0 / Mock = `[ValidationError("flow_rate", ...)]` | `ValidationFailed`、`enqueue` 不発火 | IF-U-011 | UT-001.4-04 |
+| IT-RCM001.1-04 | dose_volume 上限超(SRS-005 9999.9 超) | dose=10000.0 / Mock = `[ValidationError("dose_volume", ...)]` | `ValidationFailed`、`enqueue` 不発火 | IF-U-011 | UT-005.3-03、UT-005.3-04 |
+| IT-RCM001.1-05 | dose==0 かつ flow>0(SRS-004 整合性違反) | dose=0, flow=10, duration=60 / Mock = `[ValidationError("dose_consistency", ...)]` | `ValidationFailed`、`enqueue` 不発火 | IF-U-011 | UT-005.3-05 |
+| IT-RCM001.1-06 | flow×duration/60 と dose の差が ±1% 超 | flow=60, dose=70, duration=60(16% 差) / Mock = `[ValidationError("dose_consistency", ...)]` | `ValidationFailed`、`enqueue` 不発火 | IF-U-011 | UT-005.3-06、UT-001.4-09 |
+| IT-RCM001.1-07 | 多重失敗集約(flow + dose 両方範囲外) | flow=-1.0, dose=10000.0 / Mock = `[ValidationError("flow_rate"), ValidationError("dose_volume")]` | `ValidationFailed.errors` len=2、両方の field 含む | IF-U-011 | UT-005.3-07 |
+| IT-RCM001.1-08 | **Validation 拒否時の本物 StateMachine 不変** | flow=1200.01 / Mock 拒否 / 本物 StateMachine(IDLE)+ 本物 CommandHandler | `ValidationFailed`、`StateMachine.current() == State.IDLE` 不変 | IF-U-001/011 | UT-001.1(StateMachine)、UT-005.1-02 |
+
+#### 6.1.4 申し送り
+
+- **CR-0004(契約整合化)**:`vip_api.ValidationApi` Protocol 戻り値と `vip_api_b.validate_settings` 関数戻り値の型不整合(本 F1 着手時発見)。修正候補: (a) Protocol を `ValidationResult` に統一、(b) Adapter 層追加、(c) 現状維持で Mock ベース。Step 19 F1 完了後に別途起票・検討予定。
+- **§6.7 IT-SEP(Step 19 F4)で本物 vip_api_b 注入経路検証**:本 §6.1 で Mock ベースに留めた SEP-001 越え経路検証は、§6.7 で本物注入(または Adapter 経由注入)で再検証する。
 
 ### 6.2 RCM-003 結合(SW Watchdog + 階層防御 SW<HW)— **骨格**
 
@@ -504,7 +536,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | IT-RCM015(永続化 E2E、§6.4)| **8**(目安、IT-RCM015.1-01〜08)| TBD | TBD | TBD | TBD | TBD |
 | IT-RCM016(再開ガード、§6.5)| **8**(目安、IT-RCM016.1-01〜08)| TBD | TBD | TBD | TBD | TBD |
 | IT-RCM019(状態遷移結合、§6.6)| **8**(目安、IT-RCM019.1-01〜08)| TBD | TBD | TBD | TBD | TBD |
-| IT-RCM001(指令範囲、§6.1 骨格)| **≥ 8**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
+| IT-RCM001(指令範囲、§6.1 詳細化済 Step 19 F1)| **8**(IT-RCM001.1-01〜08)| **8** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-RCM003(SW/HW Watchdog、§6.2 骨格)| **≥ 6**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-RCM004(送出間隔、§6.3 骨格)| **≥ 5**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-SEP(SEP-001 ランタイム、§6.7 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
@@ -541,7 +573,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | RCM-015 永続化 E2E | IT-RCM015.1-01 〜 08(§6.4)| SRS-DATA-002/003、SRS-026/027、SRS-RCM-015、SRS-SEC-001 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.1〜003.3、UT-004.1 | TBD |
 | RCM-016 再開ガード | IT-RCM016.1-01 〜 08(§6.5)| SRS-028、SRS-RCM-016 | RCM-016 | HZ-007 | IF-U-001/002/010 | UT-004.2、UT-005.1 | TBD |
 | RCM-019 状態遷移 | IT-RCM019.1-01 〜 08(§6.6)| SRS-010〜014、SRS-020/021/025、SRS-RCM-020、SRS-ALM-003 | RCM-019 | HZ-001、HZ-002 | IF-U-001/002/004/006、IF-E-002 | UT-001.1、UT-001.3、UT-005.1 | TBD |
-| RCM-001 指令範囲 | IT-RCM001.* (§6.1 骨格)| SRS-O-001、SRS-RCM-001、SRS-UX-001/004/005、SRS-005 | RCM-001 | HZ-001、HZ-002 | IF-U-001/011/013 | UT-001.4、UT-005.1、UT-005.3 | TBD |
+| RCM-001 指令範囲 | IT-RCM001.1-01〜08(§6.1 詳細化済 Step 19 F1) | SRS-O-001、SRS-RCM-001、SRS-UX-001/004/005、SRS-005 | RCM-001 | HZ-001、HZ-002 | IF-U-001/011/013 | UT-001.4、UT-005.1、UT-005.3 | **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証、Step 19 F1)** |
 | RCM-003 SW Watchdog 階層 | IT-RCM003.* (§6.2 骨格)| SRS-RCM-003、SRS-RCM-004 | RCM-003、RCM-004 | HZ-001、HZ-002 | IF-U-004/005/006/007 | UT-001.5、UT-002.4 | TBD |
 | RCM-004 送出間隔 | IT-RCM004.* (§6.3 骨格)| SRS-031、SRS-P02、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-003/005/007 | UT-001.2、UT-002.1、UT-002.4 | TBD |
 | SEP-001 ランタイム | IT-SEP.* (§6.7 骨格)| SRS-UX-001/004/005、SRS-005 | — | — | — | UT-005.3 | TBD |
@@ -555,5 +587,6 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.3 | 2026-05-01 | **Step 19 F1(§6.1 RCM-001 詳細化)を反映。** §6.1 を骨格 → 詳細化(IT-RCM001.1-01〜08、8 ケース表 + 結合経路 + 設計判断 + CR-0004 申し送り + §6.7 IT-SEP への本物注入分散配置を明文化)。§11.2 IT-RCM001 行を 8 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM001 行を **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証)** に更新。**着手時発見:** `vip_api.ValidationApi` Protocol(`-> list[ValidationError]`)と `vip_api_b.validate_settings`(関数で `Ok` または `Err` を返す)の型不整合を確認 → **CR-0004 として別途起票予定**(F1 完了後)、本観点は Mock ベースで進め本物注入の SEP-001 越え経路検証は §6.7 IT-SEP(Step 19 F4)に分散配置 | k-abe |
 | 0.2 | 2026-05-01 | **Step 19 F0(自動化骨格整備)を反映。** §8.3 自動化状況を「未着手」→「骨格整備済」に更新(`tests/integration/{__init__.py, conftest.py, test_smoke.py}` + `pyproject.toml` markers / `addopts = ["-m", "not integration"]` + `pytest-benchmark` SOUP-012 採用 + `.github/workflows/integration-test.yml` の `integration-fast` / `integration-nightly` 2 ジョブ構成)。スモーク 2 件で CI 経路の動作確認済(UT 441 / IT 2 / coverage 100% / mypy `--strict` / ruff Pass)。Step 19 F1 以降の各観点詳細化の前提整備が完了 | k-abe |
 | 0.1 | 2026-05-01 | **初版作成(計画、Step 19 D-2)。** Inc.1 全 17 ユニット UT 完了(UTPR v0.19)を前提に、結合戦略(IS-1 永続化 → IS-2 制御系コア → IS-3 仮想 HW → IS-4 API 層 → IS-5 全層統合)を確立。**RCM 軸での代表 3 観点詳細化**(§6.4 RCM-015 永続化 E2E 8 ケース / §6.5 RCM-016 再開ガード 8 ケース / §6.6 RCM-019 状態遷移結合 8 ケース、合計 24 詳細化ケース)+ **残 7 観点骨格**(§6.1 RCM-001 / §6.2 RCM-003 / §6.3 RCM-004 / §6.7 SEP ランタイム / §6.8 IT-PERF 統計時間 / §6.9 IT-PWR 電源断 / §6.10 IT-SIDE サイドチャネル、合計目安 ≥ 35 件)。**UT 申し送り 6 件を性質別に分散配置**(電源断 → §6.9、統計時間 → §6.8、サイドチャネル → §6.10、SEP ランタイム → §6.7、E2E ラウンドトリップ → §6.4、Resume API → §6.5)。試験 ID 体系(`IT-{プレフィックス}.{サブ番号}-{連番}`)、IF-U 14 件 + IF-E 3 件一覧、結合戦略チェックリスト、受入基準 5 項目、回帰試験基盤計画を確立。第 II 部(報告)は骨格のみ、Step 19 F の試験実施で埋めていく(UTPR v0.1 と同じ「代表 + 骨格」段階成熟方式) | k-abe |
