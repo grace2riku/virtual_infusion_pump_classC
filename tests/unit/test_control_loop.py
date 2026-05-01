@@ -419,19 +419,24 @@ def test_ut_001_2_14b_tick_returns_true_when_running(loop: ControlLoop) -> None:
     assert loop.tick() is True
 
 
-# ---------- UT-001.2-15: ハートビートは fake_clock の現在値を渡す ----------
+# ---------- UT-001.2-15: ハートビートは引数なしで両 Watchdog に送出 ----------
 
 
-def test_ut_001_2_15_heartbeat_carries_clock_timestamp(
+def test_ut_001_2_15_heartbeat_called_without_arguments(
     loop: ControlLoop,
     fake_clock: _FakeClock,
     fake_sw_watchdog: MagicMock,
     fake_hw_watchdog: MagicMock,
 ) -> None:
+    """CR-0005 (a):`_HeartbeatSink.heartbeat()` は引数なし契約。
+
+    各 Watchdog 実装が内部 clock で timestamp を取得するため、ControlLoop は
+    外部から渡さない(SDD §4.8.A / §4.3.A 仕様)。
+    """
     fake_clock.advance(1.234)
     loop.tick()
-    fake_sw_watchdog.heartbeat.assert_called_once_with(1.234)
-    fake_hw_watchdog.heartbeat.assert_called_once_with(1.234)
+    fake_sw_watchdog.heartbeat.assert_called_once_with()
+    fake_hw_watchdog.heartbeat.assert_called_once_with()
 
 
 # ---------- UT-001.2-16: validate に渡される ControlContext の整合性 ----------

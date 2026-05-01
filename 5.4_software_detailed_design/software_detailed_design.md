@@ -1,12 +1,12 @@
 # ソフトウェア詳細設計書(SDD)
 
 **ドキュメント ID:** SDD-VIP-001
-**バージョン:** 0.2
-**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)
+**バージョン:** 0.3
+**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
 **対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲、全 17 ユニット詳細記述)
 **安全クラス:** C(IEC 62304)
-**変更要求:** CR-0001(Issue #1、MODERATE)
+**変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)
 
 | 役割 | 氏名 | 所属 | 日付 | 署名 |
 |------|------|------|------|------|
@@ -614,8 +614,11 @@ def _tick(self):
         return
     now = time.monotonic()
     # 1. ハートビート(両 Watchdog)— 制御処理に先立つ
-    self._sw_watchdog.heartbeat(now)
-    self._hw_watchdog.heartbeat(now)
+    # CR-0005 (a):各 Watchdog 実装(SDD §4.8.A / §4.3.A)が内部 clock で
+    # timestamp を取得するため、ControlLoop は引数なしで呼出。両 Watchdog の
+    # 受信 timestamp は数 μs 程度ずれるが RCM-003/004 への機能影響なし。
+    self._sw_watchdog.heartbeat()
+    self._hw_watchdog.heartbeat()
     # 2. Validator → 流量指令
     settings = self._settings_provider()
     cmd = FlowCommand(flow_rate=settings.flow_rate, timestamp=now)
@@ -1401,7 +1404,7 @@ def check_expiry(self) -> None:
 | `Settings` | pydantic frozen | `flow_rate: Decimal` (0〜1200)、`dose_volume: Decimal` (0〜9999.9)、`duration_min: int` (1〜5999)、`drug_name: str` |
 | `_command_handler` | CommandHandler | 注入(UNIT-001.3) |
 | `_resume_gate` | ResumeConfirmationGate | 注入(UNIT-004.2) |
-| `_validation_api` | ValidationApi | 注入(UNIT-005.3、分離 B) |
+| `_validation_api` | ValidationApi(Protocol) | 注入。実体は `vip_api._validation_bridge.ClassBValidationApiAdapter`(または UT 用 Mock)。CR-0004 (b) の Adapter が `vip_api_b.validate_settings`(`Ok` / `Err`)を `list[ValidationError]` に変換し、SEP-001 越え経路を成立させる |
 
 #### 4.15.C アルゴリズム
 
@@ -1719,3 +1722,4 @@ v0.2 詳細化作業中に、以下の SRS 文言整合・実装上の判断点�
 |----------|------|---------|--------|
 | 0.1 | 2026-04-18 | 初版作成(Inc.1 範囲):代表 5 ユニット(State Machine / Flow Command Validator / HW-side Failsafe Timer / Atomic File Writer / Integrity Validator)を §5.4.2 テンプレートに従って詳細記述、残 9 ユニットを骨格記述(責務・主要 API・依存・SDD v0.2 詳細化項目)、§5.4.3 I/F 詳細 13 件、§5.4.4 検証観点チェックリスト・レビュー記録。SDD v0.2 は CR 起票で追補予定、`inc1-design-frozen` タグは v0.2 完成後に付与 | k-abe |
 | 0.2 | 2026-04-19 | **CR-0001(Issue #1、MODERATE)による改訂。** v0.1 で骨格記述に留めていた 12 ユニットを §5.4.2 詳細記述に展開:UNIT-001.2 Control Loop(§4.6)/ UNIT-001.3 Command Handler(§4.7)/ UNIT-001.5 Watchdog SW(§4.8)/ UNIT-002.1 Pump Simulator(§4.9)/ UNIT-002.2 Pump Observer(§4.10)/ UNIT-002.3 Event Injection Stub(§4.11)/ UNIT-003.1 Serializer(§4.12)/ UNIT-003.2 Checksum Verifier(§4.13)/ UNIT-004.2 Resume Confirmation Gate(§4.14)/ UNIT-005.1 Control API(§4.15)/ UNIT-005.2 State Observer API(§4.16)/ UNIT-005.3 Validation API(§4.17、分離対象 B)。§3.2 ユニット一覧を全 17 ユニット詳細状態に更新。§6.2 レビュー記録に v0.2 行追加。§6.3 を「骨格記述の解消(v0.2 で完了)」に書き換え、実装ブロックの解除を宣言。§6.4「v0.2 で発見した SRS / RMF 整合性課題」を新規追加(ISS-V02-001〜004 を後続 SRS 改訂 CR の対象として申し送り)。§7 トレーサビリティの「本 SDD での記述」列を全行「詳細(§x.y、vN)」形式に更新。RCM 論理不変、SOUP 追加なし、外部 I/F 変更なし(SRMP §7.3「RCM 非関連部の変更」相当) | k-abe |
+| 0.3 | 2026-05-01 | **CR-0004(Issue #32、MODERATE、修正候補 (b) Adapter 層追加)+ CR-0005(Issue #36、MODERATE、修正候補 (a) Protocol 引数なし化)による Step 19 F1.6 一括改訂。** §4.6.C `_tick` 擬似コードの heartbeat 呼出を `self._sw_watchdog.heartbeat(now)` → `self._sw_watchdog.heartbeat()`(同 hw)に修正(CR-0005 (a)、各 Watchdog 実装が内部 clock で timestamp を取得する設計に整合)。§4.15.B `_validation_api` 行を更新し、実体が `vip_api._validation_bridge.ClassBValidationApiAdapter`(`vip_api_b.validate_settings` の `Ok` / `Err` を `list[ValidationError]` に変換する Adapter)経由で SEP-001 越え経路が成立することを明記(CR-0004 (b))。RCM-001 / RCM-003 / RCM-004 検出能力不変、SAD §6 階層防御設計 + §9 SEP-001 分離設計不変、SOUP 追加なし、外部 I/F 変更なし(SRMP §7.3「RCM 非関連部の変更」相当)| k-abe |

@@ -4,13 +4,13 @@ ITPR-VIP-001 §6.1 の詳細化(Step 19 F1)。
 Validator + Control API + Validation API クラス B 経路で **指令範囲チェック
 (RCM-001)が結合状態でも維持されている** ことを検証する。
 
-設計判断(Step 19 F1):
+設計判断(Step 19 F1 → F1.6 で更新):
 
-* 本観点は **Mock(spec=ValidationApi)** ベースで進める(`vip_api.ValidationApi`
-  Protocol が `list[ValidationError]` を期待する一方、`vip_api_b.validate_settings`
-  関数は `Ok | Err` を返すため、契約不整合により本物注入は静的型不適合)。
-  契約整合化は **CR-0004**(別途起票予定)で対応、本物注入の SEP-001 越え経路
-  検証は §6.7 IT-SEP(Step 19 F4)で扱う。
+* 本観点は **Mock(spec=ValidationApi)** ベースで進める(機能整合に focus)。
+  CR-0004 (b)(`vip_api/_validation_bridge.py` Adapter)が Step 19 F1.6 で
+  解消済のため、本物 `vip_api_b.validate_settings` を ControlApi に注入する
+  経路は Adapter 経由で可能。本物注入の SEP-001 越え経路検証は §6.7 IT-SEP
+  (Step 19 F4)で扱う。
 * IT-RCM001.1-01〜07 は `control_api_with_mocks`(全 Mock)で **契約整合**を検証。
 * IT-RCM001.1-08 は `control_api_with_real_state_machine`(本物 StateMachine +
   本物 CommandHandler + Mock ValidationApi)で **Validation 拒否時の状態不変**

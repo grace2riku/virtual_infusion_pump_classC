@@ -4,16 +4,18 @@ Step 19 F0 で骨格化、Step 19 F1 で RCM-001 用 fixture 群を追加。
 各観点(F1: RCM-001 / F2: RCM-003 / F3: RCM-004 / F4: SEP-001 /
 F5: IT-PERF / F6: IT-PWR / F7: IT-SIDE)で本 conftest を拡張する想定。
 
-設計方針(Step 19 F1):
+設計方針(Step 19 F1 → F1.6 で更新):
 
 * `Mock(spec=...)` 系 fixture は UT-005.1(`tests/unit/test_control_api.py`)の
   パターンを踏襲 — IT 観点では「ユニット間の **契約整合**」検証に焦点を当て、
   各ユニット内部分岐は UT が網羅済(stmt/branch 100%)。
-* `vip_api.ValidationApi` Protocol(`validate_settings(s) -> list[ValidationError]`)
-  と `vip_api_b.validation_api.validate_settings`(関数、`Settings -> Ok | Err`)の
-  型不整合は **CR-0004 として別途起票予定**(Step 19 F1 着手時に発見)。
-  本 IT は Protocol 契約での Mock ベースで進める。本物 vip_api_b 注入による
-  SEP-001 越え経路の検証は §6.7 IT-SEP(Step 19 F4)で扱う。
+* CR-0004 (b)(`vip_api/_validation_bridge.py` Adapter)+ CR-0005 (a)
+  (`_HeartbeatSink.heartbeat() -> None` 引数なし化)が Step 19 F1.6 で
+  解消済。本物 `vip_api_b.validate_settings` の `ControlApi` への注入は
+  Adapter 経由(`make_validation_api()`)で可能、本物 `SwWatchdog` /
+  `HwFailsafeTimer` の `ControlLoop` 注入は引数なし契約で可能。本物注入
+  による SEP-001 越え経路 + 階層防御 E2E の実証は §6.7 IT-SEP
+  (Step 19 F4)で扱う。本 §6.1〜§6.3 は Mock 主体の機能整合検証を維持。
 * `control_api_with_real_state_machine` は **本物 StateMachine + 本物 CommandHandler**
   を組み立てて Validation 拒否時の **State Machine 不変性** を検証する fixture
   (IT-RCM001.1-08 用)。CommandHandler の dispatch スレッドは起動しない
@@ -193,14 +195,11 @@ def hw_failsafe_timer_real(mock_pump_controller: Mock) -> HwFailsafeTimer:
 # Step 19 F3(IT-RCM004): Control Loop + Pump Simulator + Watchdog 結合 fixture
 # ---------------------------------------------------------------------------
 #
-# 設計判断(Step 19 F3):
-# `vip_ctrl.control_loop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と
-# `vip_ctrl.watchdog.SwWatchdog.heartbeat`(引数なし、内部 `self._clock()` で取得)+
-# `vip_sim.failsafe_timer.HwFailsafeTimer.heartbeat`(同上、引数なし)の
-# シグネチャ不整合を着手前クロスレビューで発見(CR-0005 候補、F3 完了後に起票予定)。
-# 本物 SwWatchdog/HwFailsafeTimer を ControlLoop に注入すると `TypeError` で動作不能。
-# 本観点では `MagicMock`(spec なし、`heartbeat(ts)` 許容)で進め、CR-0005 決着後に
-# §6.3 を本物 Watchdog 注入経路で再強化する想定(F1 / F1.5 と同じパターン継続)。
+# 設計判断(Step 19 F3 → F1.6 で更新):
+# CR-0005 (a) で `_HeartbeatSink.heartbeat() -> None`(引数なし)に整合化済。
+# 本物 SwWatchdog/HwFailsafeTimer を ControlLoop に注入できる経路は §6.7
+# IT-SEP(Step 19 F4)で扱い、本 §6.3 は機能整合のみに focus を維持するため
+# 引き続き MagicMock(spec なし)を使う。
 
 
 @pytest.fixture
@@ -216,10 +215,9 @@ def mock_running_state_machine() -> Mock:
 
 @pytest.fixture
 def magicmock_sw_heartbeat_sink() -> Mock:
-    """MagicMock(spec なし)で `_HeartbeatSink` を偽装(SwWatchdog 役、CR-0005 待ち).
+    """MagicMock で `_HeartbeatSink` を偽装(SwWatchdog 役、CR-0005 (a) 解消後).
 
-    spec を指定しないことで `heartbeat(ts: float)` の呼出を許容。
-    `assert_called_with(now)` で IF-U-004(Control Loop → SW Watchdog)を検証。
+    `heartbeat()` 引数なし呼出を捕捉(IF-U-004 Control Loop → SW Watchdog)。
     """
     from unittest.mock import MagicMock  # noqa: PLC0415
 
@@ -228,7 +226,7 @@ def magicmock_sw_heartbeat_sink() -> Mock:
 
 @pytest.fixture
 def magicmock_hw_heartbeat_sink() -> Mock:
-    """MagicMock(spec なし)で `_HeartbeatSink` を偽装(HwFailsafeTimer 役、CR-0005 待ち)."""
+    """MagicMock で `_HeartbeatSink` を偽装(HwFailsafeTimer 役、CR-0005 (a) 解消後)."""
     from unittest.mock import MagicMock  # noqa: PLC0415
 
     return MagicMock()

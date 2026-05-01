@@ -7,17 +7,17 @@ PumpObserver + 本物 Flow Validator** を経由して機能整合的に動作�
 検証する。SRS-P02 ±10% 統計時間試験は §6.8 IT-PERF(Step 19 F5)に分散
 配置済。本観点は **機能整合性のみ** に焦点。
 
-設計判断(Step 19 F3):
+設計判断(Step 19 F3 → F1.6 で更新):
 
 * **本物 SUT 比率を F2 からさらに増加**:本物 ControlLoop + 本物
   PumpSimulator + 本物 PumpObserver + 本物 Flow Validator(ControlLoop 内
-  ハードコード呼出)+ Mock StateMachine + MagicMock Watchdog 2 件
-  (CR-0005 待ち)。
-* **CR-0005 待ち**:`ControlLoop._HeartbeatSink` Protocol(`heartbeat(ts)`)と
-  `SwWatchdog/HwFailsafeTimer.heartbeat`(引数なし)のシグネチャ不整合を
-  本 F3 着手前クロスレビューで発見。本物 Watchdog を ControlLoop に注入
-  できないため、Mock(MagicMock spec なし)で `heartbeat(ts)` 呼出を捕捉する
-  契約検証で代替(F1 / F1.5 と同パターン、CR-0005 を F3 完了後に別途起票)。
+  ハードコード呼出)+ Mock StateMachine + MagicMock Watchdog 2 件。
+* **CR-0005 (a) 解消済(Step 19 F1.6)**:`ControlLoop._HeartbeatSink` Protocol
+  を `heartbeat() -> None`(引数なし)に整合化、`ControlLoop._dispatch_*` の
+  `self._sw_watchdog.heartbeat()` / `self._hw_watchdog.heartbeat()` 呼出も
+  整合化。本物 SwWatchdog/HwFailsafeTimer を ControlLoop に注入できる
+  経路は §6.7 IT-SEP(Step 19 F4)で本物階層防御 E2E として実証する。
+  本 §6.3 では引き続き機能整合のみに焦点を当てる(Mock 主体維持)。
 * `tick()` 直接呼出ベース(ControlLoop の本物スレッドは UT-001.2-19 で
   網羅済 + IT-RCM003.1-05 で SwWatchdog 監視スレッドの実時間検証済)。
 
@@ -25,8 +25,8 @@ PumpObserver + 本物 Flow Validator** を経由して機能整合的に動作�
 関連 RCM: RCM-004(SW 送出側 + HW 監視側)。
 関連 HZ: HZ-001(過量投与)、HZ-002(流量異常)。
 関連 IF-U: IF-U-003(ControlLoop → Pump set_flow_rate)、IF-U-004(ControlLoop →
-SwWatchdog heartbeat、CR-0005 待ち)、IF-U-005(ControlLoop → HwFailsafeTimer
-heartbeat、CR-0005 待ち)。
+SwWatchdog heartbeat、CR-0005 解消済)、IF-U-005(ControlLoop → HwFailsafeTimer
+heartbeat、CR-0005 解消済)。
 関連 UT: UT-001.2(ControlLoop、21 ケース MagicMock 主体)、UT-002.1(PumpSimulator、
 21 ケース)、UT-002.2(PumpObserver、10 ケース)。
 """
@@ -159,19 +159,20 @@ def test_it_rcm004_1_02_pump_transient_response_follows_target_via_tick(
 
 
 # ---------------------------------------------------------------------------
-# IT-RCM004.1-03 — heartbeat 連携の引数透過(同一 timestamp が両 Watchdog へ)
+# IT-RCM004.1-03 — heartbeat は両 Watchdog に引数なしで送出(CR-0005 (a) 解消後)
 # ---------------------------------------------------------------------------
-def test_it_rcm004_1_03_heartbeat_passes_same_timestamp_to_both_watchdogs(
+def test_it_rcm004_1_03_heartbeat_dispatched_argless_to_both_watchdogs(
     mock_running_state_machine: Mock,
     pump_simulator_real: PumpSimulator,
     pump_observer_real: PumpObserver,
     magicmock_sw_heartbeat_sink: MagicMock,
     magicmock_hw_heartbeat_sink: MagicMock,
 ) -> None:
-    """tick() 1 回で SW/HW 両 heartbeat に **同一 timestamp** が渡る契約.
+    """tick() 1 回で SW/HW 両 heartbeat が **引数なし** で 1 回ずつ呼ばれる契約.
 
-    SDD §4.6 のキーポイント「heartbeat は tick 先頭で同一 `now` を渡す」を
-    結合状態で実証(階層防御の時刻整合性)。
+    CR-0005 (a) 解消後の `_HeartbeatSink.heartbeat() -> None` 仕様を結合状態で実証。
+    各 Watchdog は内部 clock で timestamp を取得するため、ControlLoop は外部から
+    timestamp を渡さない(SDD §4.8.A / §4.3.A)。
     """
     settings = make_consistent_record_settings()
     loop = _build_control_loop(
@@ -185,12 +186,9 @@ def test_it_rcm004_1_03_heartbeat_passes_same_timestamp_to_both_watchdogs(
 
     loop.tick()
 
-    sw_call_args = magicmock_sw_heartbeat_sink.heartbeat.call_args
-    hw_call_args = magicmock_hw_heartbeat_sink.heartbeat.call_args
-    # 両 Watchdog に **同一 timestamp(positional 1 引数)** が渡る
-    assert sw_call_args is not None
-    assert hw_call_args is not None
-    assert sw_call_args.args == hw_call_args.args
+    # 両 Watchdog の heartbeat() は **引数なし** で 1 回ずつ呼ばれる
+    magicmock_sw_heartbeat_sink.heartbeat.assert_called_once_with()
+    magicmock_hw_heartbeat_sink.heartbeat.assert_called_once_with()
 
 
 # ---------------------------------------------------------------------------
