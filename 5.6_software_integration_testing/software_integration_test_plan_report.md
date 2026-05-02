@@ -1,9 +1,9 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.6
+**バージョン:** 0.7
 **作成日:** 2026-05-01
-**最終更新日:** 2026-05-01
+**最終更新日:** 2026-05-03
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
 **対象範囲:** Inc.1(流量制御コア、全 17 ソフトウェアユニットの結合)
@@ -487,15 +487,69 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 - **SRS-P03 / SRS-P04 統計時間試験(P95 応答時間)は §6.8 IT-PERF へ分散配置**(Step 19 B13 教訓「非決定論的試験は IT へ」)。本 §6.6 では機能整合性のみ検証(タイミング契約は IT-PERF)。
 
-### 6.7 SEP-001 ランタイム分離(アーキテクチャ検証)— **骨格**
+### 6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E(アーキテクチャ検証)— **詳細化(Step 19 F4)**
 
-- **目的:** SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005.3-13 で確立済)に加えてランタイムでも維持** されること、すなわち、クラス B モジュール(`src/vip_api_b/`)実行時にクラス C 副作用(state mutation / I/O / threading)が観測されないことを検証する。
-- **関連 IF-U:** —(クラス C / B 境界そのものを検証)
-- **関連 SAD:** §9 SEP-001
-- **関連 SRS:** SRS-UX-001/004/005、SRS-005
-- **試験ケース数目安:** ≥ 4 件(AST import グラフ ランタイム拡張、`vip_api_b/validation_api.py` 実行中の `sys.modules` 監視、クラス C 副作用観測なし契約、純粋関数性プロパティ)
-- **元 UT:** UT-005.3-13(`ast.parse` で import 機械検証)
-- **Step 19 F で詳細化予定**
+#### 6.7.1 試験目的
+
+SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005.3-13 で確立済)に加えてランタイムでも維持** されること、すなわち、クラス B モジュール(`src/vip_api_b/`)実行時にクラス C 副作用(state mutation / I/O / threading)が観測されないことを **真の本物注入経路** で実証する。Step 19 F1.6 で CR-0004 (b) Adapter(`vip_api/_validation_bridge.py`)+ CR-0005 (a) `_HeartbeatSink.heartbeat() -> None` 引数なし化が解消されたことを前提とし、§6.1〜§6.3 の Mock 主体検証から **本物注入主体** へ移行した本観点で、SEP-001 越え経路 + 階層防御 E2E を結合状態で実証する。
+
+#### 6.7.2 結合経路と検証スコープ
+
+```
+[SEP-001 越え正常経路] ControlApi.start(settings)
+                        -> make_validation_api()  ※本物 Adapter 注入
+                        -> ClassBValidationApiAdapter.validate_settings(settings)
+                        -> vip_api_b.validate_settings(settings) -> Ok(settings)  ※クラス B 実体
+                        -> Adapter が空 list [] に変換
+                        -> 本物 CommandHandler.enqueue(START) -> Accepted(token)
+                        -> 本物 StateMachine は IDLE 不変(dispatch スレッド未起動)
+
+[SEP-001 越え異常経路] ControlApi.start(範囲外 settings)
+                        -> Adapter -> vip_api_b.validate_settings -> Err(failures=[OutOfRange(...)])
+                        -> Adapter が ValidationError list に変換
+                        -> ValidationFailed 返却、enqueue 不発火
+                        -> 本物 StateMachine は IDLE 不変(クラス B 拒否がクラス C へ副作用伝播しない)
+
+[boundary 維持]         vip_api_b 内部例外(SDD §4.17.E try/except 全包)
+                        -> Err([Inconsistency("internal:...")]) で復帰
+                        -> Adapter が settings_consistency field の ValidationError に変換
+                        -> ApiRejected(InternalError) ではなく ValidationFailed として正常な「拒否」
+                        -> 例外が SEP-001 boundary を越えない
+
+[階層防御 E2E]          本物 ControlLoop.tick()
+                        -> 本物 SwWatchdog.heartbeat()  ※引数なし契約、CR-0005 (a)
+                        -> 本物 HwFailsafeTimer.heartbeat()  ※同上
+                        -> 各 Watchdog 内部 clock(time.monotonic)で _last_heartbeat 更新
+                        -> 直後の check_once() で is_tripped=False
+```
+
+**設計判断(Step 19 F4):**
+
+- **本物注入主体への移行**:§6.1〜§6.3 では Mock(spec=ValidationApi)/ MagicMock(`_HeartbeatSink`)で契約整合のみを検証。本観点では F1.6 で解消した CR-0004/0005 を活用し、`make_validation_api()` 経由の本物 Adapter + 本物 SwWatchdog/HwFailsafeTimer を真に注入する E2E に拡張。
+- **AST 軸 + ランタイム軸の分散配置**:IT-SEP.1-01 はパッケージ全ファイル AST 拡張(`vip_api_b/__init__.py` 含む)、IT-SEP.1-04 が `sys.modules` のランタイム観測を担当。当初検討した「`del sys.modules` で reload を強制 → クラス C ルート観測」は Adapter 側の関数バインドと不整合で test_05 等の `patch` が効かなくなる副作用を発見、AST 軸の網羅 + ランタイム軸の冪等観測に分散配置で再構成(F4 着手中の発見、修正記録)。
+- **CommandHandler dispatch スレッド未起動**:IT-SEP.1-02 / 03 / 05 では「`enqueue` 自体の挙動 + Validation 経路の SEP-001 boundary 維持」を主検証する目的で、本物 CommandHandler の `start()` を呼ばない(IT-RCM001.1-08 と同パターン、teardown 複雑化を避ける)。スレッド lifecycle は §6.6 IT-RCM019 で別途網羅済。
+- **Watchdog monitor スレッド未起動**:IT-SEP.1-06 では `last_heartbeat()` ベースで境界判定の決定性を確保(monitor スレッドの `monitor_interval` ジッタを排除、§6.2 IT-RCM003.1-05 で本物 lifecycle 検証済)。
+- **MC/DC 目標は据置「—」**:UT-005.3 / UT-005.1-bridge / UT-001.5 / UT-002.4 / UT-001.2 で 100% 達成済、IT は契約検証中心(coverage 計測対象外)。
+
+#### 6.7.3 試験ケース(詳細)
+
+| 試験 ID | 観点 | シナリオ | 期待結果 | 関連 IF-U | 関連 UT |
+|--------|------|---------|---------|----------|--------|
+| IT-SEP.1-01 | クラス B パッケージ全ファイル AST 拡張 | `vip_api_b/*.py` 全件を AST 解析 → クラス C ルート(`vip_ctrl` / `vip_sim` / `vip_integrity` / `vip_api`)の import が無いこと | 全ファイル交差集合空(`vip_persist` のみ frozen 値オブジェクト共有として許容) | — | UT-005.3-13(`validation_api.py` 単体 AST、本 IT で `__init__.py` 追加) |
+| IT-SEP.1-02 | 本物 vip_api_b 注入(Adapter 経由)正常 start | `make_validation_api()` + 本物 StateMachine(IDLE)+ 本物 CommandHandler、整合 Settings(60/60/60)で `start()` | `Ok(token != "")`、本物 StateMachine.current() == IDLE 不変 | IF-U-011 | UT-005.1-bridge-05/06、UT-005.3-01 |
+| IT-SEP.1-03 | 本物注入 + 異常 → boundary 維持 | flow=1200.01(SRS-O-001 上限超) | `ValidationFailed.errors` len ≥ 1、`flow_rate` field 含む、本物 StateMachine.current() == IDLE 不変 | IF-U-011 | UT-005.1-bridge-02、UT-005.3-02 |
+| IT-SEP.1-04 | 純粋関数性 + sys.modules 不変 | 同 Settings で 5 回 `validate_settings` 呼出 | 5 回とも空 list(冪等)、`sys.modules` のクラス C ルート差分 0 件 | — | UT-005.3-09(プロパティ試験) |
+| IT-SEP.1-05 | 例外握りつぶし契約(本物注入経由) | `vip_api_b.validation_api.Decimal` を patch して `RuntimeError` 注入 | `ValidationFailed`(`ApiRejected(InternalError)` ではない)、`settings_consistency` field、`message` が `inconsistency: internal:` 始まり、本物 StateMachine.current() == IDLE 不変 | IF-U-011 | UT-005.3-08(`Decimal` patch 例外注入) |
+| IT-SEP.1-06 | 本物 Watchdog + ControlLoop heartbeat 引数なし契約 E2E | 本物 SwWatchdog + HwFailsafeTimer + ControlLoop + PumpSimulator + PumpObserver + Mock(spec=StateMachine)RUNNING 状態で `tick()` | tick=True、両 Watchdog の `last_heartbeat()` が tick 前から進む、`check_once()` False、`is_tripped()` False、`on_watchdog_timeout` / `force_stop_failsafe` 不発火、Pump `_target_flow=60` 反映 | IF-U-003/004/005 | UT-001.2-15(引数なし契約)、UT-001.5-01、UT-002.4-01 |
+
+#### 6.7.4 設計判断(Step 19 F4 着手中の発見と是正)
+
+- **「`del sys.modules` で reload + クラス C ルート観測」案の不採用**:当初は IT-SEP.1-01 で **AST 軸 + ランタイム sys.modules 軸を 1 ケースに統合** する設計だった。実装後の並行実行検証で、`del sys.modules` 後に `vip_api_b.validation_api` が再ロードされると、Adapter(`_validation_bridge`)が module load 時に bind した `_validate_settings_b` 参照が **古い module の関数オブジェクトを指したまま** となり、後続 IT-SEP.1-05 の `with patch("vip_api_b.validation_api.Decimal", ...)` が **新しい module 側を patch** して効かなくなる現象を発見(IT-SEP.1-05 単体実行は Pass、ファイル全体実行で Fail)。そこで AST 軸(IT-SEP.1-01、`__init__.py` も含めた全ファイル網羅)とランタイム軸(IT-SEP.1-04、`sys.modules` 差分 0 件 + 冪等性)に分散配置し、Adapter のバインド一貫性を保つ設計に是正。**お手本的価値:** 「Python の `sys.modules` 操作は import バインドの一貫性を破壊するため、テスト副作用が大きい。`importlib.reload` も同様の問題を持つため、SEP-001 ランタイム検証は AST + 受動観測(差分監視)の 2 軸分散が最も安全」を後続プロジェクトに推奨。
+
+#### 6.7.5 申し送り
+
+- **CR-0004 / CR-0005 解消後の真の SEP-001 越え経路実証完了**:F1〜F3 で予告していた「§6.7 IT-SEP で本物注入による真の SEP-001 越え経路 + 階層防御 E2E を実証」を本ステップで完了。
+- **動的 import / threading 副作用観測の限界**:IT-SEP.1-04 は `set(sys.modules)` 差分の受動観測で「クラス C ルート新規追加無し」を担保するが、すでに sys.modules に存在するクラス C モジュール群への **後続の attribute 副作用**(関数呼出 / 動的 attr 設定)は本観点では検出困難。`vip_api_b` 側の純粋関数契約(SDD §4.17、`@dataclass(frozen=True)` 値オブジェクト)が静的に保証している前提で、本 IT は import グラフ + 冪等性 + 例外握りつぶし契約の 3 軸で SEP-001 ランタイム分離を担保する設計。動的 attr 副作用の観測は Inc.5 セキュリティ拡張時の動的解析(SOUP 候補検討)で再評価。
 
 ### 6.8 SRS-P02 / P03 / P04 統計時間試験(IT-PERF)— **骨格**
 
@@ -612,11 +666,11 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | IT-RCM001(指令範囲、§6.1 詳細化済 Step 19 F1)| **8**(IT-RCM001.1-01〜08)| **8** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-RCM003(SW/HW Watchdog、§6.2 詳細化済 Step 19 F2)| **6**(IT-RCM003.1-01〜06)| **6** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-RCM004(送出間隔、§6.3 詳細化済 Step 19 F3)| **5**(IT-RCM004.1-01〜05)| **5** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
-| IT-SEP(SEP-001 ランタイム、§6.7 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
+| IT-SEP(SEP-001 ランタイム、§6.7 詳細化済 Step 19 F4)| **6**(IT-SEP.1-01〜06)| **6** | 0 | 0 | 2026-05-03 | (本 PR マージコミット)|
 | IT-PERF(統計時間、§6.8 骨格)| **≥ 6**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-PWR(電源断、§6.9 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-SIDE(サイドチャネル、§6.10 骨格)| **≥ 2**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
-| **合計** | **≥ 59** | — | — | — | — | — |
+| **合計** | **≥ 61** | — | — | — | — | — |
 
 ### 11.3 不具合・逸脱
 
@@ -649,7 +703,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 | RCM-001 指令範囲 | IT-RCM001.1-01〜08(§6.1 詳細化済 Step 19 F1) | SRS-O-001、SRS-RCM-001、SRS-UX-001/004/005、SRS-005 | RCM-001 | HZ-001、HZ-002 | IF-U-001/011/013 | UT-001.4、UT-005.1、UT-005.3 | **Pass(8 tests、Mock ベース契約検証 + IT-RCM001.1-08 本物 StateMachine 不変実証、Step 19 F1)** |
 | RCM-003 SW Watchdog 階層 | IT-RCM003.1-01〜06(§6.2 詳細化済 Step 19 F2)| SRS-RCM-003、SRS-RCM-004 | RCM-003、RCM-004 | HZ-001、HZ-002 | IF-U-004/005/006/007 | UT-001.5、UT-002.4 | **Pass(6 tests、本物実時間連動 + 階層防御時間順序実証 + 監視スレッド lifecycle 検証、Step 19 F2、3 連続安定確認)** |
 | RCM-004 送出間隔 | IT-RCM004.1-01〜05(§6.3 詳細化済 Step 19 F3)| SRS-031、SRS-P02(機能整合のみ)、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-002/003/004/005 | UT-001.2、UT-002.1、UT-002.2、UT-001.4 | **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、Step 19 F3、3 連続安定確認)** |
-| SEP-001 ランタイム | IT-SEP.* (§6.7 骨格)| SRS-UX-001/004/005、SRS-005 | — | — | — | UT-005.3 | TBD |
+| SEP-001 ランタイム | IT-SEP.1-01〜06(§6.7 詳細化済 Step 19 F4)| SRS-UX-001/004/005、SRS-005、SRS-RCM-003、SRS-RCM-004 | RCM-003 / RCM-004(IT-SEP.1-06 副次)| — | IF-U-003/004/005/011 | UT-005.3、UT-005.1-bridge、UT-001.2、UT-001.5、UT-002.4 | **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証、Step 19 F4)** |
 | 統計時間 | IT-PERF.* (§6.8 骨格)| SRS-P02、SRS-P03、SRS-P04 | — | — | IF-U-001/002/003/005 | UT-001.2、UT-001.3、UT-002.4 | TBD |
 | 電源断耐性 | IT-PWR.* (§6.9 骨格)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3 | TBD |
 | サイドチャネル | IT-SIDE.* (§6.10 骨格)| SRS-SEC-001 | — | HZ-007 | — | UT-003.2 | TBD |
@@ -660,6 +714,7 @@ RCM-019(状態遷移整合性、HZ-001/002 不正状態遷移による誤動作)
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.7 | 2026-05-03 | **Step 19 F4(§6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E 詳細化)を反映。** §6.7 を骨格 → 詳細化(IT-SEP.1-01〜06、6 ケース表 + 結合経路 4 経路 + 設計判断 5 項目 + 着手中の是正記録 1 項目 + 申し送り 2 項目)。§11.2 IT-SEP 行を 6 Pass / 0 Fail / 0 Skip で確定(2026-05-03)、§13 トレーサビリティマトリクス IT-SEP 行を **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証)** に更新、合計目安を ≥ 59 → ≥ 61 に。**着手中の是正記録(`del sys.modules` 副作用回避):** 当初設計では IT-SEP.1-01 で AST 軸 + ランタイム sys.modules 軸を 1 ケース統合だったが、`del sys.modules` 後の reload が Adapter のバインド一貫性を破壊し IT-SEP.1-05 の `patch` 効力を失わせる副作用を発見。AST 軸(IT-SEP.1-01)+ ランタイム受動観測軸(IT-SEP.1-04)に分散配置で再構成、Adapter バインド一貫性を保つ設計に是正(後続プロジェクト推奨パターン記録)。RCM-001/003/004/SEP-001 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし、`tests/integration/conftest.py` に F4 用 fixture 4 件(`real_validation_api` / `control_api_with_real_validation` / `sw_watchdog_for_loop` / `hw_failsafe_timer_for_loop`)追加 | k-abe |
 | 0.6 | 2026-05-01 | **Step 19 F1.6(CR-0004 (b) Adapter 層追加 + CR-0005 (a) `_HeartbeatSink` Protocol 引数なし化、一括実装)を反映。** §6.1.4 申し送りを「CR-0004 解消済(修正候補 (b) Adapter 層追加採用)」に更新、`vip_api/_validation_bridge.py` Adapter 経路と §6.7 IT-SEP(Step 19 F4)での本物注入活用を明文化。§6.3.3 設計判断と §6.3.5 申し送りを「CR-0005 解消済(修正候補 (a) Protocol 引数なし化採用)」に更新、本物 SwWatchdog/HwFailsafeTimer の ControlLoop 注入経路を §6.7 で活用予定と明記。§6.3 試験ケース表 IT-RCM004.1-03 を「heartbeat 引数なし契約(CR-0005 (a) 解消後)」に更新(SW/HW 両方の `heartbeat()` 引数なし 1 回呼出契約)。`tests/integration/conftest.py` ヘッダ + §6.3 fixture 設計判断コメントを「CR-0004/0005 解消後」に更新。RCM-001/003/004 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし | k-abe |
 | 0.5 | 2026-05-01 | **Step 19 F3(§6.3 RCM-004 送出間隔 詳細化、本物 ControlLoop + Pump + Observer + Validator 結合)を反映。** §6.3 を骨格 → 詳細化(IT-RCM004.1-01〜05、5 ケース表 + 結合経路 + 設計判断 + CR-0005 申し送り)。§11.2 IT-RCM004 行を 5 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM004 行を **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、3 連続安定確認)** に更新。**着手時発見:** `ControlLoop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と `SwWatchdog/HwFailsafeTimer.heartbeat`(引数なし)のシグネチャ不整合を確認 → **CR-0005 として別途起票予定**(F3 完了後 Step 19 F3.5)、本物 Watchdog 注入は F4 着手前に CR-0004 と併せて決着 | k-abe |
 | 0.4 | 2026-05-01 | **Step 19 F2(§6.2 RCM-003 SW/HW Watchdog 階層防御 詳細化)を反映。** §6.2 を骨格 → 詳細化(IT-RCM003.1-01〜06、6 ケース表 + 結合経路 + 設計判断 + 本物 `time.monotonic` 連動 + 監視スレッド lifecycle 検証)。§11.2 IT-RCM003 行を 6 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM003 行を **Pass(6 tests、本物実時間連動 + 階層防御時間順序実証 + 監視スレッド lifecycle 検証、3 連続安定確認)** に更新。**設計変更(Step 19 F2 着手前クロスレビュー)**:当初検討した「IT-RCM003.1-05 クロック逆転耐性」を「**監視スレッド経由の自動トリップ**(本物 `start/stop` lifecycle + 実時間 timer 精度)」に置換 — クロック逆転は UT-001.5-04 等の fake_clock 試験で網羅済のため重複回避、IT は本物実時間連動が本旨。**macOS sleep ジッタ対策**(Step 19 B4 教訓継続):実時間境界判定は緩い余裕(timeout + 50 ms 以上)、3 連続実行 stable 確認済 | k-abe |

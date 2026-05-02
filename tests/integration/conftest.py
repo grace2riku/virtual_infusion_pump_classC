@@ -259,3 +259,72 @@ def make_consistent_record_settings(
         dose_volume=dose_volume,
         duration_min=duration_min,
     )
+
+
+# ---------------------------------------------------------------------------
+# Step 19 F4(IT-SEP-001): SEP-001 ランタイム分離 + 真の本物注入経路 fixture
+# ---------------------------------------------------------------------------
+#
+# 設計判断(Step 19 F4):
+# §6.1〜§6.3 が Mock 主体の機能整合検証だったのに対し、§6.7 は CR-0004 (b)
+# Adapter + CR-0005 (a) Protocol 引数なし化が解消された前提で、
+#   * 本物 `vip_api_b.validate_settings`(Adapter `make_validation_api()` 経由)
+#   * 本物 `SwWatchdog` / `HwFailsafeTimer`(`heartbeat() -> None` 引数なし契約)
+# を真に注入することで「SEP-001 越え経路 + 階層防御 E2E」を実証する。
+
+
+@pytest.fixture
+def real_validation_api() -> ValidationApi:
+    """本物 `ValidationApi`(`vip_api/_validation_bridge.make_validation_api()` 経由).
+
+    内部で `vip_api_b.validation_api.validate_settings`(クラス B)を呼び出す
+    Adapter。SEP-001 の越え経路を **本物注入** で検証するための主軸 fixture。
+    """
+    from vip_api._validation_bridge import make_validation_api  # noqa: PLC0415
+
+    return make_validation_api()
+
+
+@pytest.fixture
+def control_api_with_real_validation(
+    real_state_machine_idle: StateMachine,
+    mock_resume_gate: Mock,
+    real_validation_api: ValidationApi,
+) -> ControlApi:
+    """`ControlAPI`(本物 ValidationApi Adapter + 本物 StateMachine + 本物 CommandHandler).
+
+    IT-SEP.1-02 / 03 / 05 で「真の SEP-001 越え経路」を実証するための fixture。
+    `CommandHandler` は **dispatch スレッドを起動しない** — 本観点は
+    `enqueue` 自体の挙動 + Validation 経路の SEP-001 boundary 維持を主検証
+    するため、スレッド lifecycle は §6.6 IT-RCM019 で別途網羅済。
+    """
+    handler = CommandHandler(state_machine=real_state_machine_idle)
+    return ControlApi(
+        command_handler=handler,
+        resume_gate=mock_resume_gate,
+        validation_api=real_validation_api,
+    )
+
+
+@pytest.fixture
+def sw_watchdog_for_loop(mock_running_state_machine: Mock) -> SwWatchdog:
+    """本物 `SwWatchdog`(ControlLoop 注入用、`mock_running_state_machine` 連動).
+
+    §6.2 fixture と異なり、ControlLoop 結合観点では `current() == RUNNING`
+    の StateMachine と紐付ける(`SwWatchdog.on_watchdog_timeout` 呼出捕捉用)。
+    """
+    return SwWatchdog(
+        mock_running_state_machine,
+        timeout=SW_HEARTBEAT_TIMEOUT,
+        monitor_interval=SW_MONITOR_INTERVAL,
+    )
+
+
+@pytest.fixture
+def hw_failsafe_timer_for_loop(mock_pump_controller: Mock) -> HwFailsafeTimer:
+    """本物 `HwFailsafeTimer`(ControlLoop 注入用)."""
+    return HwFailsafeTimer(
+        mock_pump_controller,
+        timeout=HW_HEARTBEAT_TIMEOUT,
+        monitor_interval=HW_MONITOR_INTERVAL,
+    )

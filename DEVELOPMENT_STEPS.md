@@ -1911,6 +1911,45 @@ Step 19 F3.5(CR-0005 起票)完了。Issue #36 で CCB 検討待ち。続いて�
 
 ---
 
+### Step 19 F4 — IT 4 観点目: §6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E 詳細化(本物 vip_api_b Adapter + 本物 SwWatchdog/HwFailsafeTimer 注入、`del sys.modules` 副作用回避の設計是正)
+
+| 項目 | 内容 |
+|------|------|
+| 作業日 | 2026-05-03 |
+| 作業内容 | Step 19 F1.6(CR-0004 + CR-0005 一括実装、PR #38 マージ `0734c81`)完了を受けて、**Step 19 F4(IT 4 観点目)** を実施。ITPR-VIP-001 §6.7 の SEP-001 ランタイム分離 + 真の本物注入 E2E 6 ケース(IT-SEP.1-01〜06)を新規実装、§6.7 を骨格 → 詳細化、§11.2 / §13 を Pass で確定。**(1) F1.6 解消後の本物注入主体への移行:** §6.1〜§6.3 で蓄積した「Mock 主体の機能整合検証」観点から、F1.6 で解消した CR-0004 (b) Adapter(`vip_api/_validation_bridge.py`)+ CR-0005 (a) `_HeartbeatSink.heartbeat() -> None` 引数なし化を活用し、**本物 `vip_api_b.validate_settings`(Adapter `make_validation_api()` 経由)+ 本物 `SwWatchdog` / `HwFailsafeTimer`** を `ControlApi` / `ControlLoop` に真に注入する E2E に拡張。**(2) 試験ケース実装** `tests/integration/test_sep001_runtime_isolation.py`(新規 6 ケース、ファイル全体に `pytestmark = pytest.mark.integration`):IT-SEP.1-01 クラス B パッケージ全ファイル(`__init__.py` 含む)AST 拡張検証(クラス C ルート `vip_ctrl` / `vip_sim` / `vip_integrity` / `vip_api` への import が無いことを `vip_api_b/*.py` 全件で確認)、IT-SEP.1-02 本物 vip_api_b 注入 + 整合 Settings → `Ok(token != "")` + 本物 StateMachine(IDLE)不変、IT-SEP.1-03 本物注入 + 範囲外 settings(flow=1200.01)→ `ValidationFailed.errors` len ≥ 1 + 本物 StateMachine(IDLE)不変、IT-SEP.1-04 純粋関数性プロパティ(同 Settings で 5 回呼出 → 全て空 list の冪等)+ `set(sys.modules)` 差分でクラス C ルート新規追加 0 件、IT-SEP.1-05 例外握りつぶし契約(`vip_api_b.validation_api.Decimal` を `RuntimeError` で patch → SDD §4.17.E に従い `ValidationFailed`(`ApiRejected(InternalError)` ではない)+ `settings_consistency` field + `inconsistency: internal:` 始まり + 本物 StateMachine(IDLE)不変)、IT-SEP.1-06 本物 SwWatchdog + HwFailsafeTimer + 本物 ControlLoop + 本物 PumpSimulator + 本物 PumpObserver で `tick()` → 両 Watchdog の `last_heartbeat()` 進行 + `is_tripped() == False` + Pump `_target_flow=60` 反映(CR-0005 (a) 解消後の `heartbeat()` 引数なし契約 E2E)。**(3) `tests/integration/conftest.py` 拡充:** F4 用 fixture 4 件(`real_validation_api` で `make_validation_api()` 経由生成、`control_api_with_real_validation` で本物 ValidationApi Adapter + 本物 StateMachine + 本物 CommandHandler、`sw_watchdog_for_loop` / `hw_failsafe_timer_for_loop` で ControlLoop 注入用本物 Watchdog)を追加。**(4) 着手中の発見と是正(設計判断 5 番目を ITPR §6.7.4 として記録):** 当初 IT-SEP.1-01 で AST 軸 + ランタイム sys.modules 軸を 1 ケース統合する設計(`del sys.modules['vip_api_b.validation_api']` 後に reload して直後の `sys.modules` 差分でクラス C ルートを観測)だった。ローカル並行実行で IT-SEP.1-05 が単体実行 Pass / ファイル全体実行 Fail することを発見し原因解析:`del sys.modules` 後の reload で `vip_api_b.validation_api` が新しい module オブジェクトとして登録されるが、Adapter(`_validation_bridge.py`)が module load 時に bind した `_validate_settings_b` 参照は **古い module の関数オブジェクトを指したまま** となり、IT-SEP.1-05 の `with patch("vip_api_b.validation_api.Decimal", ...)` は **新しい module 側を patch** するため Adapter 経由の評価では効かない。**修正:** AST 軸(IT-SEP.1-01、`__init__.py` も含めた全ファイル網羅)+ ランタイム受動観測軸(IT-SEP.1-04、`set(sys.modules)` 差分監視 + 冪等性プロパティ)に分散配置し、Adapter のバインド一貫性を保つ設計に変更。F2 / F3 着手前クロスレビューと同パターンで「IT 着手中に発見した設計問題は分散配置で再構成」運用を継続。**(5) ローカル CI 等価検証 全 Pass:** UT 447 passed / 27 deselected / coverage **99.46%**(stmt 1300 / branch 190、`fail_under=95` 超過、F1.6 から既存の `_validation_bridge.py` 防御 4 行 = `assert_never` 経路 + 未使用 `MissingField` 経路は意図的に未到達の据置)、IT 27 passed / 447 deselected(F4 で +6、内訳:F1 RCM001 8 + F2 RCM003 6 + F3 RCM004 5 + F4 IT-SEP 6 + smoke 2)、`mypy --strict src tests` Success in 52 source files、`ruff check . / ruff format --check .` All Pass、`bandit -ll -r src` 0 high/medium/low/undefined。**(6) ドキュメント更新:** ITPR-VIP-001 v0.6 → v0.7(§6.7 詳細化 + §11.2 + §13 + §14 改訂履歴 v0.7、合計目安 ≥ 59 → ≥ 61)、CIL-VIP-001 v0.35 → v0.36(§8 CI-TD-002.4 確定昇格 + §4 CI-DOC-ITPR / DEVSTEPS / CIL 自己参照 + 冒頭メタ + §11 改訂履歴 v0.36 行追加)、DEVELOPMENT_STEPS.md v0.37 → v0.38(本セクション + 改訂履歴)。MINOR 区分・CR 不要(§6.7 詳細化 + 試験資産確定昇格 + 既存 fixture 拡充、SCMP §4.1「軽微」、SRS / SDD / RMF / SAD / 既存実装コード いずれも不変、CR-0004 / CR-0005 解消後の本物注入経路を IT で活用しただけで設計変更なし)|
+| 成果物 | **コード系**:`tests/integration/conftest.py`(F4 fixture 4 件追加)、`tests/integration/test_sep001_runtime_isolation.py`(新規 6 ケース)。**ドキュメント系**:ITPR-VIP-001 v0.7、CIL-VIP-001 v0.36、DEVELOPMENT_STEPS.md v0.38(本書)、Step 19 F4 PR(本ブランチ `feat/step19f4-it-sep001-runtime-isolation`)|
+
+**採用根拠(なぜ Step 19 F4 で SEP-001 ランタイム分離 + 真の本物注入 E2E を 4 観点目に選定したか):**
+
+- **F1.6 で確立した「真の本物注入経路」を活用する最初の観点:** Step 19 F1〜F3 では Mock(spec=ValidationApi)/ MagicMock(`_HeartbeatSink`)で契約整合検証を行い、F1.5(CR-0004 起票)/ F3.5(CR-0005 起票)/ F1.6(両 CR 一括実装)で **本物 vip_api_b 注入 + 本物 Watchdog 注入経路** を確立した。F4 はその経路を IT で **初めて活用** する観点であり、F1〜F3 の予告(§6.1.4 / §6.3.5 で「§6.7 IT-SEP で本物注入活用予定」と明記)を回収する位置付け。
+- **SEP-001 ランタイム分離は IT で最も価値が高い観点の 1 つ:** UT-005.3-13 が AST 静的検証で SEP-001 を担保しているが、結合状態での **副作用観測**(state mutation / I/O / threading の不在実証)+ **例外伝播禁止契約**(SDD §4.17.E の boundary 維持)+ **純粋関数性プロパティ**(冪等性)は UT 単体では再現困難。IT で本物 Adapter 経由の評価でこれらを実証することで、SAD §9 SEP-001 設計が結合状態でも維持されることを「お手本的価値」として残せる。
+- **「IT 着手前 / 着手中クロスレビュー」運用パターンの継続適用:** F1.5 / F3.5 で確立した「IT 着手前クロスレビューで設計上の積み残しを発見」、F2 で確立した「着手前クロスレビューで重複試験を分散配置に再構成」のパターンを、F4 では **着手中** に発生した副作用問題(`del sys.modules` の Adapter バインド破壊)に対して適用。**お手本的価値:**「IT 着手中に発見した設計問題も即座に分散配置で再構成し、ITPR §6.x.4 設計判断と本書の採用根拠両方に記録する」運用パターンを後続プロジェクトに推奨。
+
+**重要な教訓:**
+
+1. **`sys.modules` 操作は import バインド一貫性を破壊する**:Python の `import` 文は module load 時に名前空間を bind するため、後から `del sys.modules` で再ロードしても **既に bind 済みの関数オブジェクト参照は古い module 側を指したまま**。Adapter のような「import 時に外部関数を bind するパターン」では、`patch("module.attr")` は **新しい module 側に適用** されるため、Adapter 経由の評価では効力を失う。SEP-001 ランタイム検証で「クラス B のロード過程でクラス C を呼ばないことを動的に観測」したい場合は、**`sys.modules` を変更せず受動観測**(差分監視)するか、**reload 起点で関連 Adapter モジュール群を一括 reload する**(副作用大)の 2 択しかない。本 IT-SEP では前者(IT-SEP.1-04 で受動観測)を選択し、AST 軸との 2 軸分散配置で安全性を確保。
+2. **「真の本物注入」は IT のクライマックス**:Step 19 F1〜F3 では Mock 主体で契約整合を検証し、CR-0004 / CR-0005 を起票して本体実装に遷移、F1.6 で解消した経路を F4 で本物注入として活用する **「Mock → 本物への段階的移行」** パターンが Inc.1 IT 全体を貫通している。F1.6 完了時点で「本物注入できる経路が確立済」だったが、その経路を IT で実証しなかったら **設計の整合性が言いっぱなし** に終わる。F4 は本物注入の経路実証で「設計と実装と試験の三位一体性」を IT レベルで確立する観点として欠かせない。後続プロジェクトでは、Adapter 経由の SEP-001 越え経路や Watchdog 引数なし契約など、CR で解消した設計改善を **必ず IT で本物注入実証する** ことを推奨。
+3. **IT 着手中の設計是正を ITPR §6.x.4 + 本書採用根拠に二重記録**:F4 着手中の `del sys.modules` 副作用発見と AST + 受動観測 2 軸分散への是正は、ITPR §6.7.4「設計判断(Step 19 F4 着手中の発見と是正)」と本書「重要な教訓 1」の両方に記録。**お手本的価値:**「IT で発見した設計上の積み残しは、計画書(ITPR)と運用記録(DEVELOPMENT_STEPS)の両方に記録することで、後続プロジェクトのチェックリストとして機能する」運用パターンを継続。
+
+---
+
+## 次ステップ計画(Step 19 F4 完了時点)
+
+Step 19 F4(IT 4 観点目、§6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E 詳細化)完了。6 ケース全 Pass、ITPR §11.2 / §13 IT-SEP 行確定、CR-0004 / CR-0005 解消後の本物注入経路を初めて IT で実証。続いて候補は:
+
+- **Step 19 F5(推奨、IT 5 観点目)**:**§6.8 IT-PERF 統計時間試験**(SRS-P02 Control Loop 制御周期 200 ms ± 10% / SRS-P03 コマンド受領 → State Machine 反映 P95 ≤ 50 ms / SRS-P04 コマンド受領 → 完了応答 P95 ≤ 200 ms)。詳細化規模:6 ケース目安、`tests/integration/test_perf_*.py` 新規作成、SOUP-012 `pytest-benchmark` 初使用。F0 で採用済の `pytest-benchmark` をようやく実運用、UT で扱えなかった実時間挙動を統計時間として検証する観点。
+- **Step 19 F6(IT 6 観点目)**:**§6.9 IT-PWR subprocess + SIGKILL 電源断耐性**(SRS-DATA-002 / 003 / SRS-RCM-015、UT-003.3-10 申し送り)。詳細化規模:4 ケース目安、`tests/integration/test_power_loss.py`、`linux_only` マーカー初使用、`pytest.mark.skipif(sys.platform != "linux")` + `subprocess.Popen` + `os.kill(pid, signal.SIGKILL)`。
+- **Step 19 F7(IT 7 観点目、F 系列最終)**:**§6.10 IT-SIDE Checksum タイミング攻撃耐性**(SRS-SEC-001、UT-003.2 申し送り)。詳細化規模:2 ケース目安、`tests/integration/test_side_timing.py`、`nightly` マーカー初使用、CI nightly schedule 限定実行。
+- **Step 19 G(STPR 骨格化)**:Step 19 F 系列完了後、システム試験計画書 v0.1 を新規作成。`SRS-O-*` / `SRS-UX-*` / `SRS-IF-*` を起点とする外部観点試験。
+- **Step 19 H(全 RCM 結合検証)**:Step 19 F1〜F7 の §6.1〜§6.6 結果を集約、Inc.1 完了タグ `v0.1.0-inc1` 付与の前提。
+- **Inc.1 完了の継続申し送り**(Step 19 F4 完了時点、残):
+  - `vip_persist.records.Settings(drug_name)` 乖離(B15/B16/B17/B18 chain)→ Inc.4。
+  - `StateObserverApi.observe_state().resume_set_at` Inc.1 None 固定(B17)→ Inc.4。
+  - UNIT-005.3 `drug_name` MissingField 検証(B18)→ Inc.4 で Settings 拡張時。
+  - `_validation_bridge.py` 防御 4 行(`assert_never` + 未使用 `MissingField` 経路)→ Inc.4 で `Settings` に `drug_name` 追加時に到達経路実装。
+
+---
+
 ## 教訓(随時追加)
 
 - **ID 衝突の早期発見**:Step 6(SPRP 作成)で、テンプレートの `PR-`(Problem Report)と GitHub の `PR`(Pull Request)が混同することに気付いた。支援プロセス計画を連続で書いたからこそ発見できた。ID 体系は複数ドキュメントで使われるため、**最初に固めるか、連続で書いて早期に整合化する** のがよい。
