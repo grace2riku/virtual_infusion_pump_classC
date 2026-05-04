@@ -1,9 +1,9 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.7
+**バージョン:** 0.8
 **作成日:** 2026-05-01
-**最終更新日:** 2026-05-03
+**最終更新日:** 2026-05-04
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
 **対象範囲:** Inc.1(流量制御コア、全 17 ソフトウェアユニットの結合)
@@ -551,16 +551,68 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 - **CR-0004 / CR-0005 解消後の真の SEP-001 越え経路実証完了**:F1〜F3 で予告していた「§6.7 IT-SEP で本物注入による真の SEP-001 越え経路 + 階層防御 E2E を実証」を本ステップで完了。
 - **動的 import / threading 副作用観測の限界**:IT-SEP.1-04 は `set(sys.modules)` 差分の受動観測で「クラス C ルート新規追加無し」を担保するが、すでに sys.modules に存在するクラス C モジュール群への **後続の attribute 副作用**(関数呼出 / 動的 attr 設定)は本観点では検出困難。`vip_api_b` 側の純粋関数契約(SDD §4.17、`@dataclass(frozen=True)` 値オブジェクト)が静的に保証している前提で、本 IT は import グラフ + 冪等性 + 例外握りつぶし契約の 3 軸で SEP-001 ランタイム分離を担保する設計。動的 attr 副作用の観測は Inc.5 セキュリティ拡張時の動的解析(SOUP 候補検討)で再評価。
 
-### 6.8 SRS-P02 / P03 / P04 統計時間試験(IT-PERF)— **骨格**
+### 6.8 SRS-P02 / P03 / P04 / P06 統計時間試験(IT-PERF)— **詳細化済(Step 19 F5)**
 
-- **目的:** UT で決定論化により扱えない実時間挙動を、**実時間 + 統計**(P95 / 平均 / 標準偏差)で検証する。
-- **対象:** SRS-P02(Control Loop 制御周期 200 ms ± 10%、CPU 占有率)、SRS-P03(コマンド受領 → State Machine 反映 P95 ≤ 50 ms)、SRS-P04(コマンド受領 → 完了応答 P95 ≤ 200 ms)
-- **関連 IF-U:** IF-U-001 / IF-U-002 / IF-U-003 / IF-U-005
-- **関連 SRS:** SRS-P02、SRS-P03、SRS-P04
-- **試験ケース数目安:** ≥ 6 件(各 SRS 性能要求につき 1〜2 件 + 連続稼働中の劣化観察 1 件)
-- **元 UT 申し送り:** UT-001.2-19(SRS-P02 周期精度)、UT-001.3-19(SRS-P03/P04 200 ms 機能スモーク)、UT-002.4(タイマ精度)
-- **試験技法:** `pytest-benchmark`(SOUP 候補)+ `time.perf_counter` 実測、5 連続実行の中央値判定で flake 抑制
-- **Step 19 F で詳細化予定**
+#### 6.8.1 目的・対象・関連要素
+
+- **目的:** UT で決定論化により扱えない **実時間スレッド統計挙動** を、`time.perf_counter` 実測 + `pytest-benchmark`(SOUP-012、Step 19 F0 正式採用)で **P95 / 平均 / 標準偏差** として検証する。UT 申し送り 3 件(UT-001.2-19、UT-001.3-19、UT-002.4)を IT で本物 SUT 結合状態の統計試験として回収する位置付け。
+- **対象 SRS と本 IT における判定値:**
+  - **SRS-P02(SRS L123):** 制御サイクル **100 ms ± 10 ms**(ジッタ 10% 以内、必須、IT)。SDD §4.6.B `_period_sec=0.1` 定数で実装済(`PERIOD_SEC: Final[float] = 0.1`)。本 IT は **本物 ControlLoop の実時間スレッド** で 30 周期分の heartbeat 間隔 P95 を測定。
+  - **SRS-P03(SRS L124):** 開始 → 注入開始 **500 ms 以内**(必須、ST 範疇)。SDD §4.7 では **アプリ層内訳予算 100 ms**(`start ≤ 100 ms` = 通常パス put + dispatch get + State Machine 遷移、SDD §4.7.E)で実装。本 IT は SDD 内訳予算 100 ms を本物 CommandHandler + 本物 StateMachine で P95 統計検証(SRS の 500 ms 全体予算は ST で検証する分散配置)。
+  - **SRS-P04(SRS L125):** 停止 → 注入停止 **200 ms 以内**(必須、ST 範疇、HZ-002)。SDD §4.7 では **アプリ層内訳予算 50 ms**(`stop ≤ 50 ms` = ファストパスでキューバイパス、SDD §4.7.A)で実装。本 IT は SDD 内訳予算 50 ms を本物 CommandHandler の **STOP ファストパス経路** で P95 統計検証(SRS の 200 ms 全体予算は ST で検証する分散配置)。
+  - **SRS-P06(SRS L127):** 永続化書き込みによる制御サイクルへの影響は SRS-P02 許容ジッタ内に収まる(必須、IT、負荷)。本 IT は Control Loop と並行実行する **永続化スレッド負荷下** での SRS-P02 周期維持を検証(SAD §X / SDD で永続化を別スレッド・キュー化する設計の結合検証)。
+- **関連 IF-U:** IF-U-001(ControlApi → CommandHandler、IT-PERF.2-01/02)、IF-U-002(CommandHandler → StateMachine、IT-PERF.2-01/02)、IF-U-003(ControlLoop → Pump set_flow_rate、IT-PERF.1-01/02 + 3-02)、IF-U-004(ControlLoop → SwWatchdog heartbeat、IT-PERF.1-01)、IF-U-005(ControlLoop → HwFailsafeTimer heartbeat、IT-PERF.1-01 + 3-01)、IF-U-009(永続化、IT-PERF.3-02)。
+- **関連 SRS:** SRS-P02、SRS-P03(SDD 内訳)、SRS-P04(SDD 内訳)、SRS-P06、SRS-RCM-004(タイマ精度の長時間連続観察、IT-PERF.3-01)。
+- **元 UT 申し送り:** UT-001.2-19(UTPR §7.3.9 v0.10 申し送り、SRS-P02 ±10% 実時間周期精度統計)、UT-001.3-19(UTPR §7.3.12 v0.13 申し送り、SRS-P03/P04 P95 統計)、UT-002.4(UTPR §7.3.3 v0.4 申し送り、HW Failsafe Timer 精度の長時間連続観察)。
+- **試験技法:** `time.perf_counter`(高精度モノトニックタイマ)+ `pytest-benchmark`(SOUP-012、IT-PERF.1-02 のみ)、サンプル数 ≥ 30、P95 統計 + 緩い境界判定(F2/F3 macOS sleep ジッタ対策パターン継続)+ ローカル `pytest -m perf` 3 連続安定確認で flake 抑制。
+- **マーカー方針(§8.1 整合):** 全 6 件に `@pytest.mark.integration` + `@pytest.mark.perf` + **`@pytest.mark.nightly`** + **`@pytest.mark.linux_only`** 付与 — §8.1 で「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定 + nightly schedule での実行」と規定済(全 PR で実行すると CI 時間と非決定性ノイズが増大)。CI では `integration-test.yml` の `integration-nightly` ジョブ(cron `0 2 * * *` UTC、Linux runner)で実行、`integration-fast` ジョブの `-m "integration and not nightly"` からは除外される。**`linux_only` マーカーは Step 19 F5 で `tests/conftest.py` に auto-skip hook を新規追加**(F6/F7 でも継続使用、`pytest_collection_modifyitems` で `sys.platform != "linux"` のとき skip 化)、ローカル macOS / Windows では auto-skip でテスト実行されない。
+
+#### 6.8.2 試験ケース表(IT-PERF.1-XX / 2-XX / 3-XX、6 ケース)
+
+| 試験 ID | 観点 | 入力(SUT 構成) | 期待結果 | 関連 IF-U | 元 UT |
+|---------|------|----------------|---------|-----------|-------|
+| IT-PERF.2-01 | SRS-P03 **start 応答 P95**(SDD 内訳 100 ms) | 30 回別々に `(StateMachine + CommandHandler)` を構築 → IDLE 初期化 → CommandHandler `start()` → `t0=perf_counter` → `enqueue(START)` → `await_completion(token, timeout_ms=500)` → `t1=perf_counter` → `stop()`。各経過 (t1-t0) を ms 単位で記録 | サンプル数 = 30、全件 `Completed` 完了、**P95 ≤ 100 ms(SDD §4.7.E 内訳予算)**、SRS-P03 全体予算 500 ms は ST で別途検証 | IF-U-001/002 | UT-001.3-19(UTPR §7.3.12 v0.13) |
+| IT-PERF.2-02 | SRS-P04 **stop ファストパス P95**(SDD 内訳 50 ms 厳密) | 30 回別々に `(StateMachine + CommandHandler)` を構築 → `set_initial(IDLE)` → start → enqueue(START) + await → RUNNING 状態確認 → `t0=perf_counter` → `enqueue(STOP)`(STOP_KINDS ファストパス) → `await_completion(token)` → `t1=perf_counter` → handler stop。stop 経過 (t1-t0) を ms 単位で記録 | サンプル数 = 30、全件 `Completed`、**P95 ≤ 50 ms**(SDD §4.7.A ファストパス内訳厳密、Linux runner 限定 = `linux_only` auto-skip でローカル macOS では skip、§6.8.4 二重記録)、SRS-P04 全体予算 200 ms は ST で別途検証 | IF-U-001/002 | UT-001.3-19(UTPR §7.3.12 v0.13) |
+| IT-PERF.3-01 | HW Failsafe Timer **発火タイミング長時間観察** | 本物 HwFailsafeTimer + Mock(spec=PumpController)`force_stop_failsafe.side_effect` で発火時刻記録 → `start()`(`_last_heartbeat = clock()` 自動設定済) → `t_initial = perf_counter` → 0.7 秒 sleep → `stop()` | `force_stop_failsafe` 呼出 1 回、`start()` 起動時刻 → 発火経過 ∈ **[400 ms, 700 ms]**(HEARTBEAT_TIMEOUT 500 ms + MONITOR_INTERVAL 100 ms 余裕 + macOS sleep ジッタ余裕)。設計是正:`heartbeat()` 呼出は冗長 + monitor 第 1 回 check_once との race condition で SDD §4.3.E クロック逆転安全側発火が偶発発動するため呼ばない(§6.8.4 二重記録)。 | IF-U-005 | UT-002.4(UTPR §7.3.3 v0.4) |
+| IT-PERF.1-01 | SRS-P02 Control Loop **100 ms 周期精度 P95** | 本物 ControlLoop + 本物 PumpSimulator + 本物 PumpObserver + Mock(spec=StateMachine) RUNNING + MagicMock SwWatchdog/HwFailsafeTimer(`heartbeat()` 呼出時刻を `side_effect` で記録)で `start()` → 3.0 秒動作 → `stop()` | sw_heartbeat 呼出間隔のサンプル数 ≥ 25、**P95 ≤ 0.110 sec**(SRS-P02 100 ms ± 10 ms 厳密、Linux runner 限定 = `linux_only` auto-skip、§6.8.4 二重記録)、平均 ≤ 0.105 sec(SRS-P02 +5%) | IF-U-003/004/005 | UT-001.2-19(UTPR §7.3.9 v0.10) |
+| IT-PERF.3-02 | SRS-P06 **永続化スレッド負荷下の SRS-P02 維持** | 本物 ControlLoop(IT-PERF.1-01 と同構成)で `start()` 起動 + 並行 **永続化負荷スレッド**(`atomic_writer.write(b"x"*1024, tmp_path / "perf.dat")` ループ)で 3.0 秒動作 → 両停止。Control Loop の sw_heartbeat 間隔 P95 を測定 | sw_heartbeat 呼出間隔のサンプル数 ≥ 25、**P95 ≤ 0.110 sec**(SRS-P06 = SRS-P02 ジッタ内 110 ms 厳密、Linux runner 限定 = `linux_only` auto-skip、§6.8.4 二重記録)、平均 ≤ 0.105 sec、永続化スレッドが 3 秒間で ≥ 50 回成功 | IF-U-003/004/005、IF-U-009 | SRS-P06 取りこぼし回収 |
+| IT-PERF.1-02 | SRS-P02 `tick()` **平均サイクル時間**(`pytest-benchmark` 初使用、ファイル末尾配置)| 本物 ControlLoop + 本物 PumpSimulator + 本物 PumpObserver + Mock(spec=StateMachine) RUNNING + MagicMock Watchdog 2 件、`benchmark(loop.tick)` で `tick()` 単発を測定 | `benchmark.stats.stats.mean` ≤ 0.010 sec(処理時間は SRS-P02 100 ms 周期に十分余裕、緩い境界で flake 抑制)。配置順:`pytest-benchmark` plugin が後続テストの GC / スケジューリングに影響するため本ケースは **テスト定義順の末尾**(§6.8.4 二重記録)。 | IF-U-003 | UT-001.2-19、SOUP-012 初運用 |
+
+#### 6.8.3 結合経路と SUT 構成
+
+```
+[本物 ControlLoop] ──tick(100 ms)──┬──[本物 PumpSimulator]   IT-PERF.1-01 / 1-02 / 3-02
+                                   ├──[本物 PumpObserver]
+                                   ├──[MagicMock SwWatchdog]──side_effect で時刻記録
+                                   └──[MagicMock HwFailsafeTimer]
+
+[本物 CommandHandler] ──enqueue/await──[本物 StateMachine]    IT-PERF.2-01 / 2-02
+
+[本物 HwFailsafeTimer] ──force_stop_failsafe──[Mock PumpController]   IT-PERF.3-01
+
+[本物 atomic_writer.write] ──並行スレッド負荷                     IT-PERF.3-02
+```
+
+#### 6.8.4 設計判断(Step 19 F5 着手前クロスレビューでの整合化)
+
+- **§6.8 数値訂正(MINOR、CR 不要、SCMP §4.1 軽微)**:本書 v0.7 までの §6.8 骨格(L557、ITPR v0.1 = Step 19 D-2 で初版作成時の誤記)に対し、Step 19 F5 着手前クロスレビューで SRS / SDD / UTPR との数値乖離を発見し、本 v0.8 で訂正:
+  - **SRS-P02**: v0.7「200 ms ± 10%」→ v0.8「**100 ms ± 10 ms**」(SRS L123 / SDD §4.6.B `PERIOD_SEC=0.1` / UTPR §7.3.9 v0.10 整合化、200 ms は誤記)。
+  - **SRS-P03**: v0.7「P95 ≤ 50 ms」→ v0.8「**P95 ≤ 100 ms(SDD 内訳)**」(SRS L124 全体 500 ms / SDD §4.7.E 内訳 100 ms / UTPR §7.3.12 v0.13 整合化、50 ms は SRS-P04 と取り違え)。
+  - **SRS-P04**: v0.7「P95 ≤ 200 ms」→ v0.8「**P95 ≤ 50 ms(SDD 内訳ファストパス)**」(SRS L125 全体 200 ms / SDD §4.7.A 内訳 50 ms ファストパス / UTPR §7.3.12 v0.13 整合化)。
+  - **SRS-P06 取りこぼし回収**: v0.7 で IT-PERF 観点に SRS-P06(永続化非ブロッキング、SRS L127 で IT 範疇明示)が未列挙 → v0.8 で IT-PERF.3-02 として詳細化。
+  - **SRS と SDD の解釈差(SRS-P03/P04 全体予算 vs SDD 内訳予算)**:SRS の全体予算(500 ms / 200 ms)は **入力受領 → 物理動作変化までのフルパス**、SDD 内訳予算(100 ms / 50 ms)は **アプリ層 enqueue → State Machine 遷移完了までの応答時間**。両者は「アプリ層は SRS 全体予算の 1/5(= ST 検証)以内で完了する」設計余裕を持つことで整合する。本 IT は SDD 内訳予算で検証 + ST で SRS 全体予算検証の **分散配置** を採用(本 §6.8 設計判断の他に、Step 19 G 着手時の STPR 計画でも明文化予定)。
+- **`pytest-benchmark` の限定使用**:本 SOUP は IT-PERF.1-02 の `tick()` 単発平均時間測定のみで使用(初運用)。残り 5 件は `time.perf_counter` 実測による P95 統計(Python 標準ライブラリ、サンプル数 ≥ 25〜30)。理由:`pytest-benchmark` は 1 関数の平均/標準偏差計測に最適化されており、「複数回スレッド連動シナリオの応答時間統計」(IT-PERF.2-01 など)は `time.perf_counter` 直測で十分かつ環境依存性も低い。
+- **本物 SUT 比率の最大化**:F1 (Mock 主体) → F2 (本物 Watchdog 主体) → F3 (本物 ControlLoop + Pump) → F4 (本物 vip_api_b Adapter + 本物 Watchdog) と進めてきた延長で、本 §6.8 は **本物 ControlLoop / 本物 CommandHandler / 本物 HwFailsafeTimer / 本物 atomic_writer** を主体に Mock は StateMachine(IT-PERF.1-01/02/3-02)と PumpController(IT-PERF.3-01)、MagicMock を Watchdog(IT-PERF.1-01/02/3-02、`side_effect` で時刻記録するため)に限定。実時間挙動の本質は本物 SUT で観察し、Mock は副作用フックとして機能する設計。
+- **`linux_only` マーカー auto-skip 機構の F5 先取り実装**(Step 19 F5 着手中の発見と是正):F2 / F3 の macOS sleep ジッタ対策パターン(緩い境界 + 3 連続安定)を本 §6.8 でも当初試みたが、CommandHandler 30 回スレッド lifecycle + Control Loop 実時間スレッド + 永続化スレッド並行で macOS の OS noise が大きく、3 連続中 2 回 fail を実測。当初は境界を SRS / SDD 値 + macOS jitter 余裕(110 ms→130 ms / 50 ms→70 ms)に緩める案を採用していたが、**(i)** SRS / SDD 値から逸脱した境界は SRS-P02 100 ms ± 10% 性能要求の本旨を曖昧化する、**(ii)** ITPR §8.1 で既に「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定」と規定済み — の 2 点から、**ITPR §8.1 規定の機械化** = `linux_only` マーカー auto-skip hook を F5 で先取り実装する方針に変更。`tests/conftest.py` に `pytest_collection_modifyitems` hook を追加し、`sys.platform != "linux"` のとき `linux_only` マーカー付きテストを skip 化(F6 で予定だった機能を F5 で導入、F6 / F7 で継続再利用)。本機構により **境界は SRS / SDD 値で厳密判定**(SRS-P02 = 110 ms / SDD ファストパス = 50 ms / SRS-P06 = 110 ms)、ローカル macOS では auto-skip で flake 影響なし、CI Linux nightly で SRS 性能要求の検証が成立。**お手本的価値:** 計画書(ITPR §8.1)で記述したマーカー運用を機械化する hook を、最初に必要となるサブステップ(F5)で先取り実装することで、後続(F6 / F7)で重複作業なく再利用できる。「規定 → 機械化 → 利用」の 3 段階で実装するパターンを後続プロジェクトに推奨。
+- **`pytest-benchmark` plugin 副作用回避**(Step 19 F5 着手中の発見):`pytest-benchmark` は `benchmark` fixture 利用後に GC タイミング / スレッドスケジューリングに影響することが確認された(本 §6.8 着手時に IT-PERF.1-02 を 2 番目に置いた状態で IT-PERF.2-01 / 2-02 / 3-01 が `TimedOut` / 偶発失敗、benchmark 単独実行および 1-02 を末尾配置すると全件 Pass)。**対策:** `tests/integration/test_perf_statistical_timing.py` のテスト定義順を IT-PERF.2 系 → 3-01 → 1-01 → 3-02 → 1-02(末尾)に並べ替え。後続プロジェクトでは「pytest-benchmark を使うテストは独立ファイル化または末尾配置」が安全。
+- **IT-PERF.3-01 `heartbeat()` 削除設計是正**(Step 19 F5 着手中の発見):当初設計では `timer.start()` 直後に `timer.heartbeat()` を呼び、その時刻を計測基準としていた。しかし `start()` の lock 内で `_last_heartbeat = clock()` が設定済 + monitor スレッドが起動して第 1 回 `check_once()` を呼ぶ流れで、`heartbeat()` と `check_once()` が同 lock を競合する race window が存在し、SDD §4.3.E のクロック逆転安全側発火条件(Step 19 B4 整合化、`elapsed < 0` で発火)が **偶発的に発動** することを実測で発見。具体的には:(i) main が `heartbeat()` で lock 取得、`_last_heartbeat = clock()` を新値で更新、ロック解放。(ii) monitor 第 1 回 check_once が `with self._lock: last = self._last_heartbeat` で **新値**を取得、しかし `now` は step (i) より **前** に取得済(check_once 関数の冒頭 `now = self._clock()` が lock 外)→ `elapsed = now - last < 0` → SDD §4.3.E 安全側発火 → trip elapsed が極端に小さくなる(0.5 ms 〜 数 ms)。**対策:** `heartbeat()` 呼出は `start()` で `_last_heartbeat` 設定済のため冗長、削除して `start()` 時刻を計測基準に変更(test と ITPR §6.8.2 IT-PERF.3-01 入力欄に二重記録)。**お手本的価値:** Lock の外で取得した時刻と Lock 内で更新された値の比較は race condition の温床となる(SDD §4.3 のクロック逆転安全側発火という意図的設計が、テスト初期化の race で偶発発動した実例)。後続プロジェクトでは「実時間 lock-protected counter の計測時は、計測前にラージ wait + 計測後にラージ wait を入れて初期化シーケンスを安定化」を推奨。
+
+#### 6.8.5 申し送り
+
+- **長期間連続稼働の劣化観察**(統計時間の **トレンド変化** 観察):本 §6.8 v0.8 は「30 周期 / 30 サンプル」の単発統計試験。長期間連続稼働(数十分〜数時間)での P95 劣化観察は **Inc.5(品質拡張・運用) で正式観点化** とする(Inc.1 完了の必須要件ではない)。
+- **CI nightly 実行結果の蓄積(Inc.1 完了タグ前の必須申し送り)**:Step 19 F5 マージ後、`integration-test.yml` の `integration-nightly` ジョブ(Linux runner)で本 §6.8 の P95 統計が連続実行される。本 PR ではローカル macOS で `linux_only` auto-skip により全 6 件が意図的 skip 状態のため、**実測確認は CI Linux nightly に申し送り**。Inc.1 完了タグ `v0.1.0-inc1` 付与までに **5 連続 nightly 全 Pass** を確認(Step 19 H で集約予定、§7.1 受入基準に追記)。万一 CI Linux 環境で安定境界 110 ms / 50 ms 内に収まらない場合は、別 PR で境界調整(SDD 設計と整合する範囲)+ ITPR §6.8.4 へ再整合化注釈を追記する運用とする(F4 の「IT 着手中の設計是正を ITPR §6.x.4 + DEVSTEPS に二重記録」運用の継続適用)。
+- **`pytest-benchmark` 比較レポート**:`--benchmark-save=name` / `--benchmark-compare=name` でラウンド間比較が可能だが、本 §6.8 v0.8 では使用しない(Inc.5 性能リグレッション検出時に正式運用、SOUP-012 機能の段階的活用)。
+- **SRS-P03 / P04 全体予算の ST 試験**:Step 19 G(STPR 骨格化)で「IDLE → start コマンド → 物理 Pump 動作変化まで全体 500 ms 内」「RUNNING → stop コマンド → 物理 Pump 停止まで全体 200 ms 内」を ST 試験として骨格化する。本 IT (SDD 内訳予算) と ST (SRS 全体予算) の **分散配置** を STPR §X で明文化。
 
 ### 6.9 環境依存試験 — subprocess + SIGKILL 電源断耐性(IT-PWR)— **骨格**
 
@@ -667,10 +719,10 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | IT-RCM003(SW/HW Watchdog、§6.2 詳細化済 Step 19 F2)| **6**(IT-RCM003.1-01〜06)| **6** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-RCM004(送出間隔、§6.3 詳細化済 Step 19 F3)| **5**(IT-RCM004.1-01〜05)| **5** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-SEP(SEP-001 ランタイム、§6.7 詳細化済 Step 19 F4)| **6**(IT-SEP.1-01〜06)| **6** | 0 | 0 | 2026-05-03 | (本 PR マージコミット)|
-| IT-PERF(統計時間、§6.8 骨格)| **≥ 6**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
+| IT-PERF(統計時間、§6.8 詳細化済 Step 19 F5)| **6**(IT-PERF.1-01/02、2-01/02、3-01/02)| TBD(設計確定、CI Linux nightly で実測確認は Inc.1 完了タグ前に申し送り、§6.8.5 参照) | TBD | **6**(macOS local の `linux_only` auto-skip による意図的 skip)| 2026-05-04(設計確定)| (本 PR マージコミット、Linux nightly 結果は別 PR で記入)|
 | IT-PWR(電源断、§6.9 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
 | IT-SIDE(サイドチャネル、§6.10 骨格)| **≥ 2**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
-| **合計** | **≥ 61** | — | — | — | — | — |
+| **合計** | **≥ 67** | — | — | — | — | — |
 
 ### 11.3 不具合・逸脱
 
@@ -704,7 +756,7 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | RCM-003 SW Watchdog 階層 | IT-RCM003.1-01〜06(§6.2 詳細化済 Step 19 F2)| SRS-RCM-003、SRS-RCM-004 | RCM-003、RCM-004 | HZ-001、HZ-002 | IF-U-004/005/006/007 | UT-001.5、UT-002.4 | **Pass(6 tests、本物実時間連動 + 階層防御時間順序実証 + 監視スレッド lifecycle 検証、Step 19 F2、3 連続安定確認)** |
 | RCM-004 送出間隔 | IT-RCM004.1-01〜05(§6.3 詳細化済 Step 19 F3)| SRS-031、SRS-P02(機能整合のみ)、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-002/003/004/005 | UT-001.2、UT-002.1、UT-002.2、UT-001.4 | **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、Step 19 F3、3 連続安定確認)** |
 | SEP-001 ランタイム | IT-SEP.1-01〜06(§6.7 詳細化済 Step 19 F4)| SRS-UX-001/004/005、SRS-005、SRS-RCM-003、SRS-RCM-004 | RCM-003 / RCM-004(IT-SEP.1-06 副次)| — | IF-U-003/004/005/011 | UT-005.3、UT-005.1-bridge、UT-001.2、UT-001.5、UT-002.4 | **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証、Step 19 F4)** |
-| 統計時間 | IT-PERF.* (§6.8 骨格)| SRS-P02、SRS-P03、SRS-P04 | — | — | IF-U-001/002/003/005 | UT-001.2、UT-001.3、UT-002.4 | TBD |
+| 統計時間 | IT-PERF.1-01/02、2-01/02、3-01/02(§6.8 詳細化済 Step 19 F5)| SRS-P02、SRS-P03(SDD 内訳)、SRS-P04(SDD 内訳)、SRS-P06、SRS-RCM-004 | —(性能要求のため RCM 紐付けなし、ただし HW Failsafe Timer 観察は IT-PERF.3-01 で RCM-004 関連)| HZ-002(SRS-P04 関連)| IF-U-001/002/003/004/005/009 | UT-001.2-19(UTPR §7.3.9 v0.10)、UT-001.3-19(UTPR §7.3.12 v0.13)、UT-002.4(UTPR §7.3.3 v0.4)| **設計確定(6 tests、本物 ControlLoop / CommandHandler / HwFailsafeTimer / atomic_writer + `pytest-benchmark` 初運用 + `linux_only` auto-skip hook 新設、§6.8 数値訂正後の SRS / SDD 整合境界(110 ms / 50 ms / 110 ms 厳密)で実装。macOS local では auto-skip、CI Linux nightly での実測確認は Inc.1 完了タグ前に 5 連続 Pass を申し送り、§6.8.5 参照)** |
 | 電源断耐性 | IT-PWR.* (§6.9 骨格)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3 | TBD |
 | サイドチャネル | IT-SIDE.* (§6.10 骨格)| SRS-SEC-001 | — | HZ-007 | — | UT-003.2 | TBD |
 
@@ -714,6 +766,7 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.8 | 2026-05-04 | **Step 19 F5(§6.8 IT-PERF 統計時間試験詳細化 + 数値訂正 + `linux_only` auto-skip hook 新設)を反映。** §6.8 を骨格 → 詳細化(IT-PERF.1-01/02、2-01/02、3-01/02、6 ケース表 + 結合経路 4 構成 + 設計判断 5 項目 + 申し送り 4 項目)。**着手前クロスレビューでの数値訂正(MINOR、CR 不要、SCMP §4.1 軽微):** v0.7 までの §6.8 骨格(L557、ITPR v0.1 = Step 19 D-2 初版作成時の誤記)で SRS / SDD / UTPR との数値乖離を発見し、本 v0.8 で訂正:**(a)** SRS-P02 「200 ms ± 10%」→ 「**100 ms ± 10 ms**」(SRS L123 / SDD §4.6.B `PERIOD_SEC=0.1` / UTPR §7.3.9 v0.10 整合化)、**(b)** SRS-P03 「P95 ≤ 50 ms」→ 「**P95 ≤ 100 ms(SDD 内訳)**」(SRS L124 全体 500 ms / SDD §4.7.E 内訳 100 ms / UTPR §7.3.12 v0.13 整合化、50 ms は SRS-P04 と取り違え)、**(c)** SRS-P04 「P95 ≤ 200 ms」→ 「**P95 ≤ 50 ms(SDD 内訳ファストパス)**」(SRS L125 全体 200 ms / SDD §4.7.A 内訳 50 ms ファストパス / UTPR §7.3.12 v0.13 整合化)、**(d)** SRS-P06 取りこぼし回収(IT-PERF.3-02 で永続化スレッド負荷下の SRS-P02 維持を新規追加)、**(e)** SRS と SDD の解釈差(SRS-P03/P04 全体予算 vs SDD 内訳予算)を「IT は SDD 内訳予算 / ST は SRS 全体予算」の分散配置と整理(Step 19 G STPR 骨格化で明文化予定)。**着手中の設計是正(F5 PR 内で完結):** 当初 macOS sleep ジッタ余裕境界(110 ms→130 ms / 50 ms→70 ms)で実装したが 3 連続中 2 回 fail を実測 → ITPR §8.1 規定「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定」の機械化として **`linux_only` マーカー auto-skip hook を `tests/conftest.py` に新規追加**(F6 で予定だった機能を F5 で先取り、`pytest_collection_modifyitems` で `sys.platform != "linux"` のとき skip 化、F6 / F7 で継続再利用)、境界は SRS / SDD 値で厳密判定に戻す(110 ms / 50 ms / 110 ms)。**IT-PERF.3-01 race condition 是正:** `start()` 直後 `heartbeat()` 呼出が monitor 第 1 回 check_once と lock 競合して SDD §4.3.E クロック逆転安全側発火が偶発発動する race window を実測で発見 → `heartbeat()` 削除、`start()` 時刻基準に変更。**`pytest-benchmark` plugin 副作用回避:** benchmark 後に後続テストの GC / スケジューリングに影響することを実測で発見 → IT-PERF.1-02 をファイル末尾配置に並べ替え。**マーカー方針:** 全 6 件に `@pytest.mark.integration` + `@pytest.mark.perf` + `@pytest.mark.nightly` + `@pytest.mark.linux_only` を付与(§8.1 規定どおり PR / macOS local では除外、CI Linux nightly のみで実行、SOUP-012 `pytest-benchmark` 初運用 = IT-PERF.1-02 のみ)。§11.2 IT-PERF 行を **設計確定 + Linux nightly 実測確認は Inc.1 完了タグ前に申し送り**(2026-05-04)、§13 トレーサビリティマトリクス IT-PERF 行を **「設計確定(SRS / SDD 整合 110/50/110 ms 厳密境界、CI Linux nightly 実測確認は §6.8.5 参照)」** に更新、合計目安を ≥ 61 → ≥ 67 に。RCM 検出能力不変、SAD §6 / §9 設計不変、`tests/conftest.py` に `linux_only` auto-skip hook 新規追加(8 行 + docstring)、`tests/integration/conftest.py` は既存 F2 / F3 fixture(`mock_running_state_machine` / `pump_simulator_real` / `pump_observer_real` / `magicmock_*_heartbeat_sink` / `mock_pump_controller`)を再利用するため新規追加なし | k-abe |
 | 0.7 | 2026-05-03 | **Step 19 F4(§6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E 詳細化)を反映。** §6.7 を骨格 → 詳細化(IT-SEP.1-01〜06、6 ケース表 + 結合経路 4 経路 + 設計判断 5 項目 + 着手中の是正記録 1 項目 + 申し送り 2 項目)。§11.2 IT-SEP 行を 6 Pass / 0 Fail / 0 Skip で確定(2026-05-03)、§13 トレーサビリティマトリクス IT-SEP 行を **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証)** に更新、合計目安を ≥ 59 → ≥ 61 に。**着手中の是正記録(`del sys.modules` 副作用回避):** 当初設計では IT-SEP.1-01 で AST 軸 + ランタイム sys.modules 軸を 1 ケース統合だったが、`del sys.modules` 後の reload が Adapter のバインド一貫性を破壊し IT-SEP.1-05 の `patch` 効力を失わせる副作用を発見。AST 軸(IT-SEP.1-01)+ ランタイム受動観測軸(IT-SEP.1-04)に分散配置で再構成、Adapter バインド一貫性を保つ設計に是正(後続プロジェクト推奨パターン記録)。RCM-001/003/004/SEP-001 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし、`tests/integration/conftest.py` に F4 用 fixture 4 件(`real_validation_api` / `control_api_with_real_validation` / `sw_watchdog_for_loop` / `hw_failsafe_timer_for_loop`)追加 | k-abe |
 | 0.6 | 2026-05-01 | **Step 19 F1.6(CR-0004 (b) Adapter 層追加 + CR-0005 (a) `_HeartbeatSink` Protocol 引数なし化、一括実装)を反映。** §6.1.4 申し送りを「CR-0004 解消済(修正候補 (b) Adapter 層追加採用)」に更新、`vip_api/_validation_bridge.py` Adapter 経路と §6.7 IT-SEP(Step 19 F4)での本物注入活用を明文化。§6.3.3 設計判断と §6.3.5 申し送りを「CR-0005 解消済(修正候補 (a) Protocol 引数なし化採用)」に更新、本物 SwWatchdog/HwFailsafeTimer の ControlLoop 注入経路を §6.7 で活用予定と明記。§6.3 試験ケース表 IT-RCM004.1-03 を「heartbeat 引数なし契約(CR-0005 (a) 解消後)」に更新(SW/HW 両方の `heartbeat()` 引数なし 1 回呼出契約)。`tests/integration/conftest.py` ヘッダ + §6.3 fixture 設計判断コメントを「CR-0004/0005 解消後」に更新。RCM-001/003/004 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし | k-abe |
 | 0.5 | 2026-05-01 | **Step 19 F3(§6.3 RCM-004 送出間隔 詳細化、本物 ControlLoop + Pump + Observer + Validator 結合)を反映。** §6.3 を骨格 → 詳細化(IT-RCM004.1-01〜05、5 ケース表 + 結合経路 + 設計判断 + CR-0005 申し送り)。§11.2 IT-RCM004 行を 5 Pass / 0 Fail / 0 Skip で確定(2026-05-01)、§13 トレーサビリティマトリクス IT-RCM004 行を **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、3 連続安定確認)** に更新。**着手時発見:** `ControlLoop._HeartbeatSink` Protocol(`heartbeat(self, ts: float)`)と `SwWatchdog/HwFailsafeTimer.heartbeat`(引数なし)のシグネチャ不整合を確認 → **CR-0005 として別途起票予定**(F3 完了後 Step 19 F3.5)、本物 Watchdog 注入は F4 着手前に CR-0004 と併せて決着 | k-abe |

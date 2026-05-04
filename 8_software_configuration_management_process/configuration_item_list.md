@@ -1,8 +1,8 @@
 # 構成アイテム一覧(CI List)
 
 **ドキュメント ID:** CIL-VIP-001
-**バージョン:** 0.36
-**最終更新日:** 2026-05-03
+**バージョン:** 0.37
+**最終更新日:** 2026-05-04
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
 **対象リリース:** 0.1.0(初期開発)以降
 
@@ -62,7 +62,7 @@ Phase 3(M0 基盤整備期)終了 + Inc.1 設計凍結時点。バージョン�
 | CI-DOC-SAD | ソフトウェアアーキテクチャ設計書 | `5.3_software_architecture_design/software_architecture_design.md` | 0.1 | ドラフト(セルフ承認、Inc.1 範囲確定、Step 12c 反映、Step 15a で §8 CCB §5.4 参照整合バージョン据置) |
 | CI-DOC-SDD | ソフトウェア詳細設計書 | `5.4_software_detailed_design/software_detailed_design.md` | 0.3 | ドラフト(セルフ承認、Inc.1 全 17 ユニット §5.4.2 完全充足、CR-0001 + CR-0004 + CR-0005 反映) |
 | CI-DOC-UTPR | ユニットテスト計画書/報告書 | `5.5_software_unit_implementation/software_unit_test_plan_report.md` | 0.20 | ドラフト(セルフ承認、Step 19 F1.6 反映:§7.3.9 UT-001.2-15 を「heartbeat 引数なし契約(CR-0005 (a) 解消後)」に整合化、§7.3.15 末尾に UT-005.1-bridge-01〜06(6 ケース)新設)|
-| CI-DOC-ITPR | 結合試験計画書/報告書 | `5.6_software_integration_testing/software_integration_test_plan_report.md` | 0.7 | ドラフト(セルフ承認、Step 19 F4 反映:§6.7 を骨格 → 詳細化(IT-SEP.1-01〜06、6 ケース表 + 結合経路 + 設計判断 + 着手中の是正記録 + 申し送り)、§11.2 + §13 IT-SEP 行を Pass で確定)|
+| CI-DOC-ITPR | 結合試験計画書/報告書 | `5.6_software_integration_testing/software_integration_test_plan_report.md` | 0.8 | ドラフト(セルフ承認、Step 19 F5 反映:§6.8 を骨格 → 詳細化 + 数値訂正(IT-PERF.1-01/02、2-01/02、3-01/02、6 ケース表 + 結合経路 + 設計判断 5 項目 + 申し送り 4 項目)、`linux_only` auto-skip hook 先取り実装で SRS / SDD 整合 110/50/110 ms 厳密境界、§11.2 + §13 IT-PERF 行を「設計確定 + Linux nightly 実測確認は申し送り」で記入、合計目安 ≥ 61 → ≥ 67)|
 | CI-DOC-STPR | システム試験計画書/報告書 | `5.7_software_system_testing/software_system_test_plan_report.md` | — | 未着手(Inc.1 予定) |
 | CI-DOC-SMS | ソフトウェアマスタ仕様書 | `5.8_software_release/software_master_specification.md` | — | 未着手(M_final 予定) |
 | CI-DOC-SMP | ソフトウェア保守計画書 | `6_software_maintenance_process/software_maintenance_plan.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §4.6 変更区分表 1 分インターバル反映) |
@@ -70,13 +70,13 @@ Phase 3(M0 基盤整備期)終了 + Inc.1 設計凍結時点。バージョン�
 | CI-DOC-SSC | ソフトウェア安全クラス決定記録 | `7_software_risk_management_process/software_safety_class_determination_record.md` | 0.1 | ドラフト(セルフ承認) |
 | CI-DOC-RMF | リスクマネジメントファイル(ISO 14971) | `7_software_risk_management_process/risk_management_file.md` | 0.2 | ドラフト(セルフ承認、継続更新。RCM-019 登録済) |
 | CI-DOC-SCMP | ソフトウェア構成管理計画書 | `8_software_configuration_management_process/software_configuration_management_plan.md` | 0.3 | ドラフト(セルフ承認、Step 15a で §4.1 表・§4.1.1 手順 2 の 1 分インターバル反映) |
-| CI-DOC-CIL | 構成アイテム一覧(本書) | `8_software_configuration_management_process/configuration_item_list.md` | 0.36 | ドラフト(セルフ承認、Step 19 F4 反映:CI-TD-002.4 を予定 → 確定昇格(`tests/integration/test_sep001_runtime_isolation.py`、6 ケース、IT-SEP.1-01〜06、本物 vip_api_b Adapter + 本物 SwWatchdog/HwFailsafeTimer 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証)、CI-DOC-ITPR v0.6 → v0.7 / CI-DOC-DEVSTEPS v0.37 → v0.38、自己参照 v0.36)|
+| CI-DOC-CIL | 構成アイテム一覧(本書) | `8_software_configuration_management_process/configuration_item_list.md` | 0.37 | ドラフト(セルフ承認、Step 19 F5 反映:CI-TD-002.5 を予定 → 確定昇格(`tests/integration/test_perf_statistical_timing.py`、6 ケース、IT-PERF.1-01/02、2-01/02、3-01/02、本物 ControlLoop / CommandHandler / HwFailsafeTimer / atomic_writer + `pytest-benchmark` 初運用 + `linux_only` auto-skip hook 新設、SRS / SDD 厳密境界 110/50/110 ms、Linux nightly 実測確認は申し送り)、CI-TD-001a に `linux_only` auto-skip hook 追加、CI-DOC-ITPR v0.7 → v0.8 / CI-DOC-DEVSTEPS v0.38 → v0.39、自己参照 v0.37)|
 | CI-DOC-CCB | CCB 運用規程 | `8_software_configuration_management_process/ccb_operating_rules.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §5.4 大改訂 — 学習/実機 2 系統表記・1 分インターバル採用) |
 | CI-DOC-CRR | 変更要求台帳 | `8_software_configuration_management_process/change_request_register.md` | 0.8 | ドラフト(セルフ承認、Step 19 F1.6 で CR-0004 + CR-0005 を一括 OPEN → TRIAGED → APPROVED → IN_PROGRESS → VERIFICATION 状態へ遷移、採用候補は CR-0004 (b) Adapter 層追加 / CR-0005 (a) Protocol 引数なし化)|
 | CI-DOC-SPRP | ソフトウェア問題解決手順書 | `9_software_problem_resolution_process/software_problem_resolution_procedure.md` | 0.2 | ドラフト(セルフ承認、Step 15a で §5 CCB 通知行の 1 分インターバル反映) |
 | CI-DOC-ACL | IEC 62304 監査チェックリスト | `compliance/audit_checklist.md` | テンプレートのまま | 未編集(Inc.1 以降で本プロジェクト向けに整備予定) |
 | CI-DOC-README | プロジェクト README | `README.md` | — | 継続更新 |
-| CI-DOC-DEVSTEPS | 開発ステップ記録(お手本) | `DEVELOPMENT_STEPS.md` | 0.38 | 継続更新(ステップ毎に追記、Step 19 F4 反映:§6.7 IT-SEP 詳細化 6 ケース実装 Pass、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E、`del sys.modules` 副作用回避の設計是正記録)|
+| CI-DOC-DEVSTEPS | 開発ステップ記録(お手本) | `DEVELOPMENT_STEPS.md` | 0.39 | 継続更新(ステップ毎に追記、Step 19 F5 反映:§6.8 IT-PERF 詳細化 + 数値訂正 + `linux_only` auto-skip hook 新設、SRS / SDD 整合 110/50/110 ms 厳密境界、IT-PERF.3-01 race condition 是正と pytest-benchmark plugin 副作用回避の設計是正記録)|
 | CI-DOC-CLAUDE | 編集ガイド(AI 支援含む) | `CLAUDE.md` | — | 本プロジェクト固有ルール追記済、Step 15a で単独開発下の独立性擬制セクションを 24h → 1 分に更新 |
 | CI-DOC-UPSTREAM | iec62304_template への修正要望台帳 | `UPSTREAM_FEEDBACK.md` | 0.3 | ドラフト(セルフ承認、UF-001〜UF-009 全 9 件 upstream 受領済み反映 — PR #15〜#23 マージ、2026-04-21。※v0.2 時点 Step 17a で本 CIL 反映漏れを Step 17b で遡及補正) |
 
@@ -144,7 +144,7 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | CI ID | 名称 | パス | 用途 |
 |-----------|------|------|------|
 | CI-TD-001 | ユニット試験ケース(パッケージ構造スモーク)| `tests/test_package_structure.py` | 6 サブシステムパッケージの import 可能性と SEP-001 分離の弱事前確認(7 ケース、Step 19 B1 で新規追加)|
-| CI-TD-001a | 共通 pytest 設定・フィクスチャ | `tests/conftest.py` | 共通フィクスチャ置き場(Step 19 B2+ で拡充)|
+| CI-TD-001a | 共通 pytest 設定・フィクスチャ | `tests/conftest.py` | 共通フィクスチャ置き場(Step 19 B2+ で拡充)。Step 19 F5 で `linux_only` マーカー auto-skip hook(`pytest_collection_modifyitems`、`sys.platform != "linux"` のとき skip 化)を新規追加、ITPR §8.1 規定「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定」の機械化(F6 / F7 で再利用) |
 | CI-TD-001b | UNIT-001.1 State Machine 試験 | `tests/unit/test_state_machine.py` | UT-001.1-01〜12 を 62 ケースに展開(正常系 / 境界値 / 異常系 / RCM-019 / 並行 / タイミング / プロパティ / 持続化結合スモーク)、100% カバレッジ / MC/DC 100%(Step 19 B2 で新規追加) |
 | CI-TD-001d | UNIT-001.4 Flow Command Validator 試験 | `tests/unit/test_flow_validator.py` | UT-001.4-01〜12 を 34 ケースに展開(正常系 / 境界値 / 異常系 / RCM-001 / 状態別スキップ / 純粋性 / frozen / プロパティ)、100% カバレッジ / MC/DC 100%(Step 19 B3 で新規追加) |
 | CI-TD-001e | UNIT-002.4 HW-side Failsafe Timer 試験 | `tests/unit/test_failsafe_timer.py` | UT-002.4-01〜08 を 18 ケースに展開(正常系 / 境界値 / 並行 / RCM-004 / クロック逆転 / 冪等 / start-stop / 例外耐性 / 実時間スレッド統合スモーク)、100% カバレッジ / MC/DC 100%(Step 19 B4 で新規追加) |
@@ -171,7 +171,7 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 | CI-TD-002.2 | RCM-003 結合試験(SW/HW Watchdog 階層防御) | `tests/integration/test_rcm003_watchdog_layer.py` | IT-RCM003.1-01〜06(6 ケース)、本物 `time.monotonic` + 実時間 `time.sleep` 連動 + `check_once()` 直接呼出 5 件 + 監視スレッド `start/stop` lifecycle 検証 1 件、SDD §4.8 / §4.3 の冪等性 + 階層防御時間順序を実証(3 連続安定確認済)。Step 19 F2 で新規追加、ITPR §6.2 詳細化済 |
 | CI-TD-002.3 | RCM-004 結合試験(送出間隔、Control Loop + Pump 結合) | `tests/integration/test_rcm004_dispatch_interval.py` | IT-RCM004.1-01〜05(5 ケース)、本物 ControlLoop + 本物 PumpSimulator + 本物 PumpObserver + 本物 Flow Validator(ControlLoop 内ハードコード呼出)+ Mock(spec=StateMachine)+ MagicMock(spec なし)Watchdog 2 件(CR-0005 待ち)、`tick()` 直接呼出ベースで dispatch + heartbeat + WDT_TIMEOUT 経路 + IDLE skip を実証(3 連続安定確認済)。Step 19 F3 で新規追加、ITPR §6.3 詳細化済 |
 | CI-TD-002.4 | SEP-001 ランタイム検証 | `tests/integration/test_sep001_runtime_isolation.py` | IT-SEP.1-01〜06(6 ケース)、本物 `vip_api_b` Adapter(`make_validation_api()` 経由)+ 本物 `SwWatchdog` / `HwFailsafeTimer`(`heartbeat()` 引数なし契約)注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証(クラス B パッケージ全ファイル AST 拡張 1 件 + 本物注入正常 / 異常 / 純粋関数性 / 例外注入 4 件 + 本物 Watchdog 階層防御 E2E 1 件)。Step 19 F4 で新規追加、ITPR §6.7 詳細化済 |
-| (予定) CI-TD-002.5 | IT-PERF 統計時間試験 | `tests/integration/test_perf_*.py` | Step 19 F5 で追加予定、ITPR §6.8 詳細化(pytest-benchmark 利用) |
+| CI-TD-002.5 | IT-PERF 統計時間試験 | `tests/integration/test_perf_statistical_timing.py` | IT-PERF.1-01/02、2-01/02、3-01/02(6 ケース)、本物 ControlLoop + 本物 CommandHandler + 本物 HwFailsafeTimer + 本物 atomic_writer + `pytest-benchmark` 初運用(IT-PERF.1-02 のみ)、`@pytest.mark.linux_only` 付与で macOS / Windows では auto-skip(`tests/conftest.py` の hook)、CI Linux nightly のみで実行。SRS / SDD 整合 110/50/110 ms 厳密境界、Linux nightly 実測確認は Inc.1 完了タグ前に申し送り(ITPR §6.8.5)。Step 19 F5 で新規追加、ITPR §6.8 詳細化済 |
 | (予定) CI-TD-002.6 | IT-PWR 電源断試験 | `tests/integration/test_power_loss.py` | Step 19 F6 で追加予定、ITPR §6.9 詳細化(`linux_only` マーカー) |
 | (予定) CI-TD-002.7 | IT-SIDE サイドチャネル試験 | `tests/integration/test_side_timing.py` | Step 19 F7 で追加予定、ITPR §6.10 詳細化 |
 | (予定) CI-TD-003 | システム試験シナリオ | `tests/system/` | 要求ベースのシステム試験(§5.7、STPR v0.1 作成時) |
@@ -207,6 +207,7 @@ SRMP §4.3 の SOUP 評価(供給元の信頼性、ライセンス適合性、�
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.37 | 2026-05-04 | Step 19 F5(IT 5 観点目、§6.8 IT-PERF 統計時間試験詳細化 + 数値訂正 + `linux_only` auto-skip hook 新設)に伴う整合化。**(1) §8 試験資産:** **CI-TD-002.5 を予定 → 確定昇格**(`tests/integration/test_perf_statistical_timing.py`、6 ケース、IT-PERF.1-01/02、2-01/02、3-01/02、本物 ControlLoop + 本物 CommandHandler + 本物 HwFailsafeTimer + 本物 atomic_writer + `pytest-benchmark` 初運用(IT-PERF.1-02 のみ)、`@pytest.mark.linux_only` 付与で macOS / Windows では auto-skip、CI Linux nightly のみ実行)。**CI-TD-001a(`tests/conftest.py`)に `linux_only` マーカー auto-skip hook を新規追加**(`pytest_collection_modifyitems` で `sys.platform != "linux"` のとき skip 化、F6 / F7 で再利用、ITPR §8.1 規定の機械化)。`tests/integration/conftest.py` への新規 fixture 追加なし(F2 / F3 の既存 fixture を再利用、`mock_running_state_machine` / `pump_simulator_real` / `pump_observer_real` / `magicmock_*_heartbeat_sink` / `mock_pump_controller`)。**(2) §4 ドキュメント:** CI-DOC-ITPR v0.7 → v0.8(§6.8 詳細化 + 数値訂正 + 着手中の設計是正記録、§11.2 + §13 IT-PERF 行を「設計確定 + Linux nightly 実測確認は申し送り」で記入、合計目安 ≥ 61 → ≥ 67、§14 改訂履歴 v0.8 行追加)、CI-DOC-DEVSTEPS v0.38 → v0.39、CI-DOC-CIL 自己参照 v0.37、冒頭バージョン v0.37 + 最終更新日 2026-05-04。**(3) §3 / §5 / §6 / §7 影響なし**(計画書詳細化 + 試験資産追加 + `tests/conftest.py` への hook 追加のみ、ソースコード / SOUP / 開発・検証ツール / CFG は不変、`pytest-benchmark` SOUP-012 は F0 で正式採用済)。**(4) MINOR 区分・CR 不要**(§6.8 詳細化 + 数値訂正(SRS / SDD / UTPR との整合化、SCMP §4.1「軽微 / 計画文書の段階成熟」)+ 試験資産確定昇格 + `linux_only` auto-skip hook 新設、SRS / SDD / RMF / SAD / 既存実装コード いずれも不変)。**(5) Step 19 F5 着手前クロスレビューでの数値訂正:** SRS-P02 「200 ms ± 10%」→ 「100 ms ± 10 ms」(SRS L123 / SDD §4.6.B `PERIOD_SEC=0.1` 整合)、SRS-P03 「P95 ≤ 50 ms」→ 「P95 ≤ 100 ms(SDD §4.7.E 内訳)」、SRS-P04 「P95 ≤ 200 ms」→ 「P95 ≤ 50 ms(SDD §4.7.A ファストパス)」、SRS-P06(永続化非ブロッキング)取りこぼし回収を IT-PERF.3-02 で実現、SRS と SDD の解釈差(SRS-P03/P04 全体予算 vs SDD 内訳予算)を「IT は SDD 内訳 / ST は SRS 全体」分散配置と整理(Step 19 G STPR 骨格化で明文化予定)。**(6) Step 19 F5 着手中の発見と是正(F4 同パターン継続):** **(a)** macOS sleep ジッタ余裕境界(110→130 ms / 50→70 ms)を当初試したが 3 連続中 2 回 fail → ITPR §8.1 規定「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定」の機械化として `linux_only` auto-skip hook を F5 で先取り実装(F6 で予定だった機能、F6 / F7 で再利用)、境界を SRS / SDD 値厳密(110 / 50 / 110 ms)に戻す、**(b)** IT-PERF.3-01 で `start()` 直後 `heartbeat()` 呼出が monitor 第 1 回 check_once と lock 競合し SDD §4.3.E クロック逆転安全側発火が偶発発動する race window を発見 → `heartbeat()` 削除、`start()` 時刻基準に変更、**(c)** `pytest-benchmark` plugin 副作用(後続テストの GC / スケジューリング影響)を発見 → IT-PERF.1-02 をファイル末尾配置。**(7) 試験安定性:** UT 447 / IT non-nightly 27 / IT-PERF 6 skipped(`linux_only` auto-skip)、coverage 99.46%、3 連続安定確認(macOS local、2026-05-04)、Linux nightly 実測確認は Inc.1 完了タグ前に 5 連続 Pass を申し送り(ITPR §6.8.5)。**(8) 派生ドキュメント更新漏れ教訓の二十三度目試行:** CIL §4 ITPR / DEVSTEPS / CIL 自己参照 + §8 CI-TD-002.5 確定 + CI-TD-001a 拡充 + 冒頭メタ + 改訂履歴の **計 7 箇所** を事前リストアップして網羅レビュー実施 | k-abe |
 | 0.1 | 2026-04-18 | 初版作成(Phase 3 時点の CI を網羅登録 — ドキュメント 18 件、ツール 7 件(運用中)+ 5 件(予定)、構成ファイル 8 件(運用中)+ 3 件(予定)、SOUP 候補 10 件、ベースライン候補 5 件) | k-abe |
 | 0.2 | 2026-04-18 | Step 11/12a の成果物を反映: CI-DOC-SRS を v0.1(Inc.1 範囲確定)へ昇格、CI-DOC-RMF を v0.2(RCM-019 登録)へ昇格、ベースライン履歴を更新し `planning-baseline` の付与済状態と `inc1-requirements-frozen` の実付与予定を反映 | k-abe |
 | 0.3 | 2026-04-21 | Step 14d(Inc.1 設計凍結)に伴う整合化: (1) CR-0001 マージ完了反映 — CI-DOC-SDD を v0.2(§5.4.2 完全充足)へ昇格、CI-DOC-CRR を v0.3(クローズ記録反映)へ昇格。(2) v0.2 時点の更新漏れ補正 — CI-DOC-SAD を v0.1(Step 12c 反映)、CI-DOC-CCB を v0.1(Step 10c 反映)、CI-DOC-CIL 自己参照を v0.3、CI-DOC-DEVSTEPS を v0.3(Step 14b〜14e 追記反映)へ更新。(3) ベースライン履歴に BL-20260421-001 `inc1-design-frozen` を確定エントリとして記入、§10 末尾の注記も更新 | k-abe |
