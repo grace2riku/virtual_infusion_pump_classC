@@ -30,7 +30,10 @@ def pytest_collection_modifyitems(
     """
     if sys.platform == "linux":
         return
-    skip_marker = pytest.mark.skip(
+    # mypy `sys.platform` の特殊扱い:Linux 環境では上記 return で確実に抜けると
+    # 判定され以下が unreachable と警告される。本 hook は他プラットフォーム
+    # 実行時のみ意味があるため `type: ignore[unreachable]` で局所抑制する。
+    skip_marker = pytest.mark.skip(  # type: ignore[unreachable, unused-ignore]
         reason=f"linux_only test (current platform: {sys.platform})",
     )
     for item in items:
