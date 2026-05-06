@@ -1,9 +1,9 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.8
+**バージョン:** 0.9
 **作成日:** 2026-05-01
-**最終更新日:** 2026-05-04
+**最終更新日:** 2026-05-07
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
 **対象範囲:** Inc.1(流量制御コア、全 17 ソフトウェアユニットの結合)
@@ -614,16 +614,52 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 - **`pytest-benchmark` 比較レポート**:`--benchmark-save=name` / `--benchmark-compare=name` でラウンド間比較が可能だが、本 §6.8 v0.8 では使用しない(Inc.5 性能リグレッション検出時に正式運用、SOUP-012 機能の段階的活用)。
 - **SRS-P03 / P04 全体予算の ST 試験**:Step 19 G(STPR 骨格化)で「IDLE → start コマンド → 物理 Pump 動作変化まで全体 500 ms 内」「RUNNING → stop コマンド → 物理 Pump 停止まで全体 200 ms 内」を ST 試験として骨格化する。本 IT (SDD 内訳予算) と ST (SRS 全体予算) の **分散配置** を STPR §X で明文化。
 
-### 6.9 環境依存試験 — subprocess + SIGKILL 電源断耐性(IT-PWR)— **骨格**
+### 6.9 環境依存試験 — subprocess + SIGKILL 電源断耐性(IT-PWR)— **詳細化(Step 19 F6)**
 
-- **目的:** SDD §4.4.E「原理的に検知不可能 / load 側で担保」の前提で、永続化パイプラインの **真の電源断シミュレーション**(`subprocess.Popen` で書込中プロセスを生成 → `os.kill(pid, signal.SIGKILL)`)に対して、再起動後の read 経路で破損 / 中間状態が検出され `FailsafeRecommended` を返すことを検証する。
-- **関連 IF-U:** IF-U-009、IF-E-001
-- **関連 SRS:** SRS-DATA-002、SRS-DATA-003、SRS-RCM-015
-- **試験ケース数目安:** ≥ 4 件(write 中 SIGKILL、bak 世代化中 SIGKILL、fsync 完了直前 SIGKILL、bak からのリカバリ)
-- **元 UT 申し送り:** UT-003.3-10(SDD §4.4.E 申し送り)
-- **環境制約:** Linux のみ(macOS は SIGKILL 動作差異、Windows は subprocess 動作差異)。CI Linux runner で実行、ローカル macOS 開発時はスキップマーク。
-- **試験技法:** `pytest.mark.skipif(sys.platform != "linux")` + `subprocess.Popen` + `os.kill`、`tmp_path` で隔離
-- **Step 19 F で詳細化予定**
+#### 6.9.1 試験観点と検証対象不変条件
+
+- **目的:** SDD §4.4.E「原理的に検知不可能 / load 側で担保」の前提で、永続化パイプライン(UNIT-003.3 Atomic File Writer)の **真の電源断シミュレーション**(`subprocess.Popen` で書込中の子プロセスを生成 → `os.kill(pid, signal.SIGKILL)`)に対して、SDD §4.4.B 不変条件 **「target か bak のいずれかが旧データを保持」** が任意のフェーズで成立し、`atomic_writer.read` + `from_json` + `validate` の load 側経路で破損 / 中間状態が検出される(または `rollback()` で復元できる)ことを検証する。
+- **関連 IF-U:** IF-U-009(永続化 Saver/Loader)、IF-E-001(プロセス境界 — subprocess)
+- **関連 SRS:** SRS-DATA-002(atomic write)、SRS-DATA-003(1 世代 backup)、SRS-RCM-015(起動時整合性検証)
+- **関連 RCM:** RCM-015(load 側で破損検知、本 §6.9 の検証主軸)
+- **関連 HZ:** HZ-007(persisted-data corruption)
+- **元 UT 申し送り:** UT-003.3-10(UTPR §7.3.4 v0.5 Step 19 B5 申し送り、SDD §4.4.E「原理的に検知不可能 / load 側で担保」整合)
+
+#### 6.9.2 試験ケース一覧(全 4 件)
+
+| 試験 ID | 内容 | 仕掛けるフェーズ(SDD §4.4.B 擬似コード対応) | 期待ファイル状態 | 期待整合性検証 |
+|---------|------|------------------------------------------|----------------|---------------|
+| IT-PWR.1-01 | temp 書込中 SIGKILL | `temp_write` — temp 書込 + fsync 完了直後、1 回目 `os.replace`(target → bak)直前 | target = 原本、`.bak` 不在 | `validate(target)` → `Ok(原本)` |
+| IT-PWR.1-02 | bak 世代化中 SIGKILL(critical race)| `between_replaces` — 1 回目 `os.replace`(target → bak)完了直後、2 回目 `os.replace`(temp → target)直前 | target 不在、`.bak` = 原本 | `validate(.bak)` → `Ok(原本)` |
+| IT-PWR.1-03 | fsync 完了直前 SIGKILL | `before_dir_fsync` — 2 回目 `os.replace`(temp → target)完了直後、`_try_fsync_directory` 直前 | target = 新, `.bak` = 旧 両者 holds | `validate(target)` / `validate(.bak)` 両者 → `Ok` |
+| IT-PWR.1-04 | bak からのリカバリ(SRS-DATA-003 1 世代 backup 運用)| `between_replaces` 同条件で SIGKILL 後、親で `atomic_writer.rollback(target)` を呼出 | rollback 後:target = 原本(復元成功)、`.bak` 消費されて不在 | `validate(target)` → `Ok(原本)` |
+
+#### 6.9.3 試験環境 — 結合経路と decision 表
+
+| 観点 | IT-PWR.1-01〜.1-04 共通 |
+|------|------------------------|
+| 子プロセス | `tests/integration/_pwr_child_helper.py`(underscore 接頭辞で pytest collection 回避) |
+| 子の動作 | (i) 原本書込(monkey-patch なし) → (ii) `os.replace` / `_try_fsync_directory` を monkey-patch して指定フェーズ突入直前で signal-file 作成 + `time.sleep(60)` → 親 SIGKILL で消滅 |
+| 親の動作 | `subprocess.Popen` 起動 → signal-file polling(20 ms 間隔、上限 10 秒)→ `os.kill(pid, signal.SIGKILL)` → `proc.wait`(上限 5 秒、returncode `-SIGKILL` 確認)→ ファイル状態事後観測 + 整合性検証 |
+| 隔離 | `tmp_path` fixture(各テストごとに独立ディレクトリ) |
+| マーカー | `@pytest.mark.integration` + `@pytest.mark.nightly` + `@pytest.mark.linux_only` |
+| 実行条件 | `linux_only` auto-skip hook(`tests/conftest.py`、Step 19 F5 で先取り実装)により macOS / Windows ではテスト本体が collection 直後に skip 化、CI Linux nightly schedule(`integration-nightly` ジョブ、cron `0 2 * * *` UTC)でのみ実行 |
+
+#### 6.9.4 設計判断(Step 19 F6 着手中)
+
+- **subprocess + SIGKILL の精密同期方式の選定**:乱数的に SIGKILL を打つ fuzz 方式と、monkey-patch で **指定フェーズ突入直前** に signal-file を作って sleep する **決定論的同期方式** の 2 案を比較し、後者を採用した。理由:**(a)** SDD §4.4.B 不変条件の各フェーズ(temp 書込中 / 2 段 rename 中間 / fsync 直前)を 1:1 で網羅でき、SDD 監査トレーサビリティを確保できる、**(b)** 回帰時の再現性が完全(乱数 fuzz は毎回異なるフェーズで kill される)、**(c)** 失敗時のデバッグが容易(どのフェーズで invariant 違反が起きたかが ID 単位で特定可能)。fuzz 方式は将来 Inc.5 で「想定外のフェーズで kill されても invariant 違反しない」を確認する補完試験として再評価。
+- **`linux_only` auto-skip hook の F6 で初再利用**(Step 19 F5 で先取り実装した機能の最初の利用事例):F5 教訓「ITPR §8.1 規定の機械化を最初に必要となるサブステップで先取り実装」のとおり、F5 で `tests/conftest.py` に追加した `pytest_collection_modifyitems` hook がそのまま再利用可能。本 §6.9 は **新規 hook 追加なし** で `pytestmark = [integration, nightly, linux_only]` だけで Linux 限定運用が成立。`linux_only` 実装に修正がないため、F5 の hook は **そのまま F7(IT-SIDE)でも利用可能**(F5/F6/F7 で 3 ステップ連続再利用、`pytest.mark.skipif(sys.platform != "linux")` 個別記述を排除)。
+- **本物 SUT 比率最大化の継続**:F1 → F2 → F3 → F4 → F5 と進めてきた延長で、本 §6.9 は本物 atomic_writer + 本物 serializer + 本物 integrity validator を主体に、Mock は使用しない。**子プロセスでの monkey-patch は試験 scaffolding(SIGKILL のタイミング制御)であって SUT を Mock 化したものではない** 点を明示的に区別する(本物 atomic_writer.write は monkey-patch を経由しても本物の制御フローを実行する、停止点だけが scaffolding 由来)。
+- **POSIX SIGKILL returncode の検証**:`proc.wait` で取得する returncode が `-signal.SIGKILL`(POSIX 規約で `-9`)に等しいことを assertion で確認。**(i)** `0` を返すと「子が SIGKILL を受けずに正常終了した」= monkey-patch 仕込み点に到達せず通常の write 経路を完走したことを意味する設計欠陥、**(ii)** `> 0` の場合は子が `sys.exit(N)` で異常終了したことを意味し monkey-patch 仕込み前に何らかの import / 引数解析エラーが起きた可能性、**(iii)** `-N` で N != SIGKILL なら別シグナル受信(SIGTERM / SIGSEGV 等)— の 3 異常パターンを区別できる。
+- **`signal_file.write_bytes` での self-recursion 回避**(子ヘルパ実装中の発見):当初 `os.replace(tmp, signal_file)` で signal-file を atomic 書込する設計だったが、`_install_phase_pause` で `os.replace` を monkey-patch しているため signal-file 作成が patched_replace を再帰呼出してしまう race を実装中に発見。`Path.write_bytes` に変更(brief な空ファイル状態は親の `signal_file.exists()` 判定では無害)。
+- **`setattr` による monkey-patch の mypy 整合**:`atomic_writer.os.replace = ...` 直接代入は mypy --strict で `attr-defined`(os は再エクスポートされていない)/ `assignment`(os.replace は read-only と推論)エラーが出る。`setattr(_os, "replace", ...)` + `setattr(atomic_writer, "_try_fsync_directory", ...)` で動的属性差し替えに切り替え、mypy --strict 通過 + B010 noqa を許容(`setattr` 第 2 引数が定数の場合の警告で本ケースは妥当)。
+
+#### 6.9.5 申し送り(Step 19 F6 完了時点)
+
+- **Linux nightly での 5 連続 Pass 実測確認**:macOS local では `linux_only` auto-skip により試験本体は実行されない。本 §6.9 詳細化と同 PR で `_pwr_child_helper.py` を **macOS 上で 3 フェーズすべて手動 smoke 検証**(target / .bak のファイル状態が SDD §4.4.B 不変条件と一致、SIGKILL returncode `-9`)を実施したが、CI Linux runner での **5 連続 Pass 実測は申し送り**(F5 と同じ運用、Inc.1 完了タグ `v0.1.0-inc1` 付与前に Step 19 H で実施)。
+- **Linux 環境特有の race window 候補**:子プロセスが `time.sleep(60)` 中に親が SIGKILL を送る経路は POSIX で決定論的だが、極稀に **OS スケジューラ** が子の signal-file write 完了より前に親が `signal_file.exists()` を観測する可能性は理論上排除できない(`Path.write_bytes` は open + write + close で複数 syscall)。Linux 5 連続 Pass の中で発生した場合、`os.fsync` 追加または `tempfile + os.rename` での atomic 書込パターンに変更を検討(現時点では smoke で再現せず、F6 では追跡対象外)。
+- **`pwr` マーカー未追加**:本 §6.9 では `[integration, nightly, linux_only]` の組合せで IT-PWR を識別可能としたが、`linux_only` は F7 IT-SIDE でも付与予定のため、IT-PWR を **単独で実行** したい局面が増えた場合は `pyproject.toml` に `pwr` マーカーを追加する判断を後続で行う(現時点ではコスト < 必要性)。
+- **subprocess 起動オーバヘッド**:子プロセス起動 + 1 回目書込 + monkey-patch 仕込み + 2 回目書込開始まで通常 1 秒以内(macOS smoke 実測 1.07 秒)。Linux runner では同程度を想定するが、4 ケース合計で **試験時間 ≤ 10 秒** が見込み(各ケース signal 待ち上限 10 秒、SIGKILL 後 wait 上限 5 秒の理論上限合計 60 秒に対して現実の `1.07 × 4 + α ≈ 5 秒`)。`integration-nightly` ジョブ全体の時間予算に対して無視可能。
 
 ### 6.10 サイドチャネル — Checksum タイミング攻撃耐性(IT-SIDE)— **骨格**
 
@@ -640,7 +676,7 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 ### 7.1 計画レビューチェックリスト
 
 - [ ] 計画が SRS / SAD / SDD と整合している(§2 参照文書、§6 試験観点)
-- [ ] 各試験ケースが期待結果・合格基準を明示している(§6.4 / §6.5 / §6.6 詳細化済 + §6.1〜§6.3 / §6.7〜§6.10 骨格)
+- [ ] 各試験ケースが期待結果・合格基準を明示している(§6.1〜§6.9 詳細化済 + §6.10 骨格、§6.9 IT-PWR は Step 19 F6 で詳細化完了)
 - [ ] 試験が再現可能である(§5.3 試験環境、`pytest` ベース、CI 自動実行)
 - [ ] リスクコントロール手段(RCM-001/003/004/015/016/019)を検証するケースが含まれている(§6.1〜§6.6)
 - [ ] SEP-001 分離(クラス C / B)を検証するケースが含まれている(§6.7)
@@ -720,9 +756,9 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | IT-RCM004(送出間隔、§6.3 詳細化済 Step 19 F3)| **5**(IT-RCM004.1-01〜05)| **5** | 0 | 0 | 2026-05-01 | (本 PR マージコミット)|
 | IT-SEP(SEP-001 ランタイム、§6.7 詳細化済 Step 19 F4)| **6**(IT-SEP.1-01〜06)| **6** | 0 | 0 | 2026-05-03 | (本 PR マージコミット)|
 | IT-PERF(統計時間、§6.8 詳細化済 Step 19 F5)| **6**(IT-PERF.1-01/02、2-01/02、3-01/02)| TBD(設計確定、CI Linux nightly で実測確認は Inc.1 完了タグ前に申し送り、§6.8.5 参照) | TBD | **6**(macOS local の `linux_only` auto-skip による意図的 skip)| 2026-05-04(設計確定)| (本 PR マージコミット、Linux nightly 結果は別 PR で記入)|
-| IT-PWR(電源断、§6.9 骨格)| **≥ 4**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
+| IT-PWR(電源断、§6.9 詳細化済 Step 19 F6)| **4**(IT-PWR.1-01〜04)| TBD(設計確定、CI Linux nightly で実測確認は Inc.1 完了タグ前に申し送り、§6.9.5 参照)| TBD | **4**(macOS local の `linux_only` auto-skip による意図的 skip)| 2026-05-07(設計確定)| (本 PR マージコミット、Linux nightly 結果は別 PR で記入)|
 | IT-SIDE(サイドチャネル、§6.10 骨格)| **≥ 2**(Step 19 F で詳細化)| TBD | TBD | TBD | TBD | TBD |
-| **合計** | **≥ 67** | — | — | — | — | — |
+| **合計** | **≥ 71** | — | — | — | — | — |
 
 ### 11.3 不具合・逸脱
 
@@ -757,7 +793,7 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | RCM-004 送出間隔 | IT-RCM004.1-01〜05(§6.3 詳細化済 Step 19 F3)| SRS-031、SRS-P02(機能整合のみ)、SRS-RCM-004 | RCM-004 | HZ-001、HZ-002 | IF-U-002/003/004/005 | UT-001.2、UT-002.1、UT-002.2、UT-001.4 | **Pass(5 tests、本物 ControlLoop + Pump + Observer + Validator 結合 + MagicMock Watchdog 経路、機能整合性検証、Step 19 F3、3 連続安定確認)** |
 | SEP-001 ランタイム | IT-SEP.1-01〜06(§6.7 詳細化済 Step 19 F4)| SRS-UX-001/004/005、SRS-005、SRS-RCM-003、SRS-RCM-004 | RCM-003 / RCM-004(IT-SEP.1-06 副次)| — | IF-U-003/004/005/011 | UT-005.3、UT-005.1-bridge、UT-001.2、UT-001.5、UT-002.4 | **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証、Step 19 F4)** |
 | 統計時間 | IT-PERF.1-01/02、2-01/02、3-01/02(§6.8 詳細化済 Step 19 F5)| SRS-P02、SRS-P03(SDD 内訳)、SRS-P04(SDD 内訳)、SRS-P06、SRS-RCM-004 | —(性能要求のため RCM 紐付けなし、ただし HW Failsafe Timer 観察は IT-PERF.3-01 で RCM-004 関連)| HZ-002(SRS-P04 関連)| IF-U-001/002/003/004/005/009 | UT-001.2-19(UTPR §7.3.9 v0.10)、UT-001.3-19(UTPR §7.3.12 v0.13)、UT-002.4(UTPR §7.3.3 v0.4)| **設計確定(6 tests、本物 ControlLoop / CommandHandler / HwFailsafeTimer / atomic_writer + `pytest-benchmark` 初運用 + `linux_only` auto-skip hook 新設、§6.8 数値訂正後の SRS / SDD 整合境界(110 ms / 50 ms / 110 ms 厳密)で実装。macOS local では auto-skip、CI Linux nightly での実測確認は Inc.1 完了タグ前に 5 連続 Pass を申し送り、§6.8.5 参照)** |
-| 電源断耐性 | IT-PWR.* (§6.9 骨格)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3 | TBD |
+| 電源断耐性 | IT-PWR.1-01〜04(§6.9 詳細化済 Step 19 F6)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3-10(UTPR §7.3.4 v0.5 Step 19 B5 申し送り)| **設計確定(4 tests、本物 atomic_writer + 本物 serializer + 本物 integrity validator + 子ヘルパ monkey-patch による SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() による SRS-DATA-003 1 世代 backup 復元実証、Step 19 F6、`linux_only` auto-skip hook を F5 から再利用)。macOS local では auto-skip、CI Linux nightly での実測確認は Inc.1 完了タグ前に 5 連続 Pass を申し送り、§6.9.5 参照** |
 | サイドチャネル | IT-SIDE.* (§6.10 骨格)| SRS-SEC-001 | — | HZ-007 | — | UT-003.2 | TBD |
 
 **カバレッジ:** 本マトリクスにより、Inc.1 全 RCM 6 件 / SDD 17 ユニットからの UT 申し送り 6 件 / SAD §9 SEP-001 が IT カテゴリと紐付き、SRS / RCM / HZ / IF-U への双方向トレーサビリティが確立した(v0.1 では §6.4 / §6.5 / §6.6 詳細化分が試験 ID レベル、残骨格は Step 19 F で完成)。
@@ -766,6 +802,7 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.9 | 2026-05-07 | **Step 19 F6(§6.9 IT-PWR subprocess + SIGKILL 電源断耐性詳細化、`linux_only` auto-skip hook の F6 で初再利用)を反映。** §6.9 を骨格 → 詳細化(IT-PWR.1-01〜04、4 ケース表 + 結合経路 1 構成 + 設計判断 5 項目 + 申し送り 4 項目)。**着手時設計判断:** F5 で先取り実装した `linux_only` auto-skip hook を **新規追加なしで再利用**(`pytestmark = [integration, nightly, linux_only]` のみで Linux 限定運用が成立、F5 教訓「規定 → 機械化 → 利用」の 3 段階パターンの「利用」フェーズ初実行)。**試験技法:** subprocess + SIGKILL の **精密同期方式**(子ヘルパ `_pwr_child_helper.py` に `os.replace` / `_try_fsync_directory` の monkey-patch を仕込み、SDD §4.4.B 擬似コードの **指定フェーズ突入直前** で signal-file 作成 + sleep、親が signal-file 検知後 `os.kill(pid, signal.SIGKILL)`)を採用。乱数 fuzz 方式と異なり SDD §4.4.B 不変条件の各フェーズを 1:1 で網羅、SDD 監査トレーサビリティと回帰再現性を確保。**着手中の設計是正:** **(1) `signal_file.write_bytes` self-recursion 回避:** 当初 `os.replace(tmp, signal_file)` で signal-file を atomic 書込する設計だったが、`_install_phase_pause` で `os.replace` を monkey-patch しているため signal-file 作成が patched_replace を再帰呼出する race を実装中に発見 → `Path.write_bytes` に変更(brief な空ファイル状態は親の `signal_file.exists()` 判定では無害)。**(2) `setattr` による mypy --strict 整合:** `atomic_writer.os.replace = ...` 直接代入は `attr-defined` / `assignment` エラー → `setattr(_os, "replace", ...)` + `setattr(atomic_writer, "_try_fsync_directory", ...)` に変更、B010 noqa 許容で mypy --strict / ruff 通過。§11.2 IT-PWR 行を **設計確定 + Linux nightly 実測確認は Inc.1 完了タグ前に申し送り**(2026-05-07)、§13 トレーサビリティマトリクス IT-PWR 行を **「設計確定(4 tests、本物 atomic_writer + 本物 serializer + 本物 integrity validator + 子ヘルパ monkey-patch による SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() による SRS-DATA-003 1 世代 backup 復元実証、`linux_only` auto-skip hook を F5 から再利用)」** に更新、合計目安を ≥ 67 → ≥ 71 に。RCM 検出能力不変(RCM-015 load 側で破損検知)、SAD §6 / §9 設計不変、`tests/integration/_pwr_child_helper.py` 新規(子プロセスヘルパ、`tests/integration/test_power_loss.py` から subprocess.Popen で起動)、`tests/integration/test_power_loss.py` 新規(IT-PWR.1-01〜04 全 4 ケース)、`tests/conftest.py` の `linux_only` auto-skip hook は F5 から無修正で再利用、`tests/integration/conftest.py` は本観点で Mock を使用しないため新規 fixture 追加なし | k-abe |
 | 0.8 | 2026-05-04 | **Step 19 F5(§6.8 IT-PERF 統計時間試験詳細化 + 数値訂正 + `linux_only` auto-skip hook 新設)を反映。** §6.8 を骨格 → 詳細化(IT-PERF.1-01/02、2-01/02、3-01/02、6 ケース表 + 結合経路 4 構成 + 設計判断 5 項目 + 申し送り 4 項目)。**着手前クロスレビューでの数値訂正(MINOR、CR 不要、SCMP §4.1 軽微):** v0.7 までの §6.8 骨格(L557、ITPR v0.1 = Step 19 D-2 初版作成時の誤記)で SRS / SDD / UTPR との数値乖離を発見し、本 v0.8 で訂正:**(a)** SRS-P02 「200 ms ± 10%」→ 「**100 ms ± 10 ms**」(SRS L123 / SDD §4.6.B `PERIOD_SEC=0.1` / UTPR §7.3.9 v0.10 整合化)、**(b)** SRS-P03 「P95 ≤ 50 ms」→ 「**P95 ≤ 100 ms(SDD 内訳)**」(SRS L124 全体 500 ms / SDD §4.7.E 内訳 100 ms / UTPR §7.3.12 v0.13 整合化、50 ms は SRS-P04 と取り違え)、**(c)** SRS-P04 「P95 ≤ 200 ms」→ 「**P95 ≤ 50 ms(SDD 内訳ファストパス)**」(SRS L125 全体 200 ms / SDD §4.7.A 内訳 50 ms ファストパス / UTPR §7.3.12 v0.13 整合化)、**(d)** SRS-P06 取りこぼし回収(IT-PERF.3-02 で永続化スレッド負荷下の SRS-P02 維持を新規追加)、**(e)** SRS と SDD の解釈差(SRS-P03/P04 全体予算 vs SDD 内訳予算)を「IT は SDD 内訳予算 / ST は SRS 全体予算」の分散配置と整理(Step 19 G STPR 骨格化で明文化予定)。**着手中の設計是正(F5 PR 内で完結):** 当初 macOS sleep ジッタ余裕境界(110 ms→130 ms / 50 ms→70 ms)で実装したが 3 連続中 2 回 fail を実測 → ITPR §8.1 規定「IT-PERF / IT-PWR / IT-SIDE は Linux runner 限定」の機械化として **`linux_only` マーカー auto-skip hook を `tests/conftest.py` に新規追加**(F6 で予定だった機能を F5 で先取り、`pytest_collection_modifyitems` で `sys.platform != "linux"` のとき skip 化、F6 / F7 で継続再利用)、境界は SRS / SDD 値で厳密判定に戻す(110 ms / 50 ms / 110 ms)。**IT-PERF.3-01 race condition 是正:** `start()` 直後 `heartbeat()` 呼出が monitor 第 1 回 check_once と lock 競合して SDD §4.3.E クロック逆転安全側発火が偶発発動する race window を実測で発見 → `heartbeat()` 削除、`start()` 時刻基準に変更。**`pytest-benchmark` plugin 副作用回避:** benchmark 後に後続テストの GC / スケジューリングに影響することを実測で発見 → IT-PERF.1-02 をファイル末尾配置に並べ替え。**マーカー方針:** 全 6 件に `@pytest.mark.integration` + `@pytest.mark.perf` + `@pytest.mark.nightly` + `@pytest.mark.linux_only` を付与(§8.1 規定どおり PR / macOS local では除外、CI Linux nightly のみで実行、SOUP-012 `pytest-benchmark` 初運用 = IT-PERF.1-02 のみ)。§11.2 IT-PERF 行を **設計確定 + Linux nightly 実測確認は Inc.1 完了タグ前に申し送り**(2026-05-04)、§13 トレーサビリティマトリクス IT-PERF 行を **「設計確定(SRS / SDD 整合 110/50/110 ms 厳密境界、CI Linux nightly 実測確認は §6.8.5 参照)」** に更新、合計目安を ≥ 61 → ≥ 67 に。RCM 検出能力不変、SAD §6 / §9 設計不変、`tests/conftest.py` に `linux_only` auto-skip hook 新規追加(8 行 + docstring)、`tests/integration/conftest.py` は既存 F2 / F3 fixture(`mock_running_state_machine` / `pump_simulator_real` / `pump_observer_real` / `magicmock_*_heartbeat_sink` / `mock_pump_controller`)を再利用するため新規追加なし | k-abe |
 | 0.7 | 2026-05-03 | **Step 19 F4(§6.7 SEP-001 ランタイム分離 + 真の本物注入 E2E 詳細化)を反映。** §6.7 を骨格 → 詳細化(IT-SEP.1-01〜06、6 ケース表 + 結合経路 4 経路 + 設計判断 5 項目 + 着手中の是正記録 1 項目 + 申し送り 2 項目)。§11.2 IT-SEP 行を 6 Pass / 0 Fail / 0 Skip で確定(2026-05-03)、§13 トレーサビリティマトリクス IT-SEP 行を **Pass(6 tests、本物 vip_api_b Adapter 注入による SEP-001 越え経路 + 階層防御 E2E + 例外握りつぶし契約 boundary 維持実証)** に更新、合計目安を ≥ 59 → ≥ 61 に。**着手中の是正記録(`del sys.modules` 副作用回避):** 当初設計では IT-SEP.1-01 で AST 軸 + ランタイム sys.modules 軸を 1 ケース統合だったが、`del sys.modules` 後の reload が Adapter のバインド一貫性を破壊し IT-SEP.1-05 の `patch` 効力を失わせる副作用を発見。AST 軸(IT-SEP.1-01)+ ランタイム受動観測軸(IT-SEP.1-04)に分散配置で再構成、Adapter バインド一貫性を保つ設計に是正(後続プロジェクト推奨パターン記録)。RCM-001/003/004/SEP-001 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし、`tests/integration/conftest.py` に F4 用 fixture 4 件(`real_validation_api` / `control_api_with_real_validation` / `sw_watchdog_for_loop` / `hw_failsafe_timer_for_loop`)追加 | k-abe |
 | 0.6 | 2026-05-01 | **Step 19 F1.6(CR-0004 (b) Adapter 層追加 + CR-0005 (a) `_HeartbeatSink` Protocol 引数なし化、一括実装)を反映。** §6.1.4 申し送りを「CR-0004 解消済(修正候補 (b) Adapter 層追加採用)」に更新、`vip_api/_validation_bridge.py` Adapter 経路と §6.7 IT-SEP(Step 19 F4)での本物注入活用を明文化。§6.3.3 設計判断と §6.3.5 申し送りを「CR-0005 解消済(修正候補 (a) Protocol 引数なし化採用)」に更新、本物 SwWatchdog/HwFailsafeTimer の ControlLoop 注入経路を §6.7 で活用予定と明記。§6.3 試験ケース表 IT-RCM004.1-03 を「heartbeat 引数なし契約(CR-0005 (a) 解消後)」に更新(SW/HW 両方の `heartbeat()` 引数なし 1 回呼出契約)。`tests/integration/conftest.py` ヘッダ + §6.3 fixture 設計判断コメントを「CR-0004/0005 解消後」に更新。RCM-001/003/004 検出能力不変、SAD §6 / §9 設計不変、SOUP 追加なし | k-abe |
