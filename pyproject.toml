@@ -70,11 +70,12 @@ addopts = [
     "-ra",
     "--tb=short",
     "-m",
-    "not integration",
+    "not integration and not system",
 ]
 timeout = 30
 markers = [
     "integration: integration test (ITPR-VIP-001 §6、Step 19 F0+ で実装、unit-test.yml では除外、integration-test.yml で実行)",
+    "system: system test (STPR-VIP-001 §6、Step 19 H2+ で実装、unit-test.yml / integration-test.yml では除外、system-test.yml で実行)",
     "linux_only: Linux 限定試験(IT-PWR で `subprocess.SIGKILL` を使用するなど、macOS / Windows ではスキップ)",
     "nightly: 長時間試験(IT-PERF / IT-PWR / IT-SIDE で nightly schedule のみ実行)",
     "perf: 統計時間試験(`pytest-benchmark` を使用、ITPR §6.8 IT-PERF カテゴリ)",

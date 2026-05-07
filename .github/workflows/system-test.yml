@@ -1,0 +1,82 @@
+name: System Tests
+
+# Step 19 H2(STPR-VIP-001 §4.4 / §8.1 自動化方針): UT / IT と分離した
+# システム試験専用 CI。
+# - PR / push (main) で軽量 ST(ST-PERF.1-04 起動時間 / ST-OPS 受入 5 件 /
+#   ST-RCM.1-04 HZ-007 検出)を実行(SRS-OPS-004「CI で自動実行」必須要求)
+# - nightly schedule で system マーカー全件実行(将来 nightly 限定 ST 追加時に
+#   integration-test.yml と同パターンを踏襲、現状 nightly 専用ケースなしの
+#   ためジョブは構造的に保留して将来拡張に備える)
+# - Inc.4 申し送りケース(ST-PERF.1-01/02/03 / ST-OPS 一部 / ST-RCM.1-01/02/03/05/06)
+#   は `pytest.mark.skip` で骨格保持、CI では skipped として記録される
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # 毎日 UTC 03:00(JST 12:00、IT nightly の 1 時間後)に nightly 全 ST 実行。
+    # 将来 ST-PERF.1-05(SRS-P07 24 時間)を self-hosted runner で実装する際、
+    # 本 cron を活用して別ジョブ化する想定。
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  system-fast:
+    name: Fast ST (PR / push) — ST-PERF startup + ST-OPS acceptance + ST-RCM HZ-007
+    # Linux 限定: ITPR / STPR §4.3 整合(ubuntu-latest 主、subprocess + venv 隔離は
+    # 全 OS で動作するが、IT との runner 統一でマトリクスを単純化)
+    runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run system tests (-m system)
+        # `-m system` で ST のみ選択(pyproject.toml addopts の
+        # `not integration and not system` を上書き)
+        run: pytest -m system --no-cov -ra --tb=short
+
+  system-nightly:
+    name: Nightly ST — full suite (placeholder for SRS-P07 24h via self-hosted)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install package and dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run all system tests (incl. future nightly-only)
+        # 現状の system マーカー集合と system-fast は同等。将来 ST-PERF.1-05
+        # (24h) を `@pytest.mark.nightly` 付与で追加する際、本ジョブで自動
+        # 拾われる(integration-test.yml の `pytest -m integration` と同パターン)。
+        run: pytest -m system --no-cov -ra --tb=short
