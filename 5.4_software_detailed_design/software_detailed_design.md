@@ -1,10 +1,10 @@
 # ソフトウェア詳細設計書(SDD)
 
 **ドキュメント ID:** SDD-VIP-001
-**バージョン:** 0.3
-**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)
+**バージョン:** 0.4
+**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)/ 2026-05-07(v0.4)
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
-**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲、全 17 ユニット詳細記述)
+**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲、全 18 ユニット詳細記述、Step 19 H1 で UNIT-005.4 CLI 追加)
 **安全クラス:** C(IEC 62304)
 **変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)
 
@@ -112,6 +112,7 @@ ARCH-007 Alarm Reporter Stub I/F(抽象 I/F のみ、本版実装なし)
 | UNIT-005.1 | Control API | ARCH-005 | C | **詳細(§4.15、v0.2)** |
 | UNIT-005.2 | State Observer API | ARCH-005 | C | **詳細(§4.16、v0.2)** |
 | UNIT-005.3 | Validation API | ARCH-005 | B(分離対象) | **詳細(§4.17、v0.2)** |
+| UNIT-005.4 | CLI Entry Point | ARCH-005 | C | **詳細(§4.18、v0.4、Step 19 H1 で新規追加)** |
 
 ## 4. ソフトウェアユニットの詳細設計(箇条 5.4.2 ― クラス C)
 
@@ -1616,6 +1617,82 @@ def validate_settings(settings: Settings) -> ValidationResult:
 - **分離契約試験:** 内部例外注入(Decimal モック)で例外伝播せず `Err` で復帰
 - **静的解析:** クラス C UNIT への import が無いこと(ruff/grep で機械的検証)
 
+### 4.18 UNIT-005.4: CLI Entry Point(Step 19 H1 で新規追加、SDD v0.4)
+
+> **本節は SDD v0.4(Step 19 H1)で新規追加。** ISS-H-001(SRS-OPS-002 必須要求にもかかわらず Inc.1 全 17 ユニットに CLI ユニットが存在しなかった計画文書間乖離)を解消するため、UNIT-005.4 CLI として §3.2 ユニット一覧に追加(全 17 → 18 ユニット)。MINOR 区分・CR 不要(SCMP §4.1 軽微、F1〜F7 で確立した「計画文書間整合化 → 同 PR 訂正」パターン継続。RCM 非関連 + 外部 API 変更なし、SAD §6 階層防御 / §9 SEP-001 設計不変)。
+
+- **目的 / 責務:** SRS-OPS-002(必須)が要求する `vip-ctrl` コマンドラインエントリポイントを実装する。Inc.1 範囲では **対話的 start/stop コマンド経路は提供しない**(SDD §3 設計方針 + B17 申し送り = 対話 UI は Inc.4 で正式実装)。本 CLI は **3 経路を公開:**(i) `--version` でバージョン文字列を 1 行出力、(ii) `--diagnose` で永続レコードを `atomic_writer.read` + `from_json` + Integrity Validator(UNIT-004.1)で読込・検証 + JSON Lines snapshot を stdout 出力、(iii) デフォルトでは起動メッセージ(stderr)+ 初期 snapshot(stdout JSON Lines)を出力後 exit 0。引数解析エラーは argparse 標準動作(stderr + exit 2)に準じる。
+- **関連 SRS:** SRS-OPS-002(必須、CLI 起動)、SRS-OPS-003(必須、初回起動デフォルト = IDLE / 流量 0 / 積算 0)、SRS-OPS-010(推奨、JSON Lines ログ)、SRS-OPS-011(推奨、`--diagnose` 出力)
+- **関連 RCM:** —(運用要求のため RCM 直接対応なし、ただし SRS-OPS-003 の「IDLE / 流量 0 / 積算 0 デフォルト」は SRS-027 フェイルセーフ起動と整合)
+- **関連 HZ:** HZ-007(永続記録破損時のフェイルセーフ起動経路を `--diagnose` で観測可能にする)
+- **安全クラス:** **C**(Inc.1 範囲では UNIT-004.1 Integrity Validator + UNIT-003.* 永続化への単方向呼出のみ、状態変更経路を提供しない簡易ユニット)
+
+#### 4.18.A 公開 API
+
+| 関数 | 引数 | 戻り値 | 事前条件 | 事後条件 | エラー処理 |
+|------|------|-------|---------|---------|-----------|
+| `main(argv, stdout, stderr) -> int` | argv: `list[str] | None`, stdout/stderr: `IO[str] | None` | プロセス exit code(0 / 2)| なし(常時呼出可能)| stdout / stderr の DI に応じて出力先を切替、戻り値で exit code を返却 | argparse 例外は SystemExit に変換(標準動作)|
+| `run_version(out) -> int` | out: `IO[str]` | 0 | なし | バージョン 1 行を `out` に書込 | なし(`importlib.metadata.version` の `PackageNotFoundError` は捕捉して `unknown` で fallback)|
+| `run_diagnose(persist_path, out) -> int` | persist_path: `Path`, out: `IO[str]` | 0 | なし | 永続レコード状態の JSON Lines 1 行を `out` に書込 | 内部で `_diagnose` ヘルパが `OSError` / `UnicodeDecodeError` / `json.JSONDecodeError` / `pydantic.ValidationError` を捕捉、戻り値の `DiagnoseResult` で構造化伝播 |
+| `run_default(persist_path, out, err) -> int` | persist_path: `Path`, out/err: `IO[str]` | 0 | なし | 起動メッセージ(`err`)+ 初期 snapshot JSON Lines(`out`)を書込 | 同上 |
+| `build_parser() -> argparse.ArgumentParser` | なし | argparse パーサ | なし | CLI 引数定義済の parser を返す | なし |
+
+#### 4.18.B データ構造
+
+| 名称 | 型 | 意味 |
+|------|----|------|
+| `DiagnoseResult` | `@dataclass(frozen=True, slots=True)` | `_diagnose` ヘルパ戻り値:`persist_path: Path` / `record_present: bool` / `integrity_ok: bool` / `failures: list[IntegrityFailure]` |
+
+#### 4.18.C アルゴリズム(`_diagnose` ヘルパ + 各 run_X 経路)
+
+```python
+# _diagnose: 永続レコード読込 + 整合性検証
+def _diagnose(persist_path: Path) -> DiagnoseResult:
+    if not persist_path.exists():
+        return DiagnoseResult(persist_path, record_present=False, integrity_ok=True, failures=[])
+    read_result = atomic_writer.read(persist_path)
+    if not isinstance(read_result, atomic_writer.ReadOk):
+        return DiagnoseResult(persist_path, record_present=False, integrity_ok=False, failures=[])
+    try:
+        raw = from_json(read_result.data)
+    except (UnicodeDecodeError, JSONDecodeError, ValueError):
+        return DiagnoseResult(persist_path, record_present=True, integrity_ok=False, failures=[])
+    # SDD §4.5.A の sealed union(`ValidationResult = Ok | FailsafeRecommended`)を
+    # `isinstance` で 2 分岐網羅(`match` の implicit fallthrough = branch coverage 不到達
+    # を回避、bandit B101 は `assert isinstance` を使わないことで回避)。
+    result = validate_integrity(raw)
+    if isinstance(result, Ok):
+        return DiagnoseResult(persist_path, record_present=True, integrity_ok=True, failures=[])
+    # mypy は 2 分岐目で `FailsafeRecommended` に narrow 可能(sealed union)
+    return DiagnoseResult(persist_path, record_present=True, integrity_ok=False, failures=list(result.reasons))
+```
+
+JSON Lines 出力(SRS-OPS-010 整合)は最低 5 キーを必須含有:`timestamp / level / component / event / details`。`level = "info"` は `integrity_ok=True`、`"warning"` は `integrity_ok=False`。
+
+#### 4.18.D 並行性 / 状態
+
+- **CLI は完全 stateless**(argparse + 関数呼出のみ、内部に永続状態を持たない)。
+- `_diagnose` は `atomic_writer.read` + `from_json` + Integrity Validator を直列に呼び出すのみで、ロックや並行制御を必要としない。
+- Inc.4 で対話モードを追加する際は、Control Loop / Command Handler / SwWatchdog / HwFailsafeTimer 等の既存スレッド lifecycle と統合する設計(本 v0.4 の Inc.1 範囲では未対応)。
+
+#### 4.18.E エラー / 例外契約
+
+- 引数エラー: argparse が `SystemExit(2)` を投げる(stderr に usage / error メッセージ)
+- `run_version` の `PackageNotFoundError`: 捕捉して `"vip-ctrl unknown\n"` を出力 + return 0
+- `_diagnose` の `OSError` / `UnicodeDecodeError` / `JSONDecodeError`: `DiagnoseResult` に integrity_ok=False で構造化、例外を呼出元へ伝播しない
+- `pydantic.ValidationError`(from_json 内): `ValueError` 由来として `_diagnose` で捕捉(`ValueError` を except 句に含める)
+
+#### 4.18.F 検証方法(§5.4.4 準拠)
+
+- **`--version` 経路:** バージョン 1 行出力 + return 0(UT-005.4-01)
+- **`--version` fallback 経路:** `PackageNotFoundError` 発生時 `unknown` 出力(UT-005.4-02)
+- **`--diagnose` 全経路:** レコード不存在(UT-005.4-03)、整合レコード(UT-005.4-04)、checksum 不一致(UT-005.4-05)、JSON 不正(UT-005.4-06)、UTF-8 デコード失敗(UT-005.4-07)、`atomic_writer.read` ReadErr(UT-005.4-08)
+- **デフォルト経路:** レコード不存在 + 整合レコード(UT-005.4-09 / 10)
+- **argparse エラー:** 相互排他違反(UT-005.4-11)、未知の引数(UT-005.4-12)
+- **構造契約:** `build_parser` 単独動作(UT-005.4-13)、SRS-OPS-010 必須 5 キー全行網羅(UT-005.4-14)、`_diagnose` ヘルパ契約(UT-005.4-15)
+- **MC/DC 100% 目標:** 78 stmt / 10 branch、UT 15 ケースで全分岐網羅(Step 19 H1 で達成、UTPR §7.3.18)
+- **CLI レベル試験(ST):** Step 19 H2 の `tests/system/test_ops_acceptance.py`(STPR §6.2 ST-OPS.1-01〜04 で `subprocess.Popen` 経由 CLI 検証予定)
+
 ## 5. インタフェースの詳細設計(箇条 5.4.3 ― クラス C)
 
 ### 5.1 ユニット間インタフェース(Inc.1 範囲、SAD §5 の U 系 11 件の詳細化)
@@ -1715,6 +1792,7 @@ v0.2 詳細化作業中に、以下の SRS 文言整合・実装上の判断点�
 | SRS-IF-002, SRS-010〜014 | ARCH-005.1 | UNIT-005.1 | 詳細(§4.15、v0.2) | — |
 | SRS-IF-003, SRS-O-010, SRS-UX-002 | ARCH-005.2 | UNIT-005.2 | 詳細(§4.16、v0.2) | — |
 | SRS-UX-001, SRS-004, SRS-005 | ARCH-005.3 | UNIT-005.3 | 詳細(§4.17、v0.2、分離対象 B) | — |
+| SRS-OPS-002, SRS-OPS-003, SRS-OPS-010, SRS-OPS-011 | ARCH-005 | UNIT-005.4 | 詳細(§4.18、v0.4、Step 19 H1 で新規追加)| UT-005.4-01〜15(UTPR §7.3.18 で詳細化)|
 
 ## 8. 改訂履歴
 
@@ -1722,4 +1800,5 @@ v0.2 詳細化作業中に、以下の SRS 文言整合・実装上の判断点�
 |----------|------|---------|--------|
 | 0.1 | 2026-04-18 | 初版作成(Inc.1 範囲):代表 5 ユニット(State Machine / Flow Command Validator / HW-side Failsafe Timer / Atomic File Writer / Integrity Validator)を §5.4.2 テンプレートに従って詳細記述、残 9 ユニットを骨格記述(責務・主要 API・依存・SDD v0.2 詳細化項目)、§5.4.3 I/F 詳細 13 件、§5.4.4 検証観点チェックリスト・レビュー記録。SDD v0.2 は CR 起票で追補予定、`inc1-design-frozen` タグは v0.2 完成後に付与 | k-abe |
 | 0.2 | 2026-04-19 | **CR-0001(Issue #1、MODERATE)による改訂。** v0.1 で骨格記述に留めていた 12 ユニットを §5.4.2 詳細記述に展開:UNIT-001.2 Control Loop(§4.6)/ UNIT-001.3 Command Handler(§4.7)/ UNIT-001.5 Watchdog SW(§4.8)/ UNIT-002.1 Pump Simulator(§4.9)/ UNIT-002.2 Pump Observer(§4.10)/ UNIT-002.3 Event Injection Stub(§4.11)/ UNIT-003.1 Serializer(§4.12)/ UNIT-003.2 Checksum Verifier(§4.13)/ UNIT-004.2 Resume Confirmation Gate(§4.14)/ UNIT-005.1 Control API(§4.15)/ UNIT-005.2 State Observer API(§4.16)/ UNIT-005.3 Validation API(§4.17、分離対象 B)。§3.2 ユニット一覧を全 17 ユニット詳細状態に更新。§6.2 レビュー記録に v0.2 行追加。§6.3 を「骨格記述の解消(v0.2 で完了)」に書き換え、実装ブロックの解除を宣言。§6.4「v0.2 で発見した SRS / RMF 整合性課題」を新規追加(ISS-V02-001〜004 を後続 SRS 改訂 CR の対象として申し送り)。§7 トレーサビリティの「本 SDD での記述」列を全行「詳細(§x.y、vN)」形式に更新。RCM 論理不変、SOUP 追加なし、外部 I/F 変更なし(SRMP §7.3「RCM 非関連部の変更」相当) | k-abe |
+| 0.4 | 2026-05-07 | **Step 19 H1(UNIT-005.4 CLI Entry Point 新規追加 = ISS-H-001 解消)による改訂。** F 系列(F1〜F7)+ Step 19 G STPR 骨格化完了後、Step 19 H1(STPR §6.2 ST-OPS の前提となる CLI エントリポイント実装)着手前のクロスレビューで **ISS-H-001 を発見**:SRS-OPS-002(必須)で `vip-ctrl` CLI が要求されているが、Inc.1 全 17 ユニット(SDD v0.3 §3.2)に CLI ユニットが存在しない計画文書間乖離。本 v0.4 で UNIT-005.4 CLI として §3.2 ユニット一覧に追加(全 17 → 18 ユニット)、§4.18 を新規詳細記述(目的・公開 API・データ構造・アルゴリズム・並行性・例外契約・検証方法、`--version` / `--diagnose` / デフォルトの 3 経路 + argparse + JSON Lines 出力 + Integrity Validator 連携)、§7 トレースに UNIT-005.4 行(SRS-OPS-002/003/010/011 + ARCH-005 + UT-005.4-01〜15)を追加。**Inc.1 範囲では対話 start/stop コマンド経路は未提供**(SDD §3 設計方針 + B17 申し送り = 対話 UI は Inc.4 で正式実装)。RCM 非関連 + 外部 API 変更なし + SAD §6 階層防御 / §9 SEP-001 設計不変、F1〜F7 で確立した「計画文書間整合化 → 同 PR 訂正」パターン継続。MINOR 区分・CR 不要(SCMP §4.1「軽微」、SRS / RMF / SAD 本体は不変、CIL の CI-DOC-SDD 行 + UTPR §7.3.18 + CIL §3 CI-SRC-001 + CIL §8 CI-TD 系を同 PR で整合化)| k-abe |
 | 0.3 | 2026-05-01 | **CR-0004(Issue #32、MODERATE、修正候補 (b) Adapter 層追加)+ CR-0005(Issue #36、MODERATE、修正候補 (a) Protocol 引数なし化)による Step 19 F1.6 一括改訂。** §4.6.C `_tick` 擬似コードの heartbeat 呼出を `self._sw_watchdog.heartbeat(now)` → `self._sw_watchdog.heartbeat()`(同 hw)に修正(CR-0005 (a)、各 Watchdog 実装が内部 clock で timestamp を取得する設計に整合)。§4.15.B `_validation_api` 行を更新し、実体が `vip_api._validation_bridge.ClassBValidationApiAdapter`(`vip_api_b.validate_settings` の `Ok` / `Err` を `list[ValidationError]` に変換する Adapter)経由で SEP-001 越え経路が成立することを明記(CR-0004 (b))。RCM-001 / RCM-003 / RCM-004 検出能力不変、SAD §6 階層防御設計 + §9 SEP-001 分離設計不変、SOUP 追加なし、外部 I/F 変更なし(SRMP §7.3「RCM 非関連部の変更」相当)| k-abe |
