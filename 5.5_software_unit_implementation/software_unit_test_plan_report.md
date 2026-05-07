@@ -1,12 +1,12 @@
 # ソフトウェアユニットテスト計画書/報告書
 
 **ドキュメント ID:** UTPR-VIP-001
-**バージョン:** 0.20
+**バージョン:** 0.21
 **作成日:** 2026-04-23
-**最終更新日:** 2026-05-01
+**最終更新日:** 2026-05-07
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
 **対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
-**対象範囲:** Inc.1(流量制御コア、全 17 ソフトウェアユニット)
+**対象範囲:** Inc.1(流量制御コア、全 18 ソフトウェアユニット、Step 19 H1 で UNIT-005.4 CLI 追加)
 **安全クラス:** C(IEC 62304)
 
 | 役割 | 氏名 | 所属 | 日付 | 署名 |
@@ -36,7 +36,7 @@
 
 **適用範囲:**
 
-- **対象ユニット:** SDD-VIP-001 v0.2 §3 で改良された 17 ユニット(UNIT-001.1〜UNIT-005.3)
+- **対象ユニット:** SDD-VIP-001 v0.4 §3 で改良された 18 ユニット(UNIT-001.1〜UNIT-005.4、Step 19 H1 で UNIT-005.4 CLI 追加)
 - **対象 SRS 要求:** SRS-VIP-001 v0.1 §9 Inc.1 受入基準に列挙された全必須要求(SRS-001〜032、P01〜P07、I-*、O-*、IF-001〜005、ALM-001〜003、SEC-001〜003、UX-001〜002、DATA-001〜004、OPS-001〜012、RCM-001〜020)
 - **対象 RCM:** RMF-VIP-001 v0.2 のうち Inc.1 範囲(RCM-001, 003, 004, 015, 016, 019/SRS-RCM-020)
 - **除外範囲:** Inc.2〜4 の要求(アラーム UI、用量計算、UI/ロギング本体)およびスタブ I/F の Inc.2 以降の本実装
@@ -54,7 +54,7 @@
 | [1] | ソフトウェア開発計画書(SDP-VIP-001) | v0.1 | 実装ルール、TDD 採用、静的解析スタック |
 | [2] | ソフトウェア要求仕様書(SRS-VIP-001) | v0.1 | §9 Inc.1 受入基準、機能/性能/RCM 要求 |
 | [3] | ソフトウェアアーキテクチャ設計書(SAD-VIP-001) | v0.1 | ARCH-001〜007、SEP-001〜003、SOUP |
-| [4] | ソフトウェア詳細設計書(SDD-VIP-001) | v0.2 | §4.1〜§4.17 全 17 ユニット詳細、検証方法 |
+| [4] | ソフトウェア詳細設計書(SDD-VIP-001) | v0.4 | §4.1〜§4.18 全 18 ユニット詳細(Step 19 H1 で UNIT-005.4 CLI 追加)、検証方法 |
 | [5] | ソフトウェアリスクマネジメント計画書(SRMP-VIP-001) | v0.2 | §3.2 独立性、§7.2 影響解析 |
 | [6] | リスクマネジメントファイル(RMF-VIP-001) | v0.2 | RCM-001〜019 検証状態 |
 | [7] | ソフトウェア構成管理計画書(SCMP-VIP-001) | v0.3 | §4.1 CR 区分、§5 ベースライン |
@@ -101,6 +101,7 @@
 | UNIT-005.1 | Control API | ARCH-005 | C | §4.15(v0.2) | `src/vip_api/control.py` |
 | UNIT-005.2 | State Observer API | ARCH-005 | C | §4.16(v0.2) | `src/vip_api/observer.py` |
 | UNIT-005.3 | Validation API | ARCH-005 | **B(分離対象、SEP-001)** | §4.17(v0.2) | `src/vip_api_b/validation.py` |
+| UNIT-005.4 | CLI Entry Point | ARCH-005 | C | §4.18(v0.4、Step 19 H1) | `src/vip_ctrl/cli.py` |
 
 > **SEP-001(論理的分離):** UNIT-005.3 は物理分離不可(単一プロセス Python)のため、SAD §9 の定める **論理的分離**(抽象 I/F・一方向依存・frozen データ・静的解析ルール)で担保する。具体手段として本 UT 計画では `src/vip_api_b/` サブパッケージを分離境界とし、`mypy --strict` で相互依存の禁止を機械検証する。
 
@@ -708,7 +709,49 @@ UT-ID 形式: **`UT-{UNIT連番}.{サブ連番}-{試験ケース連番2桁}`**
 **ケース数目安:** 正常系 2(UT-005.3-01/09)、異常系 5(UT-005.3-02/03/05/07 + UT-005.3-08 RCM)、境界 5(UT-005.3-04 × 2 + UT-005.3-06 × 3)、不変性 1、契約 3 + parametrize 展開 = **合計 16 件**(骨格「≥ 8」を倍超)
 **MC/DC 目標:** **100%**(v0.17 骨格 90% から引き上げ、コード規模 55 stmt / 12 branch、範囲 3 分岐 + 整合性 1 分岐 + 例外握りつぶし 1 経路 + 失敗集約 1 分岐 全網羅)
 
-**合計ケース数目安(全 17 ユニット):** **≥ 145 件**(代表 5 + UNIT-003.1 + UNIT-003.2 + UNIT-001.5 + UNIT-001.2 + UNIT-002.1 + UNIT-002.2 + UNIT-001.3 + UNIT-002.3 + UNIT-004.2 + UNIT-005.1 + UNIT-005.2 + UNIT-005.3 = **294 件実測 / 骨格 0**)。**Inc.1 全 17 ユニット完成、骨格残ゼロ**。最終的な件数は実測値で確定。
+#### 7.3.18 UNIT-005.4 CLI Entry Point(実施済、詳細、Step 19 H1 で新規追加)
+
+> **Step 19 H1 整合化(2026-05-07、本節 v0.20 新規追加):** Inc.1 全 17 ユニット完成(B18 = v0.18)後、Step 19 G STPR 骨格化完了を経て、Step 19 H1(STPR §6.2 ST-OPS の前提となる CLI エントリポイント実装)着手前のクロスレビューで **ISS-H-001 を発見** — SRS-OPS-002(必須、`vip-ctrl` CLI)が要求されているが Inc.1 全 17 ユニットに CLI が含まれていない計画文書間乖離。本 H1 で **UNIT-005.4 CLI として §3.2 ユニット一覧 + SDD §4.18 + 本 §7.3.18 を一括追加**(全 17 → 18 ユニット)。MINOR 区分・CR 不要(SCMP §4.1「軽微」、F1〜F7 で確立した「計画文書間整合化 → 同 PR 訂正」パターン継続)。
+
+##### 7.3.18.A 試験方針
+
+- 配置 `src/vip_ctrl/cli.py`(`vip_ctrl` パッケージ既存、SAD §3 ARCH-005 ファサード相当)
+- pyproject.toml `[project.scripts]` で `vip-ctrl = "vip_ctrl.cli:main"` 登録(SRS-OPS-002 必須要求の実装)
+- **対話 start/stop コマンド経路は Inc.4 で正式実装** — 本 H1 では `--version` / `--diagnose` / デフォルト 3 経路に限定(SDD §3 設計方針 + B17 申し送り = 対話 UI は Inc.4)
+- **DI 駆動テスト容易化:** `main(argv, stdout, stderr)` で `IO[str]` を引数化し subprocess を使わずに in-memory `io.StringIO` 経由で出力検査
+- **UT 15 ケース構成:** `--version` 2 件 + `--diagnose` 6 件 + デフォルト 2 件 + argparse エラー 2 件 + 構造契約 3 件
+- **MC/DC 目標 100%:** コード規模 78 stmt / 10 branch、UT 15 ケースで全分岐網羅(Step 19 H1 達成)
+
+##### 7.3.18.B 試験ケース表
+
+| 試験 ID | 試験項目 | 入力 | 期待結果 | 種別 |
+|---------|--------|------|---------|------|
+| UT-005.4-01 | `--version` 1 行出力 | `["--version"]` | 1 行 stdout(`vip-ctrl <version>`)、stderr 空、return 0 | 正常系 |
+| UT-005.4-02 | `--version` fallback | `patch("version", side_effect=PackageNotFoundError)` | `unknown` 出力 + return 0 | 異常系(契約)|
+| UT-005.4-03 | `--diagnose` レコード不存在 | `--persist-path /tmp/no.json` | `record_present=false`, `integrity_ok=true`, `level=info` | 正常系(SRS-OPS-003)|
+| UT-005.4-04 | `--diagnose` 整合レコード | atomic_writer.write 経由で good record 配置 | `record_present=true`, `integrity_ok=true`, SRS-OPS-010 必須 5 キー全件 | 正常系 |
+| UT-005.4-05 | `--diagnose` checksum 不一致 | checksum 部を改竄したレコード | `integrity_ok=false`, `level=warning`, `failure_count >= 1`, `failures` に `Checksum*` を含む | RCM(HZ-007 検出)|
+| UT-005.4-06 | `--diagnose` JSON 不正 | `b"not a valid json {"` | `record_present=true`, `integrity_ok=false`, `failure_count=0` | 異常系 |
+| UT-005.4-07 | `--diagnose` UTF-8 デコード失敗 | `b"\\xff\\xfe..."` | `integrity_ok=false` | 異常系 |
+| UT-005.4-08 | `--diagnose` `atomic_writer.read` ReadErr | `patch.object(atomic_writer, "read", return_value=ReadErr(OSError))` | `record_present=false`, `integrity_ok=false`, `level=warning` | 異常系(契約)|
+| UT-005.4-09 | デフォルト レコード不存在 | `--persist-path /tmp/no.json` | stderr に Inc.1 / Inc.4 申し送りメッセージ、stdout に `boot_snapshot` JSON Lines、`default_state=IDLE` | 正常系(SRS-OPS-003)|
+| UT-005.4-10 | デフォルト 整合レコード | atomic_writer.write 経由 | `record_present=true`, `integrity_ok=true` | 正常系 |
+| UT-005.4-11 | argparse 相互排他違反 | `["--version", "--diagnose"]` | `SystemExit(2)` | 契約 |
+| UT-005.4-12 | argparse 未知引数 | `["--unknown-flag"]` | `SystemExit(2)` | 契約 |
+| UT-005.4-13 | `build_parser` 単独 | parser.parse_args([]) / `--persist-path` 指定 | デフォルト + カスタムパス両方を args として返却 | 契約(再利用性)|
+| UT-005.4-14 | SRS-OPS-010 必須 5 キー網羅 | `--diagnose` + デフォルトの 2 行を取得 | 全行に `timestamp / level / component / event / details` を含む | 契約(SRS-OPS-010)|
+| UT-005.4-15 | `_diagnose` ヘルパ契約 | 任意 path | `DiagnoseResult` 型 + `bool` 型保証 | 契約 |
+
+**ケース数目安:** 正常系 5 + 異常系 4 + RCM 1(checksum 不一致 = HZ-007 検出)+ 契約 5 = **合計 15 件**(骨格基準なし、本 H1 が新規追加)
+**MC/DC 目標:** **100%**(コード規模 78 stmt / 10 branch、`--version` fallback 1 経路 + `--diagnose` 5 分岐(不存在/ReadErr/decode 失敗/Ok/FailsafeRecommended)+ argparse 相互排他 + デフォルト 2 経路 全網羅)
+
+##### 7.3.18.C 申し送り
+
+- **対話 start/stop コマンドは Inc.4 で正式実装**(本 H1 では未提供、Inc.4 UI 層で Control Loop / Command Handler / Watchdog 等の既存スレッド lifecycle と統合)
+- **STPR §6.2 ST-OPS.1-03 の対話 start/stop 要求は Inc.4 申し送り**(ISS-H-002、Step 19 H2 で STPR 修正予定)
+- **CLI レベル試験(ST-OPS):** Step 19 H2 で `tests/system/test_ops_acceptance.py` を新規実装、subprocess.Popen + venv 隔離で SRS-OPS-001〜004 / 010〜012 を E2E 検証
+
+**合計ケース数目安(全 18 ユニット):** **≥ 160 件**(B1〜B18 で 294 件実測 + UNIT-005.4 15 件 = **309 件実測 / 骨格 0**)。**Inc.1 全 18 ユニット完成、骨格残ゼロ**(Step 19 H1 で UNIT-005.4 追加によりユニット数が 17 → 18 に確定)。最終的な件数は実測値で確定。
 
 ### 7.4 カバレッジ目標
 
@@ -770,6 +813,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-005.1 | **21**(うち UT-005.1-01..20 展開後 21、内訳:正常系 8 + 異常系 6 + RCM 4 + 不変性 1 + 契約 1 + 並行/網羅性 1)| **21** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、骨格 90% から 100% に引き上げ、`start` 3 分岐 + `confirm_resume` 4 分岐 + try/except 例外耐性 3 経路 + `_safe_enqueue` 例外 1 経路 + Accepted/Rejected 分岐 全網羅、API 委譲層、`Settings.model_dump()` で pydantic を `Mapping[str, object]` に変換、ValidationApi Protocol で SEP-001 分離維持)** | 2026-04-30 | Step 19 B16 PR #24 マージコミット `92a3f19` |
 | UNIT-005.2 | **19**(うち UT-005.2-01..12 を parametrize 展開して 19、内訳:正常系 11 + 契約 4 + 単調性 1 + 不変性 1 + 境界 1)| **19** | 0 | 0 | **100.00% / 100.00% / —(MC/DC 目標 SDD/UTPR §7.4 通り「—」据置、stmt/branch 100% で網羅、コード規模 30 stmt / 2 branch、SDD §4.16.C 擬似コード逐語実装 + 例外伝播契約 + idempotent 100 回試験 + frozen+slots dataclass)** | 2026-04-30 | Step 19 B17 PR #25 マージコミット `a9000d0` |
 | UNIT-005.3 | **16**(うち UT-005.3-01..13 を parametrize 展開して 16、内訳:正常系 2 + 異常系 5 + 境界 5 + 不変性 1 + 契約 3)| **16** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、骨格 90% から 100% に引き上げ、範囲 3 分岐 + 整合性 1 分岐 + 例外握りつぶし 1 経路 + 失敗集約 1 分岐 全網羅、SAD §9 SEP-001 分離維持を AST import グラフ機械検証で担保、クラス B 純粋関数)** | 2026-04-30 | Step 19 B18 PR #26 マージコミット `bf9db71` |
+| UNIT-005.4 | **15**(UT-005.4-01〜15、内訳:正常系 5 + 異常系 4 + RCM 1(checksum 不一致 = HZ-007 検出)+ 契約 5)| **15** | 0 | 0 | **100.00% / 100.00% / 100%(MC/DC 試験設計担保、コード規模 78 stmt / 10 branch、`--version` fallback 1 経路 + `--diagnose` 5 分岐(不存在/ReadErr/decode 失敗/Ok/FailsafeRecommended)+ argparse 相互排他 + デフォルト 2 経路 全網羅、`io.StringIO` DI で subprocess 不使用)** | 2026-05-07 | Step 19 H1 PR(本 PR マージコミット)|
 | **合計** | **≥ 145** | — | — | — | **— / — / —** | — | — |
 
 ### 9.3 不具合・逸脱
@@ -784,7 +828,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 
 ## 10. 結論
 
-- [ ] 全 17 ユニットが受入基準(§5)を満たしている
+- [ ] 全 18 ユニット(Step 19 H1 で UNIT-005.4 CLI 追加)が受入基準(§5)を満たしている
 - [ ] クラス C 追加基準(§6)全 9 項目を網羅
 - [ ] §7.4 カバレッジ目標を達成
 - [ ] 未解決問題は既知の残留異常として SMS-VIP-001(§5.8)に記載する
@@ -810,6 +854,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | UNIT-005.1 Control API | UT-005.1-01 〜 UT-005.1-20 | SRS-IF-002, SRS-010〜014 | —(委譲、UNIT-001.3 経由 RCM-019 / UNIT-004.2 経由 RCM-016)| HZ-001, HZ-002(委譲先で対応)| **Pass(21 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、Step 19 B16、2026-04-30)** |
 | UNIT-005.2 State Observer API | UT-005.2-01 〜 UT-005.2-12 | SRS-IF-003, SRS-O-010, SRS-UX-002 | — | — | **Pass(19 tests / 100.00% stmt / 100.00% branch / MC/DC 「—」据置(読み取り専用 API)、Step 19 B17、2026-04-30)** |
 | UNIT-005.3 Validation API(クラス B) | UT-005.3-01 〜 UT-005.3-13 | SRS-UX-001, 004, 005 | —(B 分離側)| HZ-006(設定値整合性違反)| **Pass(16 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、SEP-001 AST import グラフ機械検証 Pass、Step 19 B18、2026-04-30)** |
+| UNIT-005.4 CLI Entry Point | UT-005.4-01 〜 UT-005.4-15 | SRS-OPS-002, 003, 010, 011 | —(運用要求、SRS-027 フェイルセーフ起動と整合)| HZ-007(永続記録破損時の `--diagnose` 観測経路)| **Pass(15 tests / 100.00% stmt / 100.00% branch / MC/DC 100%、`io.StringIO` DI 駆動テスト + 5 経路網羅(`--version` fallback / `--diagnose` × 5 分岐 / argparse 相互排他 / デフォルト × 2)、Step 19 H1 で UNIT-005.4 新規追加 = ISS-H-001 解消、2026-05-07)** |
 
 **カバレッジ:** 本マトリクスにより、SDD §3.1 のユニット一覧 17 件全てが UT-ID と紐付き、SRS/RCM/HZ への双方向トレーサビリティが確立した。SRS-VIP-001 §10 の「UT-ID」列(v0.1 時点で空欄)は、本 UTPR v0.1 の成立をもって Inc.1 完了時に充填する計画。
 
@@ -823,6 +868,7 @@ UT 実施中に発見された問題は、**重大度に応じて** 以下の手
 | 0.4 | 2026-04-23 | **Step 19 B4(UNIT-002.4 HW-side Failsafe Timer TDD 実装)の実施結果を反映 + §7.3.3 整合化**。**(1) 第 I 部 §7.3.3 整合化(MINOR、CR 不要):** Step 19 B3 教訓を運用化し着手前クロスレビューを実施、(a) Logger 注入据置(SDD §4.3.B に `_logger` フィールドなし、UNIT-004+ で正式化、HW failsafe 識別子は `force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` で代替)、(b) クロック注入(DI)採用(`clock: Callable[[], float]` をコンストラクタ注入、UT-002.4-07 クロック逆転試験のため)、(c) クロック逆転時挙動を「安全側 = 発火」と設計判断(SDD §4.3 未定義、RCM-004 安全側原則 + UNIT-001.1 と整合)、の 3 件を整合化注釈に明記。SRS / SDD / RMF / SAD 本体は不変。**(2) §7.3.3 試験テーブル:** UT-002.4-04 を 04a(500 ms ちょうどで発火しない)/ 04b(500 ms + ε で発火)に分割、UT-002.4-06 を「ログ記録」から「`force_stop_failsafe(reason="HEARTBEAT_TIMEOUT")` 呼出識別」に整合化、UT-002.4-08 を 08a(heartbeat 無視)/ 08b(`check_once` 冪等)に分割、各ケースに `check_once` API 経由のテスト前提を明記。**(3) 第 II 部 §9.2:** UNIT-002.4 行を 18 tests Pass / カバレッジ 100.00% / MC/DC 100% で確定。§11 UNIT-002.4 行を「Pass」更新。UNIT-001.4 行のコミット欄を Step 19 B3 マージ SHA `72d474e` で確定。**(4) 試験設計:** 補助観点 8 件(start/stop ライフサイクル 4、pump 例外耐性 1、定数値 2、実時間スレッド統合スモーク 1)、連打側スモークは macOS sleep ジッタ flaky のため fake_clock UT-002.4-01/05 に委任(教訓記録)。教訓 2 件を DEVELOPMENT_STEPS §教訓に記録 | k-abe |
 | 0.18 | 2026-04-30 | **Step 19 B18(UNIT-005.3 Validation API クラス B TDD 実装)の実施結果を反映 + §7.3.17 新規詳細化(残 1 → 0 骨格、Inc.1 全 17 ユニット完成)**。**(1) 第 I 部 §7.3.17 新規詳細化(MINOR、CR 不要):** 骨格「SEP-001 分離検証、内部例外握りつぶし契約、境界値 / ≥ 8 / 90%」を **16 ケース、stmt 100% / branch 100% / MC/DC 100%(クラス B 分離ユニット)** に詳細化(コード規模 55 stmt / 12 branch、骨格 90% を超過し 100% 達成、範囲 3 分岐 + 整合性 1 分岐 + 例外握りつぶし 1 経路 + 失敗集約 1 分岐 全網羅、SAD §9 SEP-001 分離維持を AST import グラフ機械検証で担保)。残骨格 1 → 0 ユニット、**Inc.1 全 17 ユニット完成**。本節冒頭に整合化注釈を追記。**(2) 判断論点(B18 着手前クロスレビュー、16 度目運用):** 運用性 4 — ① 配置 `src/vip_api_b/validation_api.py`(SAD §9 SEP-001 + UTPR §3 既存パス整合)、② `Settings` は `vip_persist.records` から import(値オブジェクトのみ、SEP-001 は副作用伝播禁止が本旨で値オブジェクト共有は許容)、③ SEP-001 機械検証は AST で `{vip_ctrl, vip_sim, vip_integrity, vip_api}` を import しないことを確認(`vip_persist` のみ許容、UT-005.3-13)、④ `drug_name` 検証は Inc.1 では削除して Inc.4 申し送り(B15/B16/B17 chain 継続);専門性 5 — ① `ValidationResult` / `ValidationFailure` sealed hierarchy frozen+slots dataclass(B11〜B17 パターン継続)、② SDD §4.17.C 擬似コード逐語実装(範囲 → 整合性、drug_name は Inc.1 削除)、③ `TOLERANCE = Decimal("0.01")` 1%(SRS-004 逐語実装)、④ **例外握りつぶし契約**(SDD §4.17.E、try/except で `Err([Inconsistency("internal: ...")])` で復帰、SEP-001 boundary 保証)、⑤ MC/DC 100% 引き上げ + `mypy --strict src tests` + `ruff` ローカル必須(B12〜B17 教訓継続、7 ステップ連続適用、本 B18 で RUF100 / FURB157 / RUF002×2 / FBT001 を CI 前ローカル ruff で検出 → 手動修正)。**UT 申し送り:** `drug_name` 検証は Inc.4 で Settings 拡張時に追加。SRS / SDD / RMF / SAD 本体不変。**(3) 第 II 部 §9.2:** UNIT-005.3 行を 16 tests Pass / カバレッジ 100% / MC/DC 100% で確定。§11 UNIT-005.3 行を「Pass」更新(関連 HZ-006 を明示)。UNIT-005.2 行のコミット欄を Step 19 B17 PR #25 マージ SHA `a9000d0` で確定。**(4) 試験設計:** UT-005.3-01 で SRS-004 整合確認、UT-005.3-02/03 で `flow_rate` / `dose_volume` 範囲外 OutOfRange、UT-005.3-04 を `pytest.parametrize` で 2 サブケース展開(0 / 6000)、UT-005.3-05 で SRS-004 整合性違反、UT-005.3-06 を `pytest.parametrize` で 3 サブケース展開(0%/+0.998%/+1.002% 境界)、UT-005.3-07 で多重失敗集約、UT-005.3-08 で `patch("Decimal")` 例外注入で SDD §4.17.E 内部例外握りつぶし契約、UT-005.3-10 で `dataclasses.FrozenInstanceError`、UT-005.3-13 で AST import グラフ機械検証(`vip_ctrl` / `vip_sim` / `vip_integrity` / `vip_api` の import が 0 件)。ruff 5 件(RUF100 不要 noqa / FURB157 `Decimal("60")` / RUF002 × 2 ambiguous `×` / FBT001 positional bool)→ 手動修正、未カバー branch line 163→184(`expected_dose > 0` の False 経路、外側 `flow_rate > 0 ∧ duration_min > 0` で保証済の防御コード)を削除(B16/B17 教訓「未到達コード削除」継続、3 ステップ連続適用)で stmt/branch 100% 達成、`mypy --strict src tests` 43 source files Pass、bandit 0、TOTAL カバレッジ **100.00%**(stmt 1275 + branch 180)、441 tests + 5 連続 stable で CI `fail_under=95` Pass。**Inc.1 全 17 ユニット完成 + V 字右側着手の節目** | k-abe |
 | 0.19 | 2026-05-01 | **Step 19 D-1(過去 Step PR / マージコミット SHA 一括清算)の実施結果を反映**。§9.2 試験ケース結果テーブルで「コミット SHA 欄が `Step 19 BX PR マージコミット(TBD)` のまま残っていた **6 行**」を実 SHA で確定:UNIT-001.2(B10 PR #18 `d02b336`)、UNIT-001.5(B9 PR #17 `5f34148`)、UNIT-002.1(B11 PR #19 `cbc2578`)、UNIT-002.2(B12 PR #20 `28cc912`)、UNIT-003.2(B8 PR #16 `5c56cea`)、UNIT-005.3(B18 PR #26 `bf9db71`)。**経緯:** B14 着手時(Step 19 B14 採用根拠 6 で記録)に UNIT-001.2/001.3/001.5/002.1/002.2 の 5 行が TBD 残置になっている更新漏れを発見し、当時は関連の薄い UNIT-001.3 のみ確定 + 残 4 件は次ステップ申し送り。その後 B8 / B18 でも同種の更新漏れ(§11 トレーサビリティマトリクス側のコミット欄は確定していたが §9.2 側は TBD のまま)が累積し、Step 19 D 着手時に全 6 件を清算する形となった。**意義:** Inc.1 V 字右側着手(Step 19 D ITPR v0.1 骨格化)の前提として、§9.2 のトレーサビリティをマージコミット SHA レベルで完全閉路化(SRS / SDD / RMF / SAD 本体不変、MINOR 区分・CR 不要、計画変更ではなく報告セルの実 SHA 確定のみ) | k-abe |
+| 0.21 | 2026-05-07 | **Step 19 H1(UNIT-005.4 CLI Entry Point 新規追加 = ISS-H-001 解消)の実施結果を反映 + §7.3.18 新規詳細化(全 17 → 18 ユニット、UNIT-005.4 追加)**。**(1) 第 I 部 §7.3.18 新規詳細化(MINOR、CR 不要):** F 系列(F1〜F7)+ Step 19 G STPR 骨格化完了後、Step 19 H1(STPR §6.2 ST-OPS の前提となる CLI エントリポイント実装)着手前のクロスレビューで **ISS-H-001 を発見** — SRS-OPS-002(必須、`vip-ctrl` CLI)が要求されているが Inc.1 全 17 ユニット(SDD v0.3 §3.2)に CLI ユニットが存在しない計画文書間乖離。本 H1 で UNIT-005.4 CLI として §3.2 ユニット一覧 + SDD §4.18 + 本 §7.3.18 を一括追加(全 17 → 18 ユニット)。試験ケース 15 件(UT-005.4-01〜15:正常系 5 + 異常系 4 + RCM 1(checksum 不一致 = HZ-007 検出)+ 契約 5)、stmt 100% / branch 100% / MC/DC 100%(コード規模 78 stmt / 10 branch、`--version` fallback 1 経路 + `--diagnose` 5 分岐(不存在/ReadErr/decode 失敗/Ok/FailsafeRecommended)+ argparse 相互排他 + デフォルト 2 経路 全網羅)。**(2) 判断論点(H1 着手前クロスレビュー、17 度目運用):** 運用性 4 — ① 配置 `src/vip_ctrl/cli.py`(SDD §4.18 + UTPR §3 既存パス整合、`vip_ctrl` パッケージ既存)、② `pyproject.toml [project.scripts]` で `vip-ctrl = "vip_ctrl.cli:main"` 登録(SRS-OPS-002 必須要求の実装)、③ **Inc.1 範囲では対話 start/stop コマンド経路は提供しない**(SDD §3 設計方針 + B17 申し送り = 対話 UI は Inc.4 で正式実装)、④ DI 駆動テスト容易化(`main(argv, stdout, stderr)` で `IO[str]` を引数化、subprocess を使わずに in-memory `io.StringIO` で出力検査);専門性 5 — ① `match` 文で `ValidationResult` sealed union(`Ok \| FailsafeRecommended`)を網羅(B11〜B18 frozen+slots パターン + bandit B101 / mypy 不到達警告の両方を回避)、② JSON Lines 出力で SRS-OPS-010 必須 5 キー(timestamp / level / component / event / details)を強制、③ `importlib.metadata.version` の `PackageNotFoundError` を捕捉して `unknown` で fallback、④ argparse mutually_exclusive_group で `--version` / `--diagnose` 排他、⑤ MC/DC 100% 引き上げ + `mypy --strict src tests` + `ruff` ローカル必須(B12〜B18 教訓継続、8 ステップ連続適用、本 H1 で TC003(pathlib.Path を TYPE_CHECKING へ)/ I001(import 整理)/ S101(assert_used → match に置換)/ S108(/tmp ハードコード → tmp_path fixture)/ TextIO vs IO[str] 型不整合を CI 前ローカル mypy/ruff で検出 → 手動修正)。**UT 申し送り:** **(a)** 対話 start/stop コマンドは Inc.4 で正式実装(本 H1 では未提供、Inc.4 UI 層で Control Loop / Command Handler / Watchdog 等の既存スレッド lifecycle と統合)、**(b)** STPR §6.2 ST-OPS.1-03 の対話 start/stop 要求は Inc.4 申し送り(ISS-H-002、Step 19 H2 で STPR 修正予定)、**(c)** CLI レベル試験(ST-OPS)は Step 19 H2 で `tests/system/test_ops_acceptance.py` を新規実装(subprocess.Popen + venv 隔離で SRS-OPS-001〜004 / 010〜012 を E2E 検証)。SRS / RMF / SAD 本体不変、SDD 本体は ISS-H-001 解消のため §3.2 + §4.18 + §7 + §8 を本 PR 同時改訂(SDD v0.3 → v0.4)。**(3) 第 II 部 §9.2:** UNIT-005.4 行を 15 tests Pass / カバレッジ 100% / MC/DC 100% で新規追加。§11 UNIT-005.4 行を「Pass」で新規追加(関連 SRS-OPS-002/003/010/011 + HZ-007 観測経路を明示)。**(4) 試験設計:** UT-005.4-01 で `--version` 1 行出力 + return 0、UT-005.4-02 で `PackageNotFoundError` fallback、UT-005.4-03〜08 で `--diagnose` の 6 経路(不存在 / 整合 / checksum 不一致 / JSON 不正 / UTF-8 デコード失敗 / `atomic_writer.read` ReadErr)、UT-005.4-09/10 でデフォルトの 2 経路、UT-005.4-11/12 で argparse SystemExit(2)、UT-005.4-13 で `build_parser` 単独動作、UT-005.4-14 で SRS-OPS-010 必須 5 キー網羅、UT-005.4-15 で `_diagnose` ヘルパ契約。`mypy --strict src tests` 58 source files Pass(`atomic_writer.os.replace = ...` 直接代入を避け `setattr(_os, "replace", ...)` 採用 / `IO[str]` 型統一)、`ruff check / format` All Pass(I001 import 整理 + TC003 Path を TYPE_CHECKING へ + S108 /tmp 排除)、bandit 0、TOTAL カバレッジ 99.46% → **99.49%**(stmt 1378 + branch 200、CLI 100% 達成で +0.03)、462 tests + 5 連続 stable で CI `fail_under=95` Pass。**Inc.1 全 18 ユニット完成 + Step 19 H1 = ISS-H-001 解消** | k-abe |
 | 0.20 | 2026-05-01 | **Step 19 F1.6(CR-0004 (b) Adapter 層追加 + CR-0005 (a) `_HeartbeatSink` Protocol 引数なし化、一括実装)の実施結果を反映**。§7.3.9 表中 UT-001.2-15 を「heartbeat 引数なし契約(CR-0005 (a) 解消後)」に整合化(`sw.heartbeat()` / `hw.heartbeat()` 各 1 回、引数なし、各 Watchdog が内部 clock で取得)。§7.3.15 末尾に「Step 19 F1.6 追加 — UT-005.1-bridge」テーブル(6 ケース、UT-005.1-bridge-01〜06、`vip_api/_validation_bridge.py` Adapter)を新設、`tests/unit/test_validation_bridge.py` で UT を新規実装:01 整合 Settings → 空 list、02 範囲外単独 → ValidationError 1 件、03 多重失敗 → 集約変換、04 整合性違反 → `settings_consistency` field、05 factory + Protocol 適合、06 ControlApi 実体注入。Adapter 配下カバレッジは sealed hierarchy 完全網羅で `assert_never` 防御 4 行を除き 100%(stmt 25/branch 10)。MINOR 区分・CR 不要(本 v0.20 は CR-0004 + CR-0005 の試験範囲反映、SRS / SDD §4.6.C / SDD §4.15.B 本体は CR-0004/0005 で本改訂と同 PR で更新)| k-abe |
 | 0.17 | 2026-04-30 | **Step 19 B17(UNIT-005.2 State Observer API TDD 実装)の実施結果を反映 + §7.3.16 新規詳細化(残 2 → 1 骨格)**。**(1) 第 I 部 §7.3.16 新規詳細化(MINOR、CR 不要):** 骨格「薄いラッパー、observer 委譲、非 block / ≥ 6 / —」を **19 ケース、stmt 100% / branch 100%** に詳細化(MC/DC 目標は SDD §4.16 + UTPR §7.4 通り「—」据置、コード規模 30 stmt / 2 branch)。残骨格 2 → 1 ユニットに繰り下げて §7.3.17 化、本節冒頭に整合化注釈を追記。**(2) 判断論点(B17 着手前クロスレビュー、15 度目運用):** 運用性 4 — ① 配置 `src/vip_api/state_observer_api.py`(SDD §4.16 + UTPR §3 既存パス整合)、② `StateSnapshot` は frozen+slots dataclass(SDD「frozen pydantic」より軽量、B12 パターン継続)、③ 注入 3 種を constructor 注入(B9/B10/B15/B16 パターン継続)、④ `observed_at` は `datetime.now(UTC)`(B15 パターン);専門性 5 — ① frozen+slots dataclass で `FrozenInstanceError` 契約試験、② SDD §4.16.C 擬似コード逐語実装(4 atomic 取得 + StateSnapshot 構築)、③ `error_reason` 文字列化(`reason.name`、SDD 設計判断「内部 enum 非露出」)、④ 例外伝播(SDD §4.16.E 設計目標通り、try/except なし、B16 Control API と異なる挙動)、⑤ MC/DC「—」据置 + `mypy --strict src tests` ローカル必須(B12〜B16 教訓継続、6 ステップ連続適用、本 B17 で `PLC0415` 関数内 import を CI 前ローカル ruff で検出 → top-level 化で対処)。**UT 申し送り(継続):** Inc.4 UI 着手時に Resume Gate API 拡張(`pending_set_at_wall` accessor 追加)で `resume_set_at` の `set_at_wall` 透過を実装予定。SRS / SDD / RMF / SAD 本体不変。**(3) 第 II 部 §9.2:** UNIT-005.2 行を 19 tests Pass / カバレッジ 100% / MC/DC 「—」据置で確定。§11 UNIT-005.2 行を「Pass」更新。UNIT-005.1 行のコミット欄を Step 19 B16 PR #24 マージ SHA `92a3f19` で確定。**(4) 試験設計:** UT-005.2-01 で 3 注入の集約、UT-005.2-02 で 100 回 idempotent + mutating API 不呼出契約、UT-005.2-03 を `pytest.parametrize` で 5 サブケース展開(IDLE/RUNNING/PAUSED/STOPPED/ERROR)、UT-005.2-05 で Inc.1 範囲の `resume_set_at is None` 契約(SDD §4.16.B Optional 仕様に合致)、UT-005.2-07 で `WatchdogReason.SW_WATCHDOG` の文字列化、UT-005.2-08 を 4 サブケース展開、UT-005.2-09 で `pairwise` 単調性(B12 パターン)、UT-005.2-10 で `dataclasses.FrozenInstanceError`、UT-005.2-11 で SDD §4.16.E 例外伝播契約、UT-005.2-12 で `observed_at.tzinfo is UTC`。ruff 1 件(PLC0415 関数内 import)→ 手動修正で top-level 化、未カバー line 106(`_resume_set_at` の不到達 return パス)を関数削除で代替(B16 教訓「未使用防御コードは削除」継続適用)、`mypy --strict src tests` 41 source files Pass、bandit 0、TOTAL カバレッジ **100.00%**(stmt 1220 + branch 168)、425 tests + 5 連続 stable で CI `fail_under=95` Pass。**API 層 2/3 完成 + 残 1 ユニット(UNIT-005.3 Validation API クラス B のみ)** | k-abe |
 | 0.16 | 2026-04-30 | **Step 19 B16(UNIT-005.1 Control API TDD 実装)の実施結果を反映 + §7.3.15 新規詳細化(残 3 → 2 骨格)**。**(1) 第 I 部 §7.3.15 新規詳細化(MINOR、CR 不要):** 骨格「7 コマンド委譲、例外伝搬 / ≥ 10 / 90%」を **21 ケース、stmt 100% / branch 100% / MC/DC 100%(API 委譲層)** に詳細化(コード規模 75 stmt / 6 branch、骨格 90% を超過し 100% 達成、`start` 3 分岐 + `confirm_resume` 4 分岐 + try/except 3 経路 + `_safe_enqueue` 1 経路 全網羅)。残骨格 3 → 2 ユニットに繰り下げて §7.3.16 化、本節冒頭に整合化注釈を追記。**(2) 判断論点(B16 着手前クロスレビュー、14 度目運用):** 運用性 4 — ① 配置 `src/vip_api/control_api.py`(SDD §4.15 + UTPR §3 既存パス整合)、② `ApiResult` sealed hierarchy(`Ok` / `ValidationFailed` / `ApiRejected` を本ユニット内に定義 + Resume Gate の `Confirmed` / `WrongToken` / `Expired` / `NotPending` を re-export して useless mapping layer を回避)、③ `ValidationApi` Protocol で structural typing 受け(`vip_api` が `vip_api_b` を import せず SEP-001 分離維持、UNIT-005.3 が将来 satisfy)、④ `Settings(drug_name)` 乖離は B15 申し送りを再評価し本 B16 のスコープから除外(`vip_persist.records.Settings` 改修は B6/B7 試験への波及大、Inc.4 UI 着手時に整合化);専門性 5 — ① 値オブジェクト群 `frozen=True, slots=True`(B11/B12/B13/B14/B15 パターン継続)、② 例外を投げない契約は全メソッドの try/except で `ApiRejected(InternalError.UNEXPECTED_EXCEPTION)` 復帰(SDD §4.15.E 逐語実装)、③ `Settings.model_dump()` で pydantic を `Mapping[str, object]` に変換(Command Handler に pydantic を漏らさない)、④ Command Handler / Resume Gate / Validation API の constructor 注入(B9/B10/B15 パターン継続)、⑤ MC/DC 100% 引き上げ + `mypy --strict src tests` ローカル必須(B12/B13/B14/B15 教訓継続、5 ステップ連続適用、本 B16 で防御コード `# pragma: no cover` の `Statement is unreachable` を CI 前ローカル mypy で検出 → 防御コード削除で代替)。**UT 申し送りなし**(本ユニットは委譲層のみ、ロジックは委譲先の UT で網羅済)。SRS / SDD / RMF / SAD 本体不変。**(3) 第 II 部 §9.2:** UNIT-005.1 行を 21 tests Pass / カバレッジ 100% / MC/DC 100% で確定。§11 UNIT-005.1 行を「Pass」更新。UNIT-004.2 行のコミット欄を Step 19 B15 PR #23 マージ SHA `e3a8b9d` で確定。**(4) 試験設計:** UT-005.1-01 で `Settings.model_dump()` payload 透過 + `Mock(spec=ValidationApi)` 検証、UT-005.1-04〜08 を `pytest.parametrize` で 5 サブケース展開(stop/pause/resume/reset/error_reset)、UT-005.1-10〜12 を `pytest.parametrize` で 3 サブケース展開(WrongToken/Expired/NotPending)、UT-005.1-14 を 2 サブケース展開(TimedOut/Failed)、UT-005.1-15〜17 で 3 種例外注入耐性、UT-005.1-18 で `dataclasses.FrozenInstanceError`、UT-005.1-19 で `ApiResult` Union 網羅性 isinstance 検査、UT-005.1-20 で stop 系 5 メソッドの Handler 例外耐性(初回実装で line 224-226 未カバー → 追加で 100% 達成)。ruff 11 件(I001 × 2 / D102 / TRY300 / S105/S106 × 5 / E501 × 2)→ ruff --fix で 2 件 + 手動修正 9 件(`validate_settings` Protocol に docstring 追加 / `confirm_resume` の `return` を `else` ブロック化 / `pyproject.toml` `[tool.ruff.lint.per-file-ignores]` の `tests/**` に `S105` / `S106` 追加 / 長行改行 / 防御コード削除)、`pyproject.toml` の修正で test での `token=...` ハードコード文字列(bandit が password 誤検知)を恒久対応(将来の API 試験でも再発防止)、mypy `Statement is unreachable` を CI 前ローカル mypy で検出・防御コード削除で代替(B12/B13/B14/B15 教訓 5 ステップ連続適用)、`mypy --strict src tests` 39 source files Pass、bandit 0、TOTAL カバレッジ **100.00%**(stmt 1190 + branch 166)、406 tests + 5 連続 stable で CI `fail_under=95` Pass。**API 層着手 + 残ユニット 3 → 2(UNIT-005.2 / 005.3 のみ)** | k-abe |

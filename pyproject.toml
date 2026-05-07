@@ -45,6 +45,11 @@ dev = [
     "pip-audit>=2.7",
 ]
 
+[project.scripts]
+# SRS-OPS-002(必須):コマンドラインエントリポイント `vip-ctrl` で起動可能
+# UNIT-005.4 CLI(SDD §4.18、Step 19 H1 で新規追加)
+vip-ctrl = "vip_ctrl.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/grace2riku/virtual_infusion_pump_classC"
 Documentation = "https://github.com/grace2riku/virtual_infusion_pump_classC"
