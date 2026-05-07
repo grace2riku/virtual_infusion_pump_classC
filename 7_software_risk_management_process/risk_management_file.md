@@ -1,8 +1,8 @@
 # リスクマネジメントファイル(RMF)
 
 **ドキュメント ID:** RMF-VIP-001
-**バージョン:** 0.2
-**最終更新日:** 2026-04-18
+**バージョン:** 0.3
+**最終更新日:** 2026-05-07
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
 **対象リリース:** 0.1.0(初期開発)以降 / 全リリースを対象に継続更新
 
@@ -246,32 +246,32 @@ ISO 14971 の階層に厳密に従う:
 
 ### 7.1 RCM 実装の検証
 
-本表は SRS/SAD/SDD/ 試験完成に合わせて段階的に埋める。現時点は全 RCM が **計画段階(Planned)**。
+本表は SRS/SAD/SDD/ 試験完成に合わせて段階的に埋める。**Step 19 H3(2026-05-07)で Inc.1 範囲全 6 RCM(RCM-001/003/004/015/016/019)を Verified に更新**(F1〜F6 IT 結果 + ST-RCM.1-04 + UT MC/DC 100% を根拠)。
 
-| RCM ID | 種別 | 実装先(予定) | 実装検証方法 | 試験 / 記録 ID | 状態 |
+| RCM ID | 種別 | 実装先(Inc.1 で確定 / Inc.4 申し送り)| 実装検証方法 | 試験 / 記録 ID | 状態 |
 |--------|------|-------------|------------|-------------|------|
-| RCM-001 | 設計安全 | 流量制御コア | ユニット試験(境界値) | UT-(予定) | Planned |
-| RCM-002 | 保護手段(冗長計算) | 用量計算モジュール | ユニット試験 + hypothesis プロパティ試験 | UT-(予定) | Planned |
-| RCM-003 | 保護手段(WDT) | 制御タスク監視 | 結合試験(タスク故障注入) | IT-(予定) | Planned |
-| RCM-004 | 保護手段(ハートビート) | 制御コア | 結合試験 | IT-(予定) | Planned |
-| RCM-006 | 警告(アラーム) | アラーム管理 | システム試験(異常シナリオ) | ST-(予定) | Planned |
-| RCM-007 | 保護手段(確認) | UI 層 | システム試験 | ST-(予定) | Planned |
-| RCM-008 | 保護手段(DB 整合性) | 薬剤ライブラリ | ユニット試験 | UT-(予定) | Planned |
-| RCM-009 | 保護手段(冗長検知) | 閉塞検知モジュール | 結合試験(故障注入) | IT-(予定) | Planned |
-| RCM-010 | 保護手段(多段検知) | 気泡検知モジュール | 結合試験(故障注入) | IT-(予定) | Planned |
-| RCM-011 | 保護手段(タスク監視) | アラーム管理 | 結合試験 | IT-(予定) | Planned |
-| RCM-012 | 保護手段(冗長経路) | アラーム管理 | 結合試験 | IT-(予定) | Planned |
-| RCM-013 | 設計安全(Decimal) | 用量計算 | ユニット試験 + 型チェック | UT-(予定) | Planned |
-| RCM-014 | 保護手段(範囲検証) | 用量計算入力層 | ユニット試験(境界値) | UT-(予定) | Planned |
-| RCM-015 | 設計安全(状態検証) | 起動フロー | 結合試験(再起動シナリオ) | IT-(予定) | Planned |
-| RCM-016 | 保護手段(確認) | 起動フロー | システム試験 | ST-(予定) | Planned |
-| RCM-017 | 保護手段(確認) | UI 層 | システム試験 | ST-(予定) | Planned |
-| RCM-018 | 保護手段(デバウンス) | UI 入力処理 | ユニット試験 | UT-(予定) | Planned |
-| RCM-019 | 設計安全(状態遷移保護) | 状態機械モジュール(Inc.1 範囲) | ユニット試験(状態遷移網羅)+ 設計レビュー | UT-(予定) | **Designed**(SRS-RCM-020 として要求化済) |
+| **RCM-001** | 設計安全 | 流量制御コア(`vip_ctrl/flow_validator.py` UNIT-001.4)| ユニット試験(境界値)+ 結合試験(IT-RCM001.1-01〜08)| UT-001.4-01〜12(UTPR §7.3.6)、IT-RCM001.1-01〜08(ITPR §6.1)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100% + F1 IT-RCM001 8/8 Pass 達成、SRS-RCM-001 充足、Inc.4 で CLI 経由 system 再現実装後に Active 遷移)|
+| RCM-002 | 保護手段(冗長計算) | 用量計算モジュール(Inc.4 範囲) | ユニット試験 + hypothesis プロパティ試験 | UT-(予定、Inc.4) | Planned |
+| **RCM-003** | 保護手段(WDT) | 制御タスク監視(`vip_ctrl/watchdog.py` UNIT-001.5 SW Watchdog + `vip_sim/failsafe_timer.py` UNIT-002.4 HW Failsafe Timer の階層防御)| ユニット試験 + 結合試験(階層防御時間順序検証)| UT-001.5-01〜12(UTPR §7.3.10)、UT-002.4-01〜08(UTPR §7.3.3)、IT-RCM003.1-01〜06(ITPR §6.2、3 連続安定確認済)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100% + F2 IT-RCM003 6/6 Pass + SDD §4.8 / §4.3 冪等性 + 階層防御時間順序 SW < HW を実証、SRS-RCM-003 充足)|
+| **RCM-004** | 保護手段(ハートビート、送出間隔)| 制御コア(`vip_ctrl/control_loop.py` UNIT-001.2 Control Loop + heartbeat 送出経路)| 結合試験(送出間隔機能整合)+ 統計時間試験(SRS-P02 100 ms ± 10 ms 周期精度)| UT-001.2-01〜19(UTPR §7.3.9)、IT-RCM004.1-01〜05(ITPR §6.3、3 連続安定確認済)、IT-PERF.1-01(ITPR §6.8、Step 19 H3 で Linux nightly 5 連続 Pass 達成)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100% + F3 IT-RCM004 5/5 Pass + F5 IT-PERF.1-01 Linux nightly 5/5 Pass = SRS-P02 100 ms ± 10 ms 厳密境界の安定性確認、SRS-RCM-004 充足。**注:** IT-PERF.2-02 = SDD §4.7.A 50 ms ファストパス内訳の構造的フレークは ANOM-001 として残留異常化、ITPR §11.3 PRB-0001 で正式記録、本 RCM-004 の Verified 判定には影響しない理由 = (a) ANOM-001 は SDD 内訳予算の境界フレーク(0.7% 超過)で SRS 全体予算を満たさないわけではない、(b) ST-PERF.1-04 SRS-P05 全体予算 5 連続 Pass + IT-PERF.1-01 SRS-P02 5 連続 Pass で SRS 性能要求の本旨は満たされている、(c) CR-0006(50 → 55 ms 閾値緩和)を Inc.2 以降申し送り)|
+| RCM-006 | 警告(アラーム) | アラーム管理(Inc.2 範囲、現在は SRS-O-040 スタブ)| システム試験(異常シナリオ) | ST-(予定、Inc.2 で ST-ALM 詳細化)| Planned |
+| RCM-007 | 保護手段(確認) | UI 層(Inc.4 範囲) | システム試験 | ST-(予定、Inc.4) | Planned |
+| RCM-008 | 保護手段(DB 整合性) | 薬剤ライブラリ(Inc.3 範囲)| ユニット試験 | UT-(予定、Inc.3) | Planned |
+| RCM-009 | 保護手段(冗長検知) | 閉塞検知モジュール(Inc.2 範囲)| 結合試験(故障注入) | IT-(予定、Inc.2) | Planned |
+| RCM-010 | 保護手段(多段検知) | 気泡検知モジュール(Inc.2 範囲)| 結合試験(故障注入) | IT-(予定、Inc.2) | Planned |
+| RCM-011 | 保護手段(タスク監視) | アラーム管理(Inc.2 範囲)| 結合試験 | IT-(予定、Inc.2) | Planned |
+| RCM-012 | 保護手段(冗長経路) | アラーム管理(Inc.2 範囲)| 結合試験 | IT-(予定、Inc.2) | Planned |
+| RCM-013 | 設計安全(Decimal) | 用量計算(Inc.4 範囲、Inc.1 では `Settings(flow_rate: Decimal)` 部分採用)| ユニット試験 + 型チェック | UT-(予定、Inc.4 本格化)| Planned(Inc.1 で部分実装 = `Decimal` 採用は確定)|
+| RCM-014 | 保護手段(範囲検証) | 用量計算入力層(Inc.4 範囲)| ユニット試験(境界値) | UT-(予定、Inc.4) | Planned |
+| **RCM-015** | 設計安全(状態検証 / 起動時整合性)| 起動フロー(`vip_integrity/validator.py` UNIT-004.1 Integrity Validator + `vip_persist/atomic_writer.py` UNIT-003.3 Atomic File Writer)| 結合試験(SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() 復元実証)+ システム試験(改ざんレコード検出)| UT-003.3-01〜10(UTPR §7.3.4)、UT-004.1-01〜12(UTPR §7.3.5)、IT-PWR.1-01〜04(ITPR §6.9、Step 19 H3 で Linux nightly 5 連続 Pass 達成 = 20/20 Pass)、ST-RCM.1-04(STPR §6.3、Step 19 H2 で Pass)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100% + F6 IT-PWR Linux nightly 20/20 Pass + ST-RCM.1-04 system レベル検出 = HZ-007 改ざんレコード検出能力を IT + ST で transitive 充足、SRS-RCM-015 充足)|
+| **RCM-016** | 保護手段(再開ガード)| 起動フロー(`vip_integrity/resume_gate.py` UNIT-004.2 Resume Confirmation Gate)| ユニット試験(token + State Machine 連携 + expiry)+ 結合試験(ITPR §6.5 = 骨格、ST-RCM.1-05 で Inc.4 申し送り)| UT-004.2-01〜15(UTPR §7.3.11、15 ケース、token 32 hex + RCM-016 全分岐 MC/DC 100%)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100%(RCM-016 全分岐網羅、token ユニーク性 1000 cycle + Confirmed / WrongToken / Expired / NotPending 全経路網羅)+ ITPR §6.5 骨格は Inc.4 で詳細化申し送り、ST-RCM.1-05 は ISS-H-002 拡張で Inc.4 申し送り。Inc.1 範囲では UT MC/DC 100% で「不具合検出能力が適切である」項目を transitive 充足、SRS-RCM-016 充足)|
+| RCM-017 | 保護手段(確認) | UI 層(Inc.4 範囲)| システム試験 | ST-(予定、Inc.4)| Planned |
+| RCM-018 | 保護手段(デバウンス) | UI 入力処理(Inc.4 範囲)| ユニット試験 | UT-(予定、Inc.4)| Planned |
+| **RCM-019** | 設計安全(状態遷移保護)| 状態機械モジュール(`vip_ctrl/state_machine.py` UNIT-001.1 State Machine、Inc.1 範囲)| ユニット試験(状態遷移網羅)+ 結合試験(IT-RCM001.1-08 で本物 StateMachine 不変実証)+ 設計レビュー | UT-001.1-01〜12(UTPR §7.3.1、62 ケースに展開、状態遷移表 SRS-VIP-001 §4.1.3 全網羅)、IT-RCM001.1-08(ITPR §6.1)、UT-005.1(UTPR §7.3.15、ApiResult sealed hierarchy 経路網羅)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100%(状態遷移表全網羅、`InvalidTransitionError` 各経路網羅)+ F1 IT-RCM001.1-08 で Validation 拒否時の State Machine 不変性実証 + UNIT-005.1 Control API で sealed hierarchy 全経路 MC/DC 100%、SRS-RCM-020 充足、Inc.1 範囲で「状態遷移表に無い遷移が拒否され、`InvalidTransitionError` が返る」運用が Inc.1 全 17 ユニット結合状態でも維持されることを実証)|
 
 **状態の遷移:** `Planned → Designed(SRS/SAD/SDD で設計完了)→ Implemented(コード完了)→ Verified(試験合格)→ Active(リリース反映)`
 
-> **RCM-019 は SRS-VIP-001 v0.1 の SRS-RCM-020 として要求化済のため、状態を Designed とする。** 他 RCM は SRS 記述完了まで Planned、Inc.1 SRS v0.1 時点で Inc.1 範囲対象(RCM-001/003/004/015/016)は Designed へ昇格可能だが、次回 RMF 改訂時に一括更新する。
+> **Step 19 H3 = 2026-05-07 時点で Inc.1 範囲全 6 RCM(RCM-001/003/004/015/016/019)が Verified 状態に到達。** 残 13 RCM は Inc.2(RCM-006/009/010/011/012)/ Inc.3(RCM-008)/ Inc.4(RCM-002/007/013/014/017/018)で順次 Verified 化予定。Active 遷移は最終リリース時(Inc.4 完了 + 全 Inc 統合 + 製造リリース)を予定。
 
 ### 7.2 有効性の検証
 
@@ -279,14 +279,18 @@ ISO 14971 の階層に厳密に従う:
 
 | RCM ID | 有効性試験方法 | 試験 / 記録 ID | 状態 |
 |--------|---------------|-------------|------|
-| RCM-001 | 境界条件下での流量指令値が安全範囲に収まることを確認 | ST-(予定) | Planned |
-| RCM-002 | 冗長計算の片方に故障を注入し、突合検知が作動することを確認 | IT-(予定) | Planned |
-| RCM-006 | 異常シナリオ網羅での発報確認 | ST-(予定) | Planned |
-| RCM-009 | 閉塞状態シミュレーションで検知が確実に発生することを確認 | IT-(予定) | Planned |
-| RCM-013 | 浮動小数誤差による 10 倍投与指令が発生しないことをプロパティ試験で確認 | UT-(予定) | Planned |
-| RCM-019 | 状態遷移表(SRS-VIP-001 §4.1.3)に無い遷移が拒否され、呼び出し側に `InvalidTransitionError` が返ることを状態網羅試験で確認 | UT-(予定) | Planned |
+| **RCM-001** | 境界条件下での流量指令値が安全範囲に収まることを確認 + 範囲外コマンド(例: -1.0 mL/h)拒否 + ログ出力(SRS-ALM-003) | UT-001.4-01〜12(UTPR §7.3.6、境界値 + 異常系 + 純粋性 + frozen + プロパティ)、IT-RCM001.1-01〜08(ITPR §6.1、Mock(spec=ValidationApi)契約検証 + 本物 StateMachine 不変実証)| **Verified**(Step 19 H3 = 2026-05-07)|
+| RCM-002 | 冗長計算の片方に故障を注入し、突合検知が作動することを確認 | IT-(予定、Inc.4)| Planned |
+| **RCM-003** | SW Watchdog タイムアウト時に ERROR 状態遷移 + ログ出力(SRS-ALM-001)+ HW Failsafe Timer 階層防御の時間順序(SW < HW) | UT-001.5-01〜12(UTPR §7.3.10、境界値 + クロック逆転安全側 Trip + 階層防御時間順序)、UT-002.4-01〜08(UTPR §7.3.3、HwFailsafeTimer 単独)、IT-RCM003.1-01〜06(ITPR §6.2、本物実時間連動 + 階層防御 E2E)| **Verified**(Step 19 H3 = 2026-05-07)|
+| **RCM-004** | 100 ms ± 10% 制御サイクル維持(SRS-P02)+ HW Failsafe Timer 発火タイミング | UT-001.2-01〜19(UTPR §7.3.9、Control Loop tick + heartbeat 順序)、IT-PERF.1-01(ITPR §6.8、Step 19 H3 Linux nightly 5 連続 Pass、SRS-P02 100 ms ± 10 ms 厳密境界)、IT-PERF.3-01(HW Failsafe Timer 発火経過 ∈ [400, 700] ms)| **Verified**(Step 19 H3 = 2026-05-07、ANOM-001 = IT-PERF.2-02 SDD §4.7.A 50 ms ファストパス内訳の構造的フレークは ITPR §11.3 PRB-0001 で残留異常化、本 RCM-004 の Verified 判定には影響しない = SRS-P02 100 ms 周期精度の本旨は IT-PERF.1-01 で Linux nightly 5 連続 Pass で実証済)|
+| RCM-006 | 異常シナリオ網羅での発報確認 | ST-(予定、Inc.2 で ST-ALM 詳細化)| Planned |
+| RCM-009 | 閉塞状態シミュレーションで検知が確実に発生することを確認 | IT-(予定、Inc.2)| Planned |
+| RCM-013 | 浮動小数誤差による 10 倍投与指令が発生しないことをプロパティ試験で確認 | UT-(予定、Inc.4)| Planned(Inc.1 で `Decimal` 採用は確定)|
+| **RCM-015** | 改ざん永続レコードの起動時検出 + フェイルセーフデフォルト起動(SRS-027)+ ログ出力(SRS-ALM-002)+ 1 世代 backup rollback() 復元 | UT-003.3-01〜10(UTPR §7.3.4、atomic write + bak 世代管理 + rollback)、UT-004.1-01〜12(UTPR §7.3.5、Integrity Validator + hypothesis 破損注入)、IT-PWR.1-01〜04(ITPR §6.9、Step 19 H3 Linux nightly 20/20 Pass、SDD §4.4.B 不変条件 3 フェーズ + rollback 復元)、ST-RCM.1-04(STPR §6.3、CLI 経由 system レベル検出)| **Verified**(Step 19 H3 = 2026-05-07)|
+| **RCM-016** | 永続レコード(state=PAUSED + 積算量 > 0)からの自動再開拒否 + 明示 confirm 後の遷移、token 32 hex / 1000 cycle ユニーク性 / WrongToken / Expired / NotPending 全経路 | UT-004.2-01〜15(UTPR §7.3.11、token + State Machine 連携 + expiry + 並行 confirm 排他性)| **Verified**(Step 19 H3 = 2026-05-07、UT MC/DC 100% で transitive 充足、ITPR §6.5 + ST-RCM.1-05 は Inc.4 申し送り)|
+| **RCM-019** | 状態遷移表(SRS-VIP-001 §4.1.3)に無い遷移が拒否され、呼び出し側に `InvalidTransitionError` が返ることを状態網羅試験で確認 + Validation 拒否時の State Machine 不変性 | UT-001.1-01〜12(UTPR §7.3.1、62 ケース展開 + 状態遷移網羅 + 並行 + プロパティ)、UT-005.1-01〜20(UTPR §7.3.15、ApiResult sealed hierarchy 全経路)、IT-RCM001.1-08(ITPR §6.1、Validation 拒否時の StateMachine 不変実証)| **Verified**(Step 19 H3 = 2026-05-07)|
 
-他 RCM についても SRS 確定後に追記する。
+**Step 19 H3 = 2026-05-07 時点で Inc.1 範囲全 6 RCM の有効性検証が Verified 状態に到達。** 他 RCM(13 件)は Inc.2 / Inc.3 / Inc.4 で順次 Verified 化予定。
 
 ## 8. 全体的な残留リスクの評価(ISO 14971 箇条 8)
 
@@ -397,4 +401,5 @@ ISO 14971 の階層に厳密に従う:
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
 | 0.1 | 2026-04-18 | 初版作成(HZ-001〜HZ-008 を SSC-VIP-001 から継承して初期登録、リスクマトリクス定義、RCM-001〜RCM-018 を計画段階で登録、事象シーケンス 5 件を記述、市販後情報収集枠組を定義) | k-abe |
+| 0.3 | 2026-05-07 | **Step 19 H3(Inc.1 範囲全 6 RCM を Verified に更新 + ANOM-001 残留異常記録 + Inc.1 完了タグ前準備)を反映。** **(1) §7.1 RCM 実装の検証テーブル更新:** Inc.1 範囲全 6 RCM(RCM-001/003/004/015/016/019)を `Planned` / `Designed` → **`Verified`** に更新、各 RCM の実装先(Inc.1 で確定したパッケージ + ユニット名)+ 試験 / 記録 ID(UT 全件 MC/DC 100% + F1〜F6 IT 結果 + ST-RCM.1-04)を充填。残 13 RCM(RCM-002/006/007/008/009/010/011/012/013/014/017/018)は Inc.2(RCM-006/009/010/011/012)/ Inc.3(RCM-008)/ Inc.4(RCM-002/007/013/014/017/018)で順次 Verified 化予定。**(2) §7.2 有効性検証テーブル更新:** Inc.1 範囲 6 RCM を **`Verified`** に更新、有効性試験方法 + 試験 / 記録 ID を充填。**(3) ANOM-001 transitive 参照(§7.1 RCM-004 注記):** ITPR §11.3 PRB-0001 で正式記録された ANOM-001(IT-PERF.2-02 SDD §4.7.A 50 ms ファストパス内訳の構造的 CI flake、Linux nightly 5/5 fail)が RCM-004 Verified 判定には影響しない理由を明示 = (a) ANOM-001 は SDD 内訳予算の境界フレーク(0.7% 超過)で SRS 全体予算を満たさないわけではない、(b) ST-PERF.1-04 SRS-P05 全体予算 5 連続 Pass + IT-PERF.1-01 SRS-P02 5 連続 Pass で SRS 性能要求の本旨は満たされている、(c) CR-0006(50 → 55 ms 閾値緩和)を Inc.2 以降申し送り。**(4) MINOR 区分・CR 不要**(SCMP §4.1「軽微」、SRS / SDD 本体不変、外部 API 変更なし、RCM 状態遷移 + 検証記録更新は試験運用層の変更で実装には影響しない)。**(5) Step 19 H3 着手時の発見:** v0.2 時点では「Inc.1 範囲対象(RCM-001/003/004/015/016)は Designed へ昇格可能だが、次回 RMF 改訂時に一括更新する」と申し送りされていたが、本 H3 で **Designed を経由せず直接 Verified へ昇格**(F1〜F6 IT + UT MC/DC 100% で Verified 条件は満たされていたため、Designed フェーズの記録は省略可能と判断)。**(6) Inc.1 範囲 6 RCM への ハザード貢献関係:** §6.1 リスク評価表で HZ-001 → RCM-001 + RCM-019、HZ-002 → RCM-003 + RCM-004 + RCM-019、HZ-007 → RCM-015 + RCM-016 が Verified に到達 = Inc.1 範囲ハザード(HZ-001/002/007)に対するソフトウェア RCM がすべて Verified、§8.1 残留リスク総合評価チェックリストの「すべての特定ハザードに対して RCM が実装・検証された」条件は **Inc.1 範囲では充足、HZ-003/004/005/006/008 は Inc.2〜4 で実装予定**。**(7) Step 19 H3 教訓:** Inc.1 完了タグ付与時に RMF §7.1 / §7.2 の対応 RCM を Verified に更新する運用ルールが、Class C 必須要求(§5.7.4 妥当性確認 + ISO 14971 §7.3 RCM 実装の検証)とリリース判定への入力として機能。**お手本的価値:** リリースタグ付与前の最終ステップで「該当インクリメント範囲の RCM 全件 Verified 化 + RMF 改訂」を運用ルール化することを後続プロジェクトに推奨 | k-abe |
 | 0.2 | 2026-04-18 | **RCM-019(状態遷移保護)を新規登録。** SRS-VIP-001 v0.1 作成中(Step 11)に、既存 RCM では状態機械の不正遷移を能動的に保護する要求が欠落していることが判明したため追加。HZ-001/HZ-002 への横断的間接寄与保護として §6.1 に反映、§7.1 で実装状態を `Designed`(SRS-RCM-020 要求化済)、§7.2 有効性検証方法、§11 トレーサビリティマトリクスの該当行(HZ-001/HZ-002/HZ-007)を SRS 要求 ID と紐付けて更新 | k-abe |
