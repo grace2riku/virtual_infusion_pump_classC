@@ -1631,7 +1631,7 @@ def validate_settings(settings: Settings) -> ValidationResult:
 
 | 関数 | 引数 | 戻り値 | 事前条件 | 事後条件 | エラー処理 |
 |------|------|-------|---------|---------|-----------|
-| `main(argv, stdout, stderr) -> int` | argv: `list[str] | None`, stdout/stderr: `IO[str] | None` | プロセス exit code(0 / 2)| なし(常時呼出可能)| stdout / stderr の DI に応じて出力先を切替、戻り値で exit code を返却 | argparse 例外は SystemExit に変換(標準動作)|
+| `main(argv, stdout, stderr) -> int` | argv: `list[str] \| None`、stdout/stderr: `IO[str] \| None` | プロセス exit code(0 / 2)| なし(常時呼出可能)| stdout / stderr の DI に応じて出力先を切替、戻り値で exit code を返却 | argparse 例外は SystemExit に変換(標準動作)|
 | `run_version(out) -> int` | out: `IO[str]` | 0 | なし | バージョン 1 行を `out` に書込 | なし(`importlib.metadata.version` の `PackageNotFoundError` は捕捉して `unknown` で fallback)|
 | `run_diagnose(persist_path, out) -> int` | persist_path: `Path`, out: `IO[str]` | 0 | なし | 永続レコード状態の JSON Lines 1 行を `out` に書込 | 内部で `_diagnose` ヘルパが `OSError` / `UnicodeDecodeError` / `json.JSONDecodeError` / `pydantic.ValidationError` を捕捉、戻り値の `DiagnoseResult` で構造化伝播 |
 | `run_default(persist_path, out, err) -> int` | persist_path: `Path`, out/err: `IO[str]` | 0 | なし | 起動メッセージ(`err`)+ 初期 snapshot JSON Lines(`out`)を書込 | 同上 |
