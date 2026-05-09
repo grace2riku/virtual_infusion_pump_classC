@@ -1,12 +1,13 @@
 # ソフトウェア詳細設計書(SDD)
 
 **ドキュメント ID:** SDD-VIP-001
-**バージョン:** 0.4
-**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)/ 2026-05-07(v0.4)
+**バージョン:** 0.5
+**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)/ 2026-05-07(v0.4)/ 2026-05-10(v0.5)
+**最終更新日:** 2026-05-10
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
-**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲、全 18 ユニット詳細記述、Step 19 H1 で UNIT-005.4 CLI 追加)
+**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲全 18 ユニット詳細 + Inc.2 範囲新規 8 ユニット骨格 + 既存 3 ユニット Inc.2 拡張節、合計 26 ユニット、Step 14 v0.1 流儀の v0.x 骨格化を継承)
 **安全クラス:** C(IEC 62304)
-**変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)
+**変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)、CR-0009(Issue #57、MODERATE、Step 20 E)
 
 | 役割 | 氏名 | 所属 | 日付 | 署名 |
 |------|------|------|------|------|
@@ -16,6 +17,12 @@
 
 > **本プロジェクトの位置づけ(注記)**
 > 本ドキュメントは IEC 62304 に基づく医療機器ソフトウェア開発プロセスの学習・参考実装を目的とした **仮想プロジェクト** の成果物である。
+>
+> **本 SDD v0.5 の位置づけ(CR-0009 / Step 20 E、Inc.2 連動改訂の SDD 部分、骨格化):** SAD-VIP-001 v0.2(CR-0011 / Step 20 D)で確定した Inc.2 範囲のアーキテクチャ要素を、Step 14 v0.1 流儀(代表 5 ユニット詳細 + 骨格 N ユニット)を継承して **Inc.2 新規 8 ユニットを §4.x 骨格記述として追加** + **既存 3 ユニットに Inc.2 拡張サブセクション(§4.x.G)を追補** + **§5.1 IF-U-007 詳細化(`AlarmEvent` Python 実装契約)+ IF-U-012〜015 新規追加** + **§6.4 ISS-V02 解消済整合化** + **§6.5 v0.5 骨格化で発見した整合性課題(申し送り)新設**。詳細記述(各骨格 8 ユニット + 既存 3 ユニット拡張節の §4.x.A〜F 完全版)は Step 20 X〜の TDD 実装と並行する SDD 後続改訂(v0.6 候補)で展開する。本改訂は CR-0009(MODERATE)として CCB プロセスを経て承認される。
+>
+> **v0.5 で追加した Inc.2 新規 8 ユニット(§4.19〜§4.26、骨格):** UNIT-006.1 Occlusion Detector / UNIT-006.2 Air-Bubble Detector / UNIT-006.3 Reservoir Empty Detector / UNIT-006.4 Alarm Task Watchdog / UNIT-006.5 Alarm Path Redundancy / UNIT-006.6 Battery Low Detector / UNIT-007.1 Alarm Reporter Core / UNIT-007.2 Alarm Priority Classifier。
+>
+> **v0.5 で拡張した既存 3 ユニット(§4.x.G、Inc.2 追補):** UNIT-001.1 State Machine(アラーム発報経路 + ACK/SILENCE 状態遷移)/ UNIT-002.3 Event Injection(BATTERY_LOW + Pump 伝播経路、no-op 解除)/ UNIT-005.1 Control API(`acknowledge_alarm` / `silence_alarm`)。
 >
 > **本 SDD v0.2 の位置づけ:** v0.1 で骨格記述に留めていた 12 ユニット(残 9 ユニット + Public API Facade 3 ユニット)を §5.4.2 詳細記述に展開し、Inc.1 範囲の **全 17 ユニット** について公開 API・データ構造・アルゴリズム・資源使用量・例外/異常系・検証方法を確定した。これにより SDD v0.1 §6.3 で宣言した実装ブロックを解消し、Inc.1 実装着手準備を完了する。本改訂は CR-0001(MODERATE)として CCB プロセスを経て承認される。
 >
@@ -50,18 +57,20 @@
 | ID | 文書名 | バージョン |
 |----|--------|----------|
 | [1] | IEC 62304:2006+A1:2015 箇条 5.4 | — |
-| [2] | ソフトウェア要求仕様書(SRS-VIP-001) | 0.1 |
-| [3] | ソフトウェアアーキテクチャ設計書(SAD-VIP-001) | 0.1 |
-| [4] | リスクマネジメントファイル(RMF-VIP-001) | 0.2 |
+| [2] | ソフトウェア要求仕様書(SRS-VIP-001) | 0.3(Inc.2 SRS 追補確定、CR-0008 / Step 20 B-2) |
+| [3] | ソフトウェアアーキテクチャ設計書(SAD-VIP-001) | 0.2(Inc.2 連動改訂、CR-0011 / Step 20 D) |
+| [4] | リスクマネジメントファイル(RMF-VIP-001) | 0.4(HZ-009 識別 + RCM-006/009/010/011/012 Designed、CR-0010 / Step 20 C) |
 | [5] | ソフトウェア開発計画書(SDP-VIP-001)§14 共通欠陥 | 0.1 |
+| [6] | Inc.2 範囲計画書(INC2-SCOPE-VIP-001) | 0.1(Step 20 A 新設) |
+| [7] | IEC 60601-1-8(アラームシステム) | — |
 
 ## 3. ソフトウェア項目のソフトウェアユニットへの改良(箇条 5.4.1)
 
-### 3.1 ユニット階層(Inc.1 範囲)
+### 3.1 ユニット階層(Inc.1〜2 範囲、v0.5 で Inc.2 拡張)
 
 ```
 ARCH-001 Control Core (C)
-├── UNIT-001.1  State Machine
+├── UNIT-001.1  State Machine                (Inc.1 詳細 §4.1 + Inc.2 拡張 §4.1.G、v0.5)
 ├── UNIT-001.2  Control Loop
 ├── UNIT-001.3  Command Handler
 ├── UNIT-001.4  Flow Command Validator
@@ -70,7 +79,7 @@ ARCH-001 Control Core (C)
 ARCH-002 Virtual Hardware (C)
 ├── UNIT-002.1  Pump Simulator
 ├── UNIT-002.2  Pump Observer
-├── UNIT-002.3  Event Injection Stub
+├── UNIT-002.3  Event Injection             (Inc.1 スタブ §4.11 + Inc.2 拡張 §4.11.G、v0.5、no-op 解除)
 └── UNIT-002.4  HW-side Failsafe Timer
 
 ARCH-003 Persistence (C)
@@ -83,36 +92,58 @@ ARCH-004 Boot / Recovery (C)
 └── UNIT-004.2  Resume Confirmation Gate
 
 ARCH-005 Public API Facade
-├── UNIT-005.1  Control API               (C、本 SDD では骨格のみ)
-├── UNIT-005.2  State Observer API        (C、薄いラッパー、SDD v0.2 で詳細化)
-└── UNIT-005.3  Validation API            (B、分離対象、SDD v0.2 で詳細化)
+├── UNIT-005.1  Control API                 (Inc.1 詳細 §4.15 + Inc.2 拡張 §4.15.G、v0.5)
+├── UNIT-005.2  State Observer API          (C、薄いラッパー)
+├── UNIT-005.3  Validation API              (B、分離対象)
+└── UNIT-005.4  CLI Entry Point             (C、Step 19 H1 で新規追加)
 
-ARCH-006 Logging Stub I/F(抽象 I/F のみ、本版実装なし)
-ARCH-007 Alarm Reporter Stub I/F(抽象 I/F のみ、本版実装なし)
+# Inc.2 で新設(本 v0.5 で骨格化、CR-0009 / Step 20 E)
+ARCH-006 Detection (C、新設)
+├── UNIT-006.1  Occlusion Detector          (§4.19、骨格、RCM-009)
+├── UNIT-006.2  Air-Bubble Detector         (§4.20、骨格、RCM-010)
+├── UNIT-006.3  Reservoir Empty Detector    (§4.21、骨格、RCM-006)
+├── UNIT-006.4  Alarm Task Watchdog         (§4.22、骨格、RCM-011)
+├── UNIT-006.5  Alarm Path Redundancy       (§4.23、骨格、RCM-012)
+└── UNIT-006.6  Battery Low Detector        (§4.24、骨格、RCM-006、HZ-009)
+
+ARCH-007 Alarm Reporter (B、SEP-003 分離継続、Inc.2 で本実装化)
+├── UNIT-007.1  Alarm Reporter Core         (§4.25、骨格、SRS-IF-010 本実装)
+└── UNIT-007.2  Alarm Priority Classifier   (§4.26、骨格、IEC 60601-1-8 §6.1)
+
+ARCH-009 Logging Stub I/F(B、旧 ARCH-006、SAD v0.2 でリネーム、Inc.4 で本実装予定)
+ARCH-010(Inc.4 UI 用予約、SAD v0.2 で新規予約)
 ```
 
-### 3.2 ユニット一覧
+### 3.2 ユニット一覧(Inc.1〜2 範囲、v0.5 で Inc.2 行追加)
 
-| ユニット ID | 名称 | 所属項目 | 安全クラス | 本 SDD v0.2 での扱い |
+| ユニット ID | 名称 | 所属項目 | 安全クラス | 本 SDD での扱い |
 |-----------|------|---------|----------|-------------------|
-| UNIT-001.1 | State Machine | ARCH-001 | C | 詳細(§4.1、v0.1) |
+| UNIT-001.1 | State Machine | ARCH-001 | C | 詳細(§4.1、v0.1)+ **Inc.2 拡張(§4.1.G、v0.5):アラーム発報経路 + ACK/SILENCE 状態遷移、骨格** |
 | UNIT-001.2 | Control Loop | ARCH-001 | C | **詳細(§4.6、v0.2)** |
 | UNIT-001.3 | Command Handler | ARCH-001 | C | **詳細(§4.7、v0.2)** |
 | UNIT-001.4 | Flow Command Validator | ARCH-001 | C | 詳細(§4.2、v0.1) |
 | UNIT-001.5 | Watchdog (SW) | ARCH-001 | C | **詳細(§4.8、v0.2)** |
 | UNIT-002.1 | Pump Simulator | ARCH-002 | C | **詳細(§4.9、v0.2)** |
 | UNIT-002.2 | Pump Observer | ARCH-002 | C | **詳細(§4.10、v0.2)** |
-| UNIT-002.3 | Event Injection Stub | ARCH-002 | C(本版スタブ) | **詳細(§4.11、v0.2)** |
+| UNIT-002.3 | Event Injection | ARCH-002 | C | **詳細(§4.11、v0.2、Inc.1 スタブ)+ Inc.2 拡張(§4.11.G、v0.5):BATTERY_LOW 追加 + Pump 伝播経路、no-op 解除、骨格** |
 | UNIT-002.4 | HW-side Failsafe Timer | ARCH-002 | C | 詳細(§4.3、v0.1) |
 | UNIT-003.1 | Serializer | ARCH-003 | C | **詳細(§4.12、v0.2)** |
 | UNIT-003.2 | Checksum Verifier | ARCH-003 | C | **詳細(§4.13、v0.2)** |
 | UNIT-003.3 | Atomic File Writer | ARCH-003 | C | 詳細(§4.4、v0.1) |
 | UNIT-004.1 | Integrity Validator | ARCH-004 | C | 詳細(§4.5、v0.1) |
 | UNIT-004.2 | Resume Confirmation Gate | ARCH-004 | C | **詳細(§4.14、v0.2)** |
-| UNIT-005.1 | Control API | ARCH-005 | C | **詳細(§4.15、v0.2)** |
+| UNIT-005.1 | Control API | ARCH-005 | C | **詳細(§4.15、v0.2)** + **Inc.2 拡張(§4.15.G、v0.5):`acknowledge_alarm` / `silence_alarm`、骨格** |
 | UNIT-005.2 | State Observer API | ARCH-005 | C | **詳細(§4.16、v0.2)** |
 | UNIT-005.3 | Validation API | ARCH-005 | B(分離対象) | **詳細(§4.17、v0.2)** |
 | UNIT-005.4 | CLI Entry Point | ARCH-005 | C | **詳細(§4.18、v0.4、Step 19 H1 で新規追加)** |
+| **UNIT-006.1** | **Occlusion Detector** | **ARCH-006** | **C** | **骨格(§4.19、v0.5、RCM-009、SRS-040、SRS-ALM-004)** |
+| **UNIT-006.2** | **Air-Bubble Detector** | **ARCH-006** | **C** | **骨格(§4.20、v0.5、RCM-010、SRS-041、SRS-ALM-005)** |
+| **UNIT-006.3** | **Reservoir Empty Detector** | **ARCH-006** | **C** | **骨格(§4.21、v0.5、RCM-006、SRS-042、SRS-ALM-006)** |
+| **UNIT-006.4** | **Alarm Task Watchdog** | **ARCH-006** | **C** | **骨格(§4.22、v0.5、RCM-011、SRS-044)** |
+| **UNIT-006.5** | **Alarm Path Redundancy** | **ARCH-006** | **C** | **骨格(§4.23、v0.5、RCM-012、SRS-IF-010)** |
+| **UNIT-006.6** | **Battery Low Detector** | **ARCH-006** | **C** | **骨格(§4.24、v0.5、RCM-006、SRS-043、SRS-ALM-007、HZ-009)** |
+| **UNIT-007.1** | **Alarm Reporter Core** | **ARCH-007** | **B(分離、SEP-003 継続)** | **骨格(§4.25、v0.5、RCM-006、SRS-IF-010、SRS-ALM-001/004〜008、SRS-O-040)** |
+| **UNIT-007.2** | **Alarm Priority Classifier** | **ARCH-007** | **B(分離、SEP-003 継続)** | **骨格(§4.26、v0.5、SRS-REG-002、IEC 60601-1-8 §6.1/§5.1.4、純粋関数)** |
 
 ## 4. ソフトウェアユニットの詳細設計(箇条 5.4.2 ― クラス C)
 
@@ -218,6 +249,34 @@ def request_transition(self, event: TransitionEvent) -> TransitionResult:
 - **境界試験:** 不正遷移を全 (状態, イベント) 組合せで注入、拒否されることを確認
 - **プロパティ試験(hypothesis):** 任意のイベント列に対して、最終状態が TRANSITION_TABLE から到達可能な状態のみであること
 - **並行性試験:** 複数スレッドから同時に `request_transition` を呼び出し、状態不整合が発生しないことを確認
+
+#### 4.1.G Inc.2 拡張(v0.5、CR-0009 / Step 20 E、骨格)
+
+**Inc.2 で UNIT-001.1 に追補する変更点(SAD v0.2 §4.3.1 + INC2-SCOPE-VIP-001 §6.2 連携):**
+
+- **アラーム発報経路追加:** 検知群(ARCH-006)からの IF-U-013 `request_state_transition(target: StateKind, reason: DetectionReason)` を受け、ERROR / PAUSED 遷移を駆動。発報自体は ARCH-007.1 Alarm Reporter Core が IF-U-007 `report_alarm` 経由で行うため、本 UNIT は **状態遷移と発報依頼の橋渡し役**。
+- **ACK / SILENCE 状態遷移追加:** SRS-044(アラーム確認・消音、IEC 60601-1-8 §6.4 準拠)に従い、状態機械にアラーム確認 / 消音状態 を追加。具体的状態名・遷移表は SDD 後続改訂(v0.6 候補)で詳細化。
+- **新規イベント候補:** `ALARM_RAISED` / `ALARM_ACKED` / `ALARM_SILENCED` / `ALARM_CLEARED` 等を `EventKind` enum に追加。各イベントに対する状態遷移表エントリは SDD v0.6 候補で詳細化。
+- **新規 RCM 関連:** RCM-006 アラーム発報必達 = 検知群が `request_state_transition` を発行できなかった場合の対処(本 UNIT の責務)、ALARM 経路と既存 RCM-019 状態遷移保護との整合確認。
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- アラーム発報経路の状態遷移表(具体的状態名 + ALARM_RAISED/ACKED/SILENCED/CLEARED 各イベントとの対応)
+- IF-U-013 / IF-U-007 呼出順序契約(検知群 → State Machine → Alarm Reporter Core の順)
+- ACK / SILENCE 状態の永続化要否(SRS-DATA-001 連携、Inc.2 範囲では非永続を仮置)
+- IEC 60601-1-8 §6.4 高優先度アラーム消音時間制限(≤ 120 秒)の State Machine 側強制(Alarm Reporter Core 側のみで強制 = State Machine 側は通知のみと役割分離)
+
+**主要 API(候補、後続改訂で詳細化):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `request_state_transition(target: StateKind, reason: DetectionReason) -> Result[None, StateMachineError]` | 検知群からの遷移依頼 | 成功: `Ok(None)` / 失敗: `Err(InvalidTransitionError)` | IF-U-013、検知時の ERROR / PAUSED 駆動 |
+| `request_alarm_acknowledge(alarm_id: str) -> Result[None, StateMachineError]` | アラーム ID | 同上 | Control API 経由の ACK 受領 → ALARM_ACKED 遷移 |
+| `request_alarm_silence(alarm_id: str, duration_sec: int) -> Result[None, StateMachineError]` | アラーム ID + 消音時間 | 同上 | 同上、ALARM_SILENCED 遷移 |
+
+**依存:** ARCH-006 検知群(IF-U-013)、ARCH-005.1 Control API(IF-U-014 / SRS-044)、ARCH-007.1 Alarm Reporter Core(IF-U-007 経由通知)
+
+**安全クラス:** C(非分離継続、SAD §9 SEP-000)
 
 ---
 
@@ -1122,6 +1181,33 @@ def recent_events(self, limit=100) -> list[VirtualHwEvent]:
 - **リングバッファ試験:** 1001 件 inject → recent_events(1000) で最新 1000 件、最古は破棄
 - **Inc.2 拡張点試験(将来):** Inc.2 で実装する際、本版の API シグネチャ互換であること
 
+#### 4.11.G Inc.2 拡張(v0.5、CR-0009 / Step 20 E、骨格、no-op 解除方針確定)
+
+**Inc.2 で UNIT-002.3 に追補する変更点(SAD v0.2 §4.3.2 + INC2-SCOPE-VIP-001 §6.2 連携):**
+
+- **`VirtualHwEventKind` enum 拡張:** Inc.1 の 3 種(`OCCLUSION` / `AIR_BUBBLE` / `RESERVOIR_EMPTY`)に **`BATTERY_LOW` を追加して 4 種化**(SRS-I-040 確定、HZ-009 対応)。
+- **no-op 解除 = Pump への伝播経路を実装:** Inc.1 では `inject()` がリングバッファに記録するのみで Pump.observe には影響しなかった(no-op スタブ)。Inc.2 では **inject されたイベントを Pump 状態に反映**(例:`OCCLUSION` 注入で Pump 内部の閉塞フラグをセット → センサー値経由で UNIT-006.1 Occlusion Detector が検知)。
+- **検知群への単方向通知経路:** UNIT-002.3 → ARCH-006 検知群(IF-U-015 `read_sensor` 経由 = 検知群が pull で Pump センサー値を読みに行く設計、Inc.2 範囲計画書 §6.4 + SAD §5 IF-U-015 連携)。Push 通知ではなく Pull 設計を採用する根拠は SDD v0.6 候補で詳細化(SRS-P02 ジッタ要件と整合する周期駆動)。
+- **新規依存:** UNIT-002.1 Pump Simulator(センサー入力提供、ARCH-002.1 拡張と連動)。
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- `inject` が Pump 状態をどう変更するかの状態モデル(各 EventKind ごとの Pump 内部フラグセット規則)
+- `BATTERY_LOW` の severity 値と SRS-043 閾値判定アルゴリズムとの対応
+- IF-U-015 `read_sensor` のシグネチャと SensorKind 6 種(`OCCLUSION_PRIMARY` / `OCCLUSION_SECONDARY` / `AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` / `RESERVOIR` / `BATTERY`)の Pump 側実装
+- Inc.1 互換性確保(本 v0.5 の inject API 既存シグネチャを破壊しない)
+
+**主要 API(変更点候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要(Inc.1 → Inc.2 差分) |
+|--------------|------|-------|--------------------------|
+| `inject(event: VirtualHwEvent) -> None` | `VirtualHwEvent`(`VirtualHwEventKind` enum 4 種に拡張) | `None`(Inc.1 と同) | Inc.1: リングバッファ記録のみ → Inc.2: 記録 + Pump 状態変更(BATTERY_LOW 含む) |
+| `read_sensor(kind: SensorKind) -> SensorReading`(新規、IF-U-015) | センサー種別 enum | センサー値(冗長 2 系統独立性 = SRS-RCM-009 根拠) | Inc.2 で新設、検知群が pull で読み取り |
+
+**依存:** UNIT-002.1 Pump Simulator(センサー入力源)、ARCH-006 検知群(IF-U-015 経由の pull 元)
+
+**安全クラス:** C(非分離継続、SAD §9 SEP-000)
+
 ---
 
 ### 4.12 UNIT-003.1: Serializer
@@ -1471,6 +1557,33 @@ def await_command(self, token, timeout_ms=200):
 - **例外を投げない網羅試験:** 全メソッド × モックで例外注入 → 戻り値 Rejected で復帰、例外伝播なし
 - **sealed hierarchy 網羅性:** mypy strict で `match` 文の全 case が網羅されているか静的検査
 
+#### 4.15.G Inc.2 拡張(v0.5、CR-0009 / Step 20 E、骨格)
+
+**Inc.2 で UNIT-005.1 に追補する変更点(SAD v0.2 §4.3.1 + INC2-SCOPE-VIP-001 §6.2 連携):**
+
+- **`acknowledge_alarm` API 追加:** SRS-044(アラーム確認、IEC 60601-1-8 §6.4)に従い、外部呼出元(Inc.4 UI / 試験ハーネス)からのアラーム ACK 操作を受け、ARCH-007.1 Alarm Reporter Core(IF-U-014)へ転送。同時に UNIT-001.1 State Machine に ALARM_ACKED 遷移を依頼。
+- **`silence_alarm` API 追加:** SRS-044(アラーム消音、IEC 60601-1-8 §6.4)に従い、消音操作を ARCH-007.1 へ転送。**高優先度アラームは ≤ 120 秒の消音時間制限を ARCH-007.1 側で強制**(本 UNIT は転送のみ)。
+- **既存 API 不変:** start / stop / pause / resume / reset / confirm_resume は Inc.1 のシグネチャを維持(Inc.1 互換性)。
+- **新規依存:** ARCH-007.1 Alarm Reporter Core(IF-U-014)+ UNIT-001.1 State Machine 拡張(`request_alarm_acknowledge` / `request_alarm_silence` 経路)。
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- `acknowledge_alarm` / `silence_alarm` の戻り値型(`Ok(None)` / `Err(AlarmNotFound)` / `Err(SilenceTooLong)` 等)
+- 高優先度消音時間制限のクライアント側ヒント(`silence_alarm` が `duration_sec > 120` のとき高優先度なら `Err`、ARCH-007.2 Priority Classifier 連携)
+- 同時複数アラーム時の優先順位(IEC 60601-1-8 §6.1 + ARCH-007.2 で集約 = Control API は転送のみ)
+- 例外契約(既存 Inc.1 メソッドと同様、戻り値 Rejected で復帰、例外伝播なし)
+
+**主要 API(候補、後続改訂で詳細化):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `acknowledge_alarm(alarm_id: str) -> Result[None, AlarmCommandError]` | アラーム ID | 成功: `Ok(None)` / 失敗: `Err(AlarmNotFound \| AlreadyAcked)` | IF-U-014、SRS-044 |
+| `silence_alarm(alarm_id: str, duration_sec: int) -> Result[None, AlarmCommandError]` | アラーム ID + 消音時間(秒) | 同上 + `Err(SilenceTooLong)`(高優先度 ≤ 120 秒制限違反) | IF-U-014、SRS-044、IEC 60601-1-8 §6.4 |
+
+**依存:** ARCH-007.1 Alarm Reporter Core(IF-U-014 転送先)、UNIT-001.1 State Machine(ACK/SILENCE 状態遷移依頼)
+
+**安全クラス:** C(既存と同じ、SAD §9 SEP-000)
+
 ---
 
 ### 4.16 UNIT-005.2: State Observer API
@@ -1693,9 +1806,226 @@ JSON Lines 出力(SRS-OPS-010 整合)は最低 5 キーを必須含有:`timestam
 - **MC/DC 100% 目標:** 78 stmt / 10 branch、UT 15 ケースで全分岐網羅(Step 19 H1 で達成、UTPR §7.3.18)
 - **CLI レベル試験(ST):** Step 19 H2 の `tests/system/test_ops_acceptance.py`(STPR §6.2 ST-OPS.1-01〜04 で `subprocess.Popen` 経由 CLI 検証予定)
 
+---
+
+### 4.19 UNIT-006.1: Occlusion Detector(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+
+- **目的 / 責務:** 静脈ラインの閉塞を **冗長 2 系統(独立センサー入力)** に基づく閾値判定で検知する(SRS-040、RCM-009)。両系健全時はいずれか 1 系統が閾値を超えた時点で閉塞と判定し、片系故障時(センサー断線・ノイズ等)も他系で検知を継続することでフェイルセーフを確保する。検知時は SRS-ALM-004 を ARCH-007.1 Alarm Reporter Core 経由で発報し、UNIT-001.1 State Machine に ERROR 遷移を依頼する。
+- **関連 SRS:** SRS-040, SRS-RCM-009, SRS-ALM-004, SRS-IF-010
+- **関連 RCM:** RCM-009(閉塞検知冗長化)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/occlusion.py`(Step 20 X〜の TDD 実装で確定)
+
+**主要 API(候補、SDD v0.6 で詳細化):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `tick() -> None` | — | `None` | 周期駆動エントリ。Pump からセンサー値を pull し、閾値判定 + 検知時の発報・遷移依頼を実施 |
+| `_read_redundant_sensors() -> tuple[SensorReading, SensorReading]` | — | (主系、副系) | IF-U-015 経由で 2 系統独立読み取り |
+| `_evaluate(primary: SensorReading, secondary: SensorReading) -> DetectionResult` | 主系・副系の値 | `Healthy` / `Detected(reason)` / `Degraded(failed_channel)` | 純粋判定ロジック |
+
+**依存:** UNIT-002.1 Pump Simulator + UNIT-002.3 Event Injection(センサー入力源、IF-U-015)、UNIT-007.1 Alarm Reporter Core(IF-U-007 / IF-U-012 経由発報)、UNIT-001.1 State Machine(IF-U-013 経由 ERROR 遷移依頼)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- 閾値 値・単位の確定(SRS-040 で定性指定、SDD で具体値を確定)
+- 周期(`tick` 呼出間隔)= 制御ループ周期と整合(100 ms 候補)
+- 片系故障検出ロジック(タイムアウト・ノイズ閾値・連続エラーカウント)
+- 検知後の self-test 動作(誤検知抑制 vs 安全側即時停止のトレードオフ)
+- 並行性 / 排他制御(Pump センサー値読み取りの atomic 性)
+- 例外・異常系(センサー値取得失敗、Alarm Reporter 例外伝播禁止契約継続)
+- ユニット試験設計(UT-006.1-01〜:両系健全 / 片系故障 / 両系故障 / 閾値境界 / 連続検知)
+
+---
+
+### 4.20 UNIT-006.2: Air-Bubble Detector(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+
+- **目的 / 責務:** 静脈ラインへの気泡混入を **多段判定**(警告閾値 + 危険閾値、各段独立)で検知する(SRS-041、RCM-010)。各段独立にセンサー入力を判定し、危険閾値超過時に気泡と判定して SRS-ALM-005 を発報、UNIT-001.1 State Machine に ERROR 遷移を依頼する。警告閾値到達は監視ログとして記録(発報はしない、Inc.4 で UI 通知化検討)。
+- **関連 SRS:** SRS-041, SRS-RCM-010, SRS-ALM-005, SRS-IF-010
+- **関連 RCM:** RCM-010(気泡検知多段化)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/air_bubble.py`
+
+**主要 API(候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `tick() -> None` | — | `None` | 周期駆動エントリ |
+| `_evaluate(warn: SensorReading, critical: SensorReading) -> DetectionResult` | 警告 / 危険 2 段の値 | `Healthy` / `Warning` / `Detected` | 多段独立判定の純粋ロジック |
+
+**依存:** UNIT-002.1 Pump + UNIT-002.3 Event Injection(IF-U-015、`AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` 2 種センサー)、UNIT-007.1 Alarm Reporter、UNIT-001.1 State Machine
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- 警告閾値 / 危険閾値の値・単位
+- 各段の判定独立性の機械的検証(ユニット試験で各段を個別注入)
+- 警告状態の保持時間(継続警告から危険遷移する時間幅)
+- ユニット試験設計(UT-006.2-01〜:健全 / 警告のみ / 危険のみ / 両方 / 閾値境界 / 段独立性)
+
+---
+
+### 4.21 UNIT-006.3: Reservoir Empty Detector(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+
+- **目的 / 責務:** 薬液残量センサー入力の閾値判定で薬液切れを検知する(SRS-042)。残量が閾値以下となった時点で薬液切れと判定し、SRS-ALM-006(中優先度・テクニカル)を発報。注入は **PAUSED 遷移を State Machine に依頼**(継続注入は推奨せず、最終仕様は SDD v0.6 で確定)。
+- **関連 SRS:** SRS-042, SRS-ALM-006, SRS-IF-010
+- **関連 RCM:** RCM-006(発報必達)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/reservoir.py`
+
+**主要 API(候補):** `tick()` + `_evaluate(reading: SensorReading) -> DetectionResult`(単純閾値、`Healthy` / `Empty`)
+
+**依存:** UNIT-002.1 Pump + UNIT-002.3(`RESERVOIR` センサー)、UNIT-007.1 Alarm Reporter、UNIT-001.1 State Machine(PAUSED 遷移)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- 閾値 値・単位 + ヒステリシス検討(チャタリング防止)
+- 検知後の挙動(PAUSED か継続注入か、Inc.2 範囲計画書で「PAUSED 推奨、最終仕様は Step 20 D の SAD で確定」とあるが SAD v0.2 §11.1 では PAUSED 路線を確定)
+- ユニット試験設計(UT-006.3-01〜:残量降下 / 閾値跨ぎ / 復元(補充)挙動)
+
+---
+
+### 4.22 UNIT-006.4: Alarm Task Watchdog(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+
+- **目的 / 責務:** アラームタスクの実行を監視し、デッドロック・タスク停止を **1 秒以内に検知**(RCM-011)。検知時は ERROR 状態遷移 + 独立アラーム発報路(UNIT-006.5 Alarm Path Redundancy 経由 RCM-012)で発報を試みる。Inc.1 の UNIT-001.5 SW Watchdog(制御ループ監視)と独立した監視責務を持つ。
+- **関連 SRS:** SRS-044, SRS-RCM-011, SRS-IF-010
+- **関連 RCM:** RCM-011(アラームタスク監視)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/alarm_task_watchdog.py`
+
+**主要 API(候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `heartbeat() -> None` | — | `None` | アラームタスク側から定期的に呼出し(タスク生存通知) |
+| `tick() -> None` | — | `None` | 監視側で周期駆動、`heartbeat` 経過時間が閾値超過なら検知 |
+
+**依存:** UNIT-007.1 Alarm Reporter Core(heartbeat 元 = アラームタスク自身)、UNIT-006.5 Alarm Path Redundancy(主系故障時の予備系発報経路)、UNIT-001.1 State Machine(ERROR 遷移依頼)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- タイムアウト値(SRS-RCM-011「1 秒以内」を SDD で具体値 = 例 800 ms 余裕付け)
+- UNIT-001.5 SW Watchdog との設計上の独立性(別スレッド / 別 timer / 異なる監視対象)
+- 監視タスク自身の停止検知(誰が watchdog の watchdog をするか = self-check 機構)
+- ユニット試験設計(UT-006.4-01〜:正常 heartbeat / タイムアウト境界 / アラームタスク模擬停止)
+
+---
+
+### 4.23 UNIT-006.5: Alarm Path Redundancy(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+
+- **目的 / 責務:** アラーム発報路を **主系 / 予備系の冗長化** で実装(RCM-012)。主系故障時(発報路故障・タスク停止)に予備系で発報を継続。両系故障時は ERROR 遷移 + 制御停止。本ユニットは UNIT-007.1 Alarm Reporter Core への発報依頼を主 / 予備の 2 経路で多重化し、主系失敗を検知して予備系へフェイルオーバーする。
+- **関連 SRS:** SRS-RCM-012, SRS-IF-010
+- **関連 RCM:** RCM-012(アラーム発報路冗長化)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/alarm_path_redundancy.py`
+
+**主要 API(候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `report(event: AlarmEvent) -> ReportResult` | アラームイベント | `Ok` / `PrimaryFailedSecondaryOk` / `BothFailed` | 主系発報失敗を検知し予備系へフェイルオーバー |
+
+**依存:** UNIT-007.1 Alarm Reporter Core(主系 / 予備系の 2 インスタンス)、UNIT-001.1 State Machine(両系故障時の ERROR 遷移)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- 主系失敗の検知条件(タイムアウト / 例外 / 戻り値)
+- 予備系発報の試行戦略(同時並行発報 / 主系失敗確認後の逐次発報)
+- 主系 / 予備系の隔離(プロセス分離 / スレッド分離 / 単純な経路分離のいずれか採用)
+- ユニット試験設計(UT-006.5-01〜:主系健全 / 主系故障 + 予備系健全 / 両系故障 / 主系遅延)
+
+---
+
+### 4.24 UNIT-006.6: Battery Low Detector(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E、HZ-009 対応)
+
+- **目的 / 責務:** 電源電圧 / バッテリ残量センサー入力の閾値判定でバッテリ低下を検知する(SRS-043)。**HZ-009 対応**(RMF v0.4 で識別、Inc.2 範囲計画書 §5.2 で SDP §3.2 vs Inc.1 RMF 未識別ギャップを発見、本 v0.5 で UNIT 化)。閾値以下となった時点でバッテリ低下と判定し、SRS-ALM-007(中優先度・テクニカル)を発報。安全側遷移ロジック(RCM-020 候補:バッテリ管理ロジック / 安全側遷移)は **SRS への正式登録を Step 20 B-3 候補として申し送り中**、本 v0.5 では UNIT-001.1 State Machine への通知 + Alarm Reporter 経由発報まで設計確定。
+- **関連 SRS:** SRS-043, SRS-ALM-007, SRS-IF-010
+- **関連 RCM:** RCM-006(発報必達)、**RCM-020 候補(SRS 登録待ち)**
+- **関連ハザード:** HZ-009(バッテリ低下によるソフトウェア機能喪失)
+- **安全クラス:** C(SAD §9 SEP-000、非分離)
+- **新規パッケージ予定:** `src/vip_detection/battery.py`
+
+**主要 API(候補):** `tick()` + `_evaluate(reading: SensorReading) -> DetectionResult`
+
+**依存:** UNIT-002.1 Pump + UNIT-002.3(`BATTERY` センサー、`VirtualHwEventKind.BATTERY_LOW` 経由注入)、UNIT-007.1 Alarm Reporter、UNIT-001.1 State Machine
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- 閾値 値・単位(SRS-043 で定性指定、SDD で具体値 = 例 残量 < 15% を低下、< 5% を緊急、SRS-RCM-006 と整合)
+- ヒステリシス検討(電圧変動でのチャタリング防止)
+- 安全側遷移ロジック(RCM-020 候補):バッテリ低下時の自動 PAUSED 遷移 / 注入レート低下 / 制御停止のいずれか + Inc.2 着手中の SRS 追加改訂(Step 20 B-3 候補)で SRS-RCM-020 として正式登録予定
+- ユニット試験設計(UT-006.6-01〜:正常 / 警告閾値 / 緊急閾値 / バッテリ復帰 / `BATTERY_LOW` イベント注入連携)
+
+---
+
+### 4.25 UNIT-007.1: Alarm Reporter Core(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E、SEP-003 分離継続)
+
+- **目的 / 責務:** `AlarmReportInterface` の本実装(SRS-IF-010)。`report_alarm` + `acknowledge` + `silence` の 3 メソッドを提供し、検知群 + State Machine + Control API からのアラーム関連呼出を集約する。**SEP-003 分離契約に基づきクラス B**(検知ロジックなし、`AlarmEvent` を frozen 値型で受け取って分類 + 通知のみ実施、制御コアへの逆方向データフロー禁止)。実装層はログ + 内部キュー(Inc.2 範囲)、Inc.4 で UI / 通知装置へ拡張予定。
+- **関連 SRS:** SRS-IF-010, SRS-O-040, SRS-ALM-001/004〜008
+- **関連 RCM:** RCM-006(発報必達 + 1 秒以内発報)
+- **安全クラス:** **B**(SAD §9 SEP-003、分離継続、本実装後も維持)
+- **新規パッケージ予定:** `src/vip_alarm/reporter.py`(クラス B、`vip_ctrl.*` / `vip_sim.*` への戻り値書込み禁止 + 例外伝播禁止を AST 機械検証)
+
+**主要 API(候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `report_alarm(event: AlarmEvent) -> None`(IF-U-007 / IF-U-012) | frozen+slots `AlarmEvent` | `None`(単方向、戻り値で制御フロー伝達なし) | 検知群 / State Machine からの発報受領 |
+| `acknowledge(alarm_id: str) -> None`(IF-U-014) | アラーム ID | `None` | Control API からの ACK 受領 |
+| `silence(alarm_id: str, duration_sec: int) -> None`(IF-U-014) | アラーム ID + 消音時間 | `None`(高優先度時 ≤ 120 秒制限を内部で強制) | Control API からの消音受領 |
+
+**依存:** UNIT-007.2 Alarm Priority Classifier(優先度・区分判定)、ARCH-009 Logging Stub(ログ出力)、内部キュー(Inc.4 で UI 拡張用)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- `AlarmEvent` の frozen + slots + `metadata` の `MappingProxyType` ラップ実装契約(IF-U-007 詳細)
+- ACTIVE / ACKED / SILENCED / CLEARED 状態遷移の本実装(SAD §5.3 の状態遷移を SDD で具体化)
+- 高優先度アラーム ≤ 120 秒消音時間制限の強制(`silence` 内部で `duration_sec` をクランプ or `Err` 返却)
+- 例外契約(SEP-003 違反検知 = ARCH-007.x からの例外を呼出元に伝播させない契約、内部 try/except + ログのみ)
+- 主系 / 予備系 2 インスタンス対応(UNIT-006.5 Alarm Path Redundancy が本 UNIT を 2 重化する前提のシングルトン回避設計)
+- ユニット試験設計(UT-007.1-01〜:基本発報 / ACK / SILENCE / 状態遷移網羅 / 高優先度消音制限 / 例外伝播禁止契約)
+
+---
+
+### 4.26 UNIT-007.2: Alarm Priority Classifier(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E、純粋関数)
+
+- **目的 / 責務:** IEC 60601-1-8 §6.1 優先度判定(高 / 中 / 低)+ §5.1.4 テクニカル / 生理アラーム区分判定。検知群からの `cause_code`(`occlusion` / `air_bubble_critical` / `reservoir_empty` / `battery_low` / `alarm_task_failure` / `control_error` 等の sealed 値)を入力に受け、`AlarmPriority` + `AlarmCategory` を決定する純粋関数。**副作用なし、内部状態なし、外部 I/O なし**(SEP-003 分離契約の根拠)。
+- **関連 SRS:** SRS-REG-002, SRS-ALM-004〜008
+- **関連 RCM:** —(直接の RCM 実装ではなく、UNIT-007.1 + ARCH-006 検知群の支援ユニット)
+- **関連規格:** IEC 60601-1-8 §6.1(優先度分類)+ §5.1.4(テクニカル / 生理区分)
+- **安全クラス:** **B**(SAD §9 SEP-003、分離継続)
+- **新規パッケージ予定:** `src/vip_alarm/priority_classifier.py`(クラス B、純粋関数、AST 機械検証で内部状態 / 外部 I/O が無いことを担保)
+
+**主要 API(候補):**
+
+| 関数・メソッド | 引数 | 戻り値 | 概要 |
+|--------------|------|-------|------|
+| `classify(cause_code: str) -> ClassificationResult` | sealed `cause_code` 値 | `(AlarmPriority, AlarmCategory)` | IEC 60601-1-8 §6.1 + §5.1.4 整合 |
+
+**Inc.2 範囲の対応表(SAD §5.2 / SRS §4.4.A 連携):**
+
+| `cause_code` | `priority` | `category` | 関連 SRS-ALM |
+|------------|-----------|-----------|------------|
+| `occlusion` | HIGH | TECHNICAL | SRS-ALM-004 |
+| `air_bubble_critical` | HIGH | TECHNICAL | SRS-ALM-005 |
+| `reservoir_empty` | MEDIUM | TECHNICAL | SRS-ALM-006 |
+| `battery_low` | MEDIUM | TECHNICAL | SRS-ALM-007 |
+| `alarm_task_failure` | HIGH | TECHNICAL | (RCM-011 経由、SRS-ALM 直接対応なし) |
+| `control_error` | HIGH | TECHNICAL | SRS-ALM-001(既存)|
+
+**依存:** なし(純粋関数、外部依存なし、テスト容易性最大)
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- `cause_code` の sealed enum 化(`Literal["occlusion", "air_bubble_critical", ...]` or `enum.StrEnum`)
+- 未知 `cause_code` 受領時の挙動(`raise ValueError` か `LOW + TECHNICAL` でフォールバックか、UNIT-007.1 側との例外契約整合)
+- 優先度 LOW の cause_code を Inc.4 で追加した場合の影響範囲(本 UNIT は表参照のみで拡張容易)
+- ユニット試験設計(UT-007.2-01〜:Inc.2 範囲 6 種全網羅 + 未知値挙動 + 戻り値型不変性)
+
+---
+
 ## 5. インタフェースの詳細設計(箇条 5.4.3 ― クラス C)
 
-### 5.1 ユニット間インタフェース(Inc.1 範囲、SAD §5 の U 系 11 件の詳細化)
+### 5.1 ユニット間インタフェース(Inc.1 範囲、SAD §5 の U 系 11 件の詳細化 + v0.5 で Inc.2 IF-U-007 詳細化 + IF-U-012〜015 追加)
 
 | IF ID | 呼出側 | 被呼出側 | シグネチャ(Python 型ヒント) | 同期 | エラー返却 |
 |-------|-------|---------|-------------------------|------|----------|
@@ -1705,11 +2035,69 @@ JSON Lines 出力(SRS-OPS-010 整合)は最低 5 キーを必須含有:`timestam
 | IF-U-004 | UNIT-001.1 | ARCH-003 経由で UNIT-003.1/3.3 | `save_async(record: PersistedRecord) -> None`(キュー投入のみ) | 非同期、FIFO | キュー満杯: `queue.Full` を内部捕捉 → WDT 経由 ERROR |
 | IF-U-005 | UNIT-004.1 | UNIT-003.1、UNIT-003.3 | `load() -> LoadResult` | 同期(起動時のみ) | `Ok(RawPersistedRecord)` / `Err(LoadError)` |
 | IF-U-006 | UNIT-004 全般 | UNIT-001.1 | `set_initial(state: State, needs_confirm: bool) -> None` | 同期 | 事前条件違反で `InvalidInitializationError` |
-| IF-U-007 | UNIT-001.1 | ARCH-007 Alarm Reporter Stub | `report_alarm(event: AlarmEvent) -> None`(本版 no-op、一方向) | 同期 | 実装側例外は呼出側で握りつぶしログ(分離境界) |
-| IF-U-008 | 全コア UNIT | ARCH-006 Logging Stub | `log(record: LogRecord) -> None`(本版 no-op、一方向) | 同期 | 同上 |
+| **IF-U-007**(v0.5 詳細化)| UNIT-001.1 / ARCH-006 検知群 | **UNIT-007.1 Alarm Reporter Core**(Inc.2 で本実装、Inc.1 までは no-op) | `report_alarm(event: AlarmEvent) -> None`(`AlarmEvent` は frozen + slots dataclass、§5.1.A 詳細参照) | 同期、一方向 | **例外伝播禁止契約**(UNIT-007.1 内部で try/except + ログ、呼出元への伝播なし、SEP-003 違反検知の根拠) |
+| IF-U-008 | 全コア UNIT | **ARCH-009 Logging Stub**(旧 ARCH-006、SAD v0.2 でリネーム) | `log(record: LogRecord) -> None`(本版 no-op、一方向) | 同期 | 例外伝播禁止契約(SEP-002) |
 | IF-U-009 | UNIT-001.5 | UNIT-001.1 | `request_transition(Event(WDT_TIMEOUT))` | 同期 | State Machine の戻り値 |
 | IF-U-010 | UNIT-001.2 | UNIT-001.5 | `heartbeat(ts: Monotonic) -> None` | 同期 | 失敗なし |
 | IF-U-011 | UNIT-001.2 | UNIT-002.4 | `heartbeat(ts: Monotonic) -> None` | 同期 | 失敗なし |
+| **IF-U-012**(v0.5 新規、Inc.2)| ARCH-006 検知群各ユニット(UNIT-006.1〜006.6)| UNIT-007.1 Alarm Reporter Core | `report_alarm(event: AlarmEvent) -> None`(IF-U-007 と同シグネチャ、検知群からの主呼出経路。検知群側で `cause_code` を生成し UNIT-007.2 Priority Classifier 経由で `AlarmEvent` を構築) | 同期、一方向 | 例外伝播禁止契約(IF-U-007 と同) |
+| **IF-U-013**(v0.5 新規、Inc.2)| ARCH-006 検知群各ユニット | UNIT-001.1 State Machine | `request_state_transition(target: StateKind, reason: DetectionReason) -> Result[None, StateMachineError]` | 同期(検知群が周期駆動から呼出、State Machine 側で内部 lock 取得)| 戻り値 `Result[None, StateMachineError]`(`Ok(None)` / `Err(InvalidTransitionError)`)|
+| **IF-U-014**(v0.5 新規、Inc.2)| UNIT-005.1 Control API | UNIT-007.1 Alarm Reporter Core | `acknowledge(alarm_id: str) -> None` / `silence(alarm_id: str, duration_sec: int) -> None`(IEC 60601-1-8 §6.4 確認・休止規定準拠、高優先度の消音時間制限あり)| 同期、一方向 | 例外伝播禁止契約(SEP-003) |
+| **IF-U-015**(v0.5 新規、Inc.2)| ARCH-006 検知群各ユニット | UNIT-002.1 Pump Simulator / UNIT-002.3 Event Injection | `read_sensor(kind: SensorKind) -> SensorReading`(`SensorKind` = `OCCLUSION_PRIMARY` / `OCCLUSION_SECONDARY` / `AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` / `RESERVOIR` / `BATTERY` の sealed enum、冗長 2 系統独立性 = SRS-RCM-009 根拠)| 同期、idempotent | 例外なし(センサー値は常に取得可能、計測失敗は `SensorReading.healthy` フラグで表現)|
+
+#### 5.1.A `AlarmEvent` 型構造の Python 実装契約(IF-U-007 / IF-U-012 詳細、v0.5 確定、SAD §5.2 連携)
+
+`AlarmEvent` は ARCH-006 Detection 検知群 / UNIT-001.1 State Machine から UNIT-007.1 Alarm Reporter Core への単方向通知で渡される **frozen 値型**(SEP-003 分離契約に基づく不変性要求)。SRS-O-040 の正式構造として SAD v0.2 §5.2 で確定済、本 SDD v0.5 で **Python 実装契約** を確定する。
+
+```python
+from dataclasses import dataclass, field
+from types import MappingProxyType
+from typing import Mapping
+import enum
+
+class AlarmPriority(enum.Enum):
+    HIGH = "high"      # IEC 60601-1-8 §6.1 高優先度
+    MEDIUM = "medium"  # 同 中優先度
+    LOW = "low"        # 同 低優先度
+
+class AlarmCategory(enum.Enum):
+    TECHNICAL = "technical"        # IEC 60601-1-8 §5.1.4 テクニカル(機器自身の異常)
+    PHYSIOLOGICAL = "physiological"  # 同 生理(患者の生理状態)
+
+@dataclass(frozen=True, slots=True)
+class AlarmEvent:
+    alarm_id: str           # uuid4 ベース、ACK / Silence の対象指定に使用
+    priority: AlarmPriority # UNIT-007.2 Priority Classifier が cause_code から決定
+    category: AlarmCategory # 同上、Inc.2 範囲は全 TECHNICAL
+    occurred_at: float      # Unix epoch 秒(`time.time` 値、`time.monotonic` との併用は SDD v0.6 候補で検討)
+    cause_code: str         # sealed 値("occlusion" / "air_bubble_critical" / "reservoir_empty" / "battery_low" / "alarm_task_failure" / "control_error" 等)
+    metadata: Mapping[str, object]  # frozen、MappingProxyType でラップ
+
+# バリデーション規則(コンストラクタで検証):
+# - alarm_id 非空 + uuid4 形式想定
+# - cause_code は sealed 値のみ(UNIT-007.2 の対応表と整合)
+# - occurred_at > 0
+# - metadata は MappingProxyType でラップ済(直接 dict を渡す場合は __post_init__ で変換)
+```
+
+**不変性契約:**
+
+- `dataclass(frozen=True, slots=True)`:全フィールドへの代入禁止 + メモリ効率化
+- `metadata` は `__post_init__` で `MappingProxyType` ラップを強制(直接 `dict` が渡された場合も読み取り専用ビューに変換)、**境界を越えた変更を禁止**(SEP-003 違反検知の機械的根拠)
+- `__hash__` 自動生成(frozen のため)、UNIT-007.1 内部の `dict[alarm_id, AlarmEvent]` 状態管理で利用可能
+
+**例外契約(SEP-003 整合):**
+
+- `AlarmEvent` 構築時のバリデーション失敗(`cause_code` が sealed 値外、`alarm_id` が空、等)は **構築側(検知群 / UNIT-007.2)で `ValueError`** を投げる(構築側はクラス C で、本ファイルではなく検知群側の責務)
+- UNIT-007.1 Alarm Reporter Core 側では `AlarmEvent` を **そのまま受け取って処理**(再バリデーションしない、frozen 契約で不変性が保証されている)
+- 構築失敗で `AlarmEvent` が作れなかった場合は、検知群側でログ + State Machine への ERROR 遷移依頼で対処(IF-U-013 経由)、Alarm Reporter には届かない
+
+**SDD v0.6 候補で詳細化する項目:**
+
+- `__post_init__` の具体実装(MappingProxyType ラップ + cause_code sealed 検証)
+- `time.time` vs `time.monotonic` 併用ポリシー(walltime 表示と stopwatch 計測の使い分け)
+- `metadata` 内部の object 型制約(JSON シリアライズ可能性 = ロギング連携)
+- ハッシュ衝突 / 同一 alarm_id 重複検知時の挙動(UNIT-007.1 状態管理での扱い)
 
 ### 5.2 外部インタフェース(E 系 2 件の詳細化)
 
@@ -1756,18 +2144,34 @@ v0.1 で骨格記述に留めていた 12 ユニットを §5.4.2 詳細記述�
 - **CR-0001 を経た正式承認:** v0.2 化は CR-0001(MODERATE)として CCB プロセスを経て承認(CRR-VIP-001 v0.2 §4 にエントリ登録)
 - **`inc1-design-frozen` タグ:** 本 SDD v0.2 マージ後に付与する(タグ命名は SCMP §3.1 準拠)
 
-### 6.4 v0.2 で発見した SRS / RMF 整合性課題(申し送り)
+### 6.4 v0.2 で発見した SRS / RMF 整合性課題(**Step 20 B-1 で解消済、v0.5 で整合化**)
 
-v0.2 詳細化作業中に、以下の SRS 文言整合・実装上の判断点を発見した。**本 CR-0001 範囲外の対応**として、後続の SRS 改訂時(Inc.2 開始前を想定)にまとめて反映する。
+v0.2 詳細化作業中に発見した SRS 文言整合・実装上の判断点 4 件を以下に記録する。**Step 20 B-1(CR-0007 / SRS-VIP-001 v0.2 改訂、PR #50 マージ `8005c05`、2026-05-07)で全件解消済**。
+
+| ID | 発見ユニット | 課題 | 提案対応 | 解消結果(SRS v0.2、CR-0007) |
+|----|------------|------|---------|---------------------------|
+| ISS-V02-001 | UNIT-001.5(Watchdog SW) | SRS-RCM-003 のタイムアウト値が明示されていない。本 SDD v0.2 では制御周期 100 ms × 3 周期 = 300 ms と確定 | SRS 改訂で「SW Watchdog タイムアウト 300 ms 以下」を明示 | **解消済**:SRS v0.2 §5 SRS-RCM-003 で「300 ms 以下」を時間値で明示 |
+| ISS-V02-002 | UNIT-002.1(Pump Simulator) | SRS-P01「±5% 精度」が定常時か過渡時かが不明確。一次遅れ τ=0.5 秒で過渡時は 5% を超え得る | SRS 改訂で「定常時 ±5%、過渡応答は τ=0.5 秒以内」を明示 | **解消済**:SRS v0.2 §4.1.2 SRS-P01 で「過渡応答 τ ≤ 0.5 秒」を明示 |
+| ISS-V02-003 | UNIT-001.3(Command Handler) | SRS-P04(stop ≤ 50 ms)は通常キュー方式では未達。本 SDD v0.2 で「STOP/ERROR_RESET ファストパス」を設計上採用 | SRS 改訂で「stop はファストパス必須」を明記、または現状文言を「通常コマンドは 100 ms、stop/error_reset は 50 ms」に分離 | **解消済**:SRS v0.2 §4.1.2 SRS-P04 で「STOP / ERROR_RESET ファストパス 50 ms、通常 100 ms」内訳分離明示 |
+| ISS-V02-004 | UNIT-004.2(Resume Gate) | SRS-028「合理的時間内」の数値が未定義。本 SDD v0.2 で 60 分(EXPIRY_SEC=3600)と確定 | SRS 改訂で「再開確認の有効期限 60 分」を明示 | **解消済**:SRS v0.2 §4.1.1 SRS-028 で「60 分以内」明示 + token 失効再シーケンス追記 |
+
+**重要:** 上記 4 件すべて RCM 論理は不変、SDD で実装値を確定したのみ。Step 20 B-1 で CR-0007(MAJOR、SRMP §7.3「RCM 関連部の追記化」相当)として CCB プロセスを経て承認済。
+
+### 6.5 v0.5 骨格化で発見した整合性課題(申し送り、新設、CR-0009 / Step 20 E)
+
+本 v0.5 骨格化作業中に発見した SRS / SAD / RMF 整合性課題を ISS-V03-XXX として記録し、**Step 20 F〜H(UTPR / ITPR / STPR Inc.2 拡張)+ Step 20 X〜(TDD 実装)+ SDD v0.6 候補(Inc.2 新規 8 ユニットの完全詳細化)** で順次反映する。
 
 | ID | 発見ユニット | 課題 | 提案対応 |
 |----|------------|------|---------|
-| ISS-V02-001 | UNIT-001.5(Watchdog SW) | SRS-RCM-003 のタイムアウト値が明示されていない。本 SDD v0.2 では制御周期 100 ms × 3 周期 = 300 ms と確定 | SRS 改訂で「SW Watchdog タイムアウト 300 ms 以下」を明示 |
-| ISS-V02-002 | UNIT-002.1(Pump Simulator) | SRS-P01「±5% 精度」が定常時か過渡時かが不明確。一次遅れ τ=0.5 秒で過渡時は 5% を超え得る | SRS 改訂で「定常時 ±5%、過渡応答は τ=0.5 秒以内」を明示 |
-| ISS-V02-003 | UNIT-001.3(Command Handler) | SRS-P04(stop ≤ 50 ms)は通常キュー方式では未達。本 SDD v0.2 で「STOP/ERROR_RESET ファストパス」を設計上採用 | SRS 改訂で「stop はファストパス必須」を明記、または現状文言を「通常コマンドは 100 ms、stop/error_reset は 50 ms」に分離 |
-| ISS-V02-004 | UNIT-004.2(Resume Gate) | SRS-028「合理的時間内」の数値が未定義。本 SDD v0.2 で 60 分(EXPIRY_SEC=3600)と確定 | SRS 改訂で「再開確認の有効期限 60 分」を明示 |
+| (本 v0.5 時点で発見なし、空欄として枠だけ用意) | — | — | — |
 
-**重要:** 上記いずれも RCM 論理は不変、SDD で実装値を確定したのみ。CR-0001 の影響範囲(MODERATE)は変えない。Inc.2 着手前に **新規 CR(SRS 改訂)** として起票する運用とする。
+**運用方針:**
+
+- 本セクションは Inc.2 着手中に発生する SRS / SAD / RMF / SDD 整合性課題の集約先(ISS-V02 と同パターン)。
+- v0.5 骨格化時点では **新規発見なし**(SAD v0.2 で確定した内容を SDD §4.x プレースホルダに反映する従属的改訂のため、設計判断は SAD 側で完結している)。
+- Step 20 F〜H で UTPR / ITPR / STPR を拡張する際、Step 20 X〜で TDD 実装する際、SDD v0.6 候補で詳細化する際に発見される課題を ISS-V03-001 から採番予定。
+- ISS-V02 と同様、解消は **新規 CR(SRS / SAD / RMF / SDD 改訂)** で対応する運用。
+- **RCM-020 候補(HZ-009 対応のバッテリ管理 / 安全側遷移)の SRS 正式登録は Step 20 B-3 候補として既に申し送り済**(本 §6.5 ではなく CR-0010 / RMF v0.4 の備考として記録、本 §6.5 はあくまで骨格化由来の SDD 中心課題用)。
 
 ## 7. トレーサビリティマトリクス
 
@@ -1793,11 +2197,23 @@ v0.2 詳細化作業中に、以下の SRS 文言整合・実装上の判断点�
 | SRS-IF-003, SRS-O-010, SRS-UX-002 | ARCH-005.2 | UNIT-005.2 | 詳細(§4.16、v0.2) | — |
 | SRS-UX-001, SRS-004, SRS-005 | ARCH-005.3 | UNIT-005.3 | 詳細(§4.17、v0.2、分離対象 B) | — |
 | SRS-OPS-002, SRS-OPS-003, SRS-OPS-010, SRS-OPS-011 | ARCH-005 | UNIT-005.4 | 詳細(§4.18、v0.4、Step 19 H1 で新規追加)| UT-005.4-01〜15(UTPR §7.3.18 で詳細化)|
+| **SRS-044, SRS-ALM-008(Inc.2)** | **ARCH-001.1** | **UNIT-001.1**(Inc.2 拡張)| **詳細(§4.1、Inc.1 v0.1)+ Inc.2 拡張(§4.1.G、v0.5、骨格)** | **TBD(Step 20 F UTPR Inc.2 拡張で詳細化)** |
+| **SRS-I-040(確定)、SRS-040〜043(Inc.2)** | **ARCH-002.3** | **UNIT-002.3**(Inc.2 拡張)| **詳細(§4.11、Inc.1 v0.2)+ Inc.2 拡張(§4.11.G、v0.5、骨格、no-op 解除)** | **TBD(Step 20 F)** |
+| **SRS-IF-010(Inc.2)、SRS-044(Inc.2)** | **ARCH-005.1** | **UNIT-005.1**(Inc.2 拡張)| **詳細(§4.15、Inc.1 v0.2)+ Inc.2 拡張(§4.15.G、v0.5、骨格、`acknowledge_alarm` / `silence_alarm`)** | **TBD(Step 20 F)** |
+| **SRS-040, SRS-RCM-009, SRS-ALM-004(Inc.2)** | **ARCH-006.1** | **UNIT-006.1** | **骨格(§4.19、v0.5)** | **TBD(Step 20 F UT-006.1-01〜)** |
+| **SRS-041, SRS-RCM-010, SRS-ALM-005(Inc.2)** | **ARCH-006.2** | **UNIT-006.2** | **骨格(§4.20、v0.5)** | **TBD(Step 20 F UT-006.2-01〜)** |
+| **SRS-042, SRS-RCM-006(部分)、SRS-ALM-006(Inc.2)** | **ARCH-006.3** | **UNIT-006.3** | **骨格(§4.21、v0.5)** | **TBD(Step 20 F UT-006.3-01〜)** |
+| **SRS-044, SRS-RCM-011(Inc.2)** | **ARCH-006.4** | **UNIT-006.4** | **骨格(§4.22、v0.5)** | **TBD(Step 20 F UT-006.4-01〜)** |
+| **SRS-RCM-012, SRS-IF-010(Inc.2)** | **ARCH-006.5** | **UNIT-006.5** | **骨格(§4.23、v0.5)** | **TBD(Step 20 F UT-006.5-01〜)** |
+| **SRS-043, SRS-RCM-006(部分)、SRS-ALM-007、HZ-009(Inc.2)** | **ARCH-006.6** | **UNIT-006.6** | **骨格(§4.24、v0.5、HZ-009 対応、RCM-020 候補は SRS 申し送り中)** | **TBD(Step 20 F UT-006.6-01〜)** |
+| **SRS-IF-010, SRS-O-040, SRS-ALM-001/004〜008, SRS-RCM-006(Inc.2)** | **ARCH-007.1** | **UNIT-007.1**(クラス B、SEP-003 分離継続) | **骨格(§4.25、v0.5)** | **TBD(Step 20 F UT-007.1-01〜)** |
+| **SRS-REG-002, SRS-ALM-004〜008(Inc.2)** | **ARCH-007.2** | **UNIT-007.2**(クラス B、純粋関数) | **骨格(§4.26、v0.5、IEC 60601-1-8 §6.1/§5.1.4)** | **TBD(Step 20 F UT-007.2-01〜)** |
 
 ## 8. 改訂履歴
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.5 | 2026-05-10 | **CR-0009(Issue #57、MODERATE、Step 20 E / Inc.2 連動改訂の SDD 部分、骨格化)による改訂。** SAD-VIP-001 v0.2(CR-0011 / Step 20 D、PR #56 マージ `c06425a`)で確定した Inc.2 範囲のアーキテクチャ要素を、Step 14 v0.1 流儀(代表 5 ユニット詳細 + 骨格 N ユニット)を継承して **SDD §4.x 骨格記述** として反映。**(A) §3.1 ユニット階層拡張:** ARCH-006 Detection 検知群 + ARCH-007 Alarm Reporter + ARCH-009 Logging Stub(旧 ARCH-006、SAD v0.2 リネーム)+ ARCH-010(Inc.4 UI 用予約)を追加。**(B) §3.2 ユニット一覧拡張:** Inc.2 新規 8 ユニット行追加(状態 = 「骨格(§4.x、v0.5)」)+ 既存 UNIT-001.1 / UNIT-002.3 / UNIT-005.1 行に「Inc.2 拡張(§4.x.G、v0.5)」状態追記、合計 26 ユニット。**(C) §4.19〜§4.26 Inc.2 新規 8 ユニットの §5.4.2 骨格記述:** UNIT-006.1 Occlusion Detector(RCM-009、SRS-040、SRS-ALM-004)/ UNIT-006.2 Air-Bubble Detector(RCM-010、SRS-041、SRS-ALM-005)/ UNIT-006.3 Reservoir Empty Detector(RCM-006、SRS-042、SRS-ALM-006)/ UNIT-006.4 Alarm Task Watchdog(RCM-011、SRS-044)/ UNIT-006.5 Alarm Path Redundancy(RCM-012、SRS-IF-010)/ UNIT-006.6 Battery Low Detector(RCM-006、SRS-043、SRS-ALM-007、HZ-009)/ UNIT-007.1 Alarm Reporter Core(クラス B、SEP-003 継続、SRS-IF-010、SRS-O-040、SRS-ALM-001/004〜008)/ UNIT-007.2 Alarm Priority Classifier(クラス B、純粋関数、IEC 60601-1-8 §6.1/§5.1.4、SRS-REG-002)。各骨格で目的 / 責務・関連 SRS / RCM・安全クラス・新規パッケージ予定・主要 API 候補表・依存・SDD v0.6 候補で詳細化する項目を記述(Step 14 v0.1 流儀のテンプレート継承)。**(D) §4.1.G / §4.11.G / §4.15.G 既存 3 ユニット拡張サブセクション追補:** UNIT-001.1 State Machine(アラーム発報経路 + ACK / SILENCE 状態遷移、SRS-044 / SRS-ALM-008 / IEC 60601-1-8 §6.4)/ UNIT-002.3 Event Injection(BATTERY_LOW enum 追加 + Pump 伝播経路、SDD v0.2 §4.11.C で予告済の Inc.2 hooks 部分の正式確定、no-op 解除方針確定)/ UNIT-005.1 Control API(`acknowledge_alarm` / `silence_alarm`、IEC 60601-1-8 §6.4 準拠)。**(E) §5.1 ユニット間 I/F 詳細化:** **IF-U-007 詳細化**(`report_alarm(event: AlarmEvent) -> None` の Python 実装契約を §5.1.A で確定 = `dataclass(frozen=True, slots=True)` + `metadata` の `MappingProxyType` ラップ + バリデーション規則 + 例外契約 = 例外伝播禁止 = SEP-003 違反検知の根拠)、**IF-U-012〜015 新規追加**(検知群 → Alarm Reporter / 検知群 → State Machine / Control API → Alarm Reporter ACK・Silence / Pump → 検知群冗長 2 系統センサー入力)、IF-U-008 を「ARCH-009 Logging Stub」(旧 ARCH-006)に整合化。**(F) §6.4 ISS-V02 解消済整合化:** ISS-V02-001〜004 は Step 20 B-1(CR-0007 / SRS v0.2、PR #50 `8005c05`)で全件解消済を本 v0.5 で正式記録(各 ID の解消結果列を追加)。**(G) §6.5(新規)v0.5 骨格化で発見した整合性課題(申し送り):** ISS-V03-XXX 集約欄を新設、本 v0.5 時点では新規発見なし(SAD v0.2 で確定した内容を反映する従属的改訂のため設計判断は SAD 側で完結)、Step 20 F〜H + Step 20 X〜で発見される課題の集約先として枠を用意。**(H) §7 トレーサビリティマトリクス追補:** Inc.2 新規 8 ユニット行 + 既存 3 ユニット拡張行を追加(SRS-040〜044 / SRS-ALM-004〜008 / SRS-RCM-006/009/010/011/012 / SRS-IF-010 / SRS-O-040 / SRS-I-040 / SRS-REG-002 → ARCH-006/007 各 UNIT への割付け、UT/IT/ST 列は Step 20 F〜H で充填予定の TBD)。**(I) ヘッダ:** v0.4 → v0.5、対象 SW バージョン 0.2.0(Inc.2 範囲新規 8 ユニット骨格 + 既存 3 ユニット拡張節、合計 26 ユニット)、最終更新日 2026-05-10。**MODERATE 区分**(SCMP §4.1):骨格化 = 詳細設計の枠組み追加で、論理 / 安全機能 / 既存実装に影響しない、SAD v0.2 で確定した設計を SDD §4.x プレースホルダに反映する従属的改訂。**SRMP §7.3「RCM 関連部の追記化」相当**(新規 5 RCM の詳細設計枠組み追加)、**RMF 更新不要**(RMF v0.4 で既に Designed 状態反映済 = SDD は RMF と整合する形で詳細設計枠組みを記述するのみ)、**本 CR-0009 は SDD 改訂のみで実装コード / SOUP / 試験への波及なし**(後続 Step 20 F〜Z で連動)。**「単一文書 = 単一 CR」運用パターンの 5 度目適用**(CR-0008 = SRS / CR-0010 = RMF / CR-0011 = SAD / CR-0009 = SDD で分離継続)、**「§4 CLOSED 一気通貫」運用パターンの 5 度目適用**(Step 19 I 発見 → Step 20 B-1 / B-2 / C / D / 本 E で連続 5 回適用 = default 運用ルールとして完全確立)、**Step 14 v0.1 流儀の継承**(代表 N ユニット詳細 + 骨格 N ユニットの分離記述パターンを Inc.2 でも再利用、SDD v0.6 候補で詳細化展開する道筋を確保)| k-abe |
 | 0.1 | 2026-04-18 | 初版作成(Inc.1 範囲):代表 5 ユニット(State Machine / Flow Command Validator / HW-side Failsafe Timer / Atomic File Writer / Integrity Validator)を §5.4.2 テンプレートに従って詳細記述、残 9 ユニットを骨格記述(責務・主要 API・依存・SDD v0.2 詳細化項目)、§5.4.3 I/F 詳細 13 件、§5.4.4 検証観点チェックリスト・レビュー記録。SDD v0.2 は CR 起票で追補予定、`inc1-design-frozen` タグは v0.2 完成後に付与 | k-abe |
 | 0.2 | 2026-04-19 | **CR-0001(Issue #1、MODERATE)による改訂。** v0.1 で骨格記述に留めていた 12 ユニットを §5.4.2 詳細記述に展開:UNIT-001.2 Control Loop(§4.6)/ UNIT-001.3 Command Handler(§4.7)/ UNIT-001.5 Watchdog SW(§4.8)/ UNIT-002.1 Pump Simulator(§4.9)/ UNIT-002.2 Pump Observer(§4.10)/ UNIT-002.3 Event Injection Stub(§4.11)/ UNIT-003.1 Serializer(§4.12)/ UNIT-003.2 Checksum Verifier(§4.13)/ UNIT-004.2 Resume Confirmation Gate(§4.14)/ UNIT-005.1 Control API(§4.15)/ UNIT-005.2 State Observer API(§4.16)/ UNIT-005.3 Validation API(§4.17、分離対象 B)。§3.2 ユニット一覧を全 17 ユニット詳細状態に更新。§6.2 レビュー記録に v0.2 行追加。§6.3 を「骨格記述の解消(v0.2 で完了)」に書き換え、実装ブロックの解除を宣言。§6.4「v0.2 で発見した SRS / RMF 整合性課題」を新規追加(ISS-V02-001〜004 を後続 SRS 改訂 CR の対象として申し送り)。§7 トレーサビリティの「本 SDD での記述」列を全行「詳細(§x.y、vN)」形式に更新。RCM 論理不変、SOUP 追加なし、外部 I/F 変更なし(SRMP §7.3「RCM 非関連部の変更」相当) | k-abe |
 | 0.4 | 2026-05-07 | **Step 19 H1(UNIT-005.4 CLI Entry Point 新規追加 = ISS-H-001 解消)による改訂。** F 系列(F1〜F7)+ Step 19 G STPR 骨格化完了後、Step 19 H1(STPR §6.2 ST-OPS の前提となる CLI エントリポイント実装)着手前のクロスレビューで **ISS-H-001 を発見**:SRS-OPS-002(必須)で `vip-ctrl` CLI が要求されているが、Inc.1 全 17 ユニット(SDD v0.3 §3.2)に CLI ユニットが存在しない計画文書間乖離。本 v0.4 で UNIT-005.4 CLI として §3.2 ユニット一覧に追加(全 17 → 18 ユニット)、§4.18 を新規詳細記述(目的・公開 API・データ構造・アルゴリズム・並行性・例外契約・検証方法、`--version` / `--diagnose` / デフォルトの 3 経路 + argparse + JSON Lines 出力 + Integrity Validator 連携)、§7 トレースに UNIT-005.4 行(SRS-OPS-002/003/010/011 + ARCH-005 + UT-005.4-01〜15)を追加。**Inc.1 範囲では対話 start/stop コマンド経路は未提供**(SDD §3 設計方針 + B17 申し送り = 対話 UI は Inc.4 で正式実装)。RCM 非関連 + 外部 API 変更なし + SAD §6 階層防御 / §9 SEP-001 設計不変、F1〜F7 で確立した「計画文書間整合化 → 同 PR 訂正」パターン継続。MINOR 区分・CR 不要(SCMP §4.1「軽微」、SRS / RMF / SAD 本体は不変、CIL の CI-DOC-SDD 行 + UTPR §7.3.18 + CIL §3 CI-SRC-001 + CIL §8 CI-TD 系を同 PR で整合化)| k-abe |
