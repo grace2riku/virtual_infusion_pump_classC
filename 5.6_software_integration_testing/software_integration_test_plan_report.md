@@ -1,12 +1,12 @@
 # ソフトウェア結合試験計画書/報告書
 
 **ドキュメント ID:** ITPR-VIP-001
-**バージョン:** 0.11
+**バージョン:** 0.12
 **作成日:** 2026-05-01
-**最終更新日:** 2026-05-07
+**最終更新日:** 2026-05-10
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump)/ VIP-SIM-001
-**対象ソフトウェアバージョン:** v0.2.0-inc1(予定、Inc.1 完了時)
-**対象範囲:** Inc.1(流量制御コア、全 17 ソフトウェアユニットの結合)
+**対象ソフトウェアバージョン:** v0.2.0-inc2(予定、Inc.2 完了時)
+**対象範囲:** Inc.1(流量制御コア、全 18 ソフトウェアユニットの結合、§6.1〜§6.10 詳細化済)+ Inc.2(アラーム管理、検知群 + Alarm Reporter 結合 + 既存ユニット拡張、§6.11〜§6.16 骨格化、Step 20 G、CR-0013)
 **安全クラス:** C(IEC 62304)
 
 | 役割 | 氏名 | 所属 | 日付 | 署名 |
@@ -50,11 +50,14 @@
 
 | 区分 | 範囲 | 備考 |
 |------|------|------|
-| ソフトウェアユニット | UNIT-001.1 〜 UNIT-005.3 全 17 件(SDD §3.1 / UTPR §11) | UT 完了済(UTPR v0.19 §11)|
-| パッケージ | `src/vip_ctrl/` `src/vip_sim/` `src/vip_persist/` `src/vip_integrity/` `src/vip_api/` `src/vip_api_b/` 全 6 パッケージ | SAD §3 階層構造 |
-| RCM | Inc.1 担当 6 件:RCM-001 / RCM-003 / RCM-004 / RCM-015 / RCM-016 / RCM-019 | RMF v0.2 / SAD §6 |
-| 分離(SEP) | SEP-001(クラス C ↔ クラス B 分離) | SAD §9 / IEC 62304 §5.3.5 |
-| 試験対象外 | Inc.2 以降のスタブ機能(UNIT-002.3 inject 副作用、UNIT-005.3 `drug_name` 検証、UNIT-005.2 `resume_set_at` 透過)、UI / 永続化スケジューラ | Inc.2〜4 ITPR 改訂で順次追加 |
+| ソフトウェアユニット(Inc.1)| UNIT-001.1 〜 UNIT-005.4 全 18 件(SDD §3.1 / UTPR §11)| UT 完了済(UTPR v0.21 §11、Step 19 H1 で UNIT-005.4 CLI 追加)|
+| ソフトウェアユニット(Inc.2、骨格)| UNIT-006.1〜006.6 + UNIT-007.1〜007.2 計 8 ユニット(SDD v0.5 §3.2 / UTPR v0.22 §3.2)+ 既存 UNIT-001.1 / 002.3 / 005.1 拡張(SDD §4.x.G / UTPR §7.3.x.G)= 合計 26 ユニット | Step 20 X〜の TDD 実装と並行する詳細化(ITPR v0.13+ 候補)で IT-UID 詳細化予定 |
+| パッケージ(Inc.1)| `src/vip_ctrl/` `src/vip_sim/` `src/vip_persist/` `src/vip_integrity/` `src/vip_api/` `src/vip_api_b/` 全 6 パッケージ | SAD §3 階層構造 |
+| パッケージ(Inc.2、骨格)| `src/vip_detection/` 新規(UNIT-006.1〜006.6 配置予定)+ `src/vip_alarm/` 新規(UNIT-007.1〜007.2 配置予定、SEP-003 クラス B 分離)| SAD v0.2 §4.3.2 + §9.2 SEP-003 詳細化済 |
+| RCM(Inc.1 Verified)| Inc.1 担当 6 件:RCM-001 / RCM-003 / RCM-004 / RCM-015 / RCM-016 / RCM-019 | RMF v0.4 / SAD §6、Step 19 H3 Verified 化済 |
+| RCM(Inc.2 Designed → Verified 化目標)| Inc.2 担当 5 件:RCM-006(発報必達)/ RCM-009(冗長 2 系統閉塞)/ RCM-010(多段気泡)/ RCM-011(アラームタスク監視)/ RCM-012(発報路冗長)+ RCM-020 候補(HZ-009 対応) | RMF v0.4 §7 Designed 状態、Inc.2 完了タグ `v0.2.0-inc2` 付与時に Verified 化目標 |
+| 分離(SEP)| SEP-001(クラス C ↔ クラス B 分離、Inc.1 確立)+ **SEP-003(Alarm Reporter 分離、Inc.2)**= ARCH-007.1 / 007.2 はクラス B 維持、SEP-003 ランタイム検証は §6.16 IT-ALM で扱う | SAD §9.2 / IEC 62304 §5.3.5 |
+| 試験対象外 | Inc.3〜4 の要求(用量計算、UI / ロギング本体)+ Inc.4 で本実装予定の ARCH-009 Logging Stub(旧 ARCH-006、Inc.2 では no-op スタブのまま)| Inc.3〜4 ITPR 改訂で順次追加 |
 
 ### 1.3 第 I 部 / 第 II 部の関係
 
@@ -65,15 +68,17 @@
 
 | ID | 文書名 | バージョン | 参照箇所 |
 |----|--------|----------|---------|
-| [1] | ソフトウェア要求仕様書(SRS) | 0.1 | SRS-010〜014, SRS-020〜032, SRS-O-*, SRS-P02〜P04, SRS-DATA-*, SRS-SEC-*, SRS-RCM-*, SRS-IF-002/003, SRS-UX-001/002/004/005, SRS-004/005 |
-| [2] | ソフトウェアアーキテクチャ設計書(SAD) | 0.1 | SAD §3(階層構造)、§6(リスクコントロール)、§9(SEP-001 分離) |
-| [3] | ソフトウェア詳細設計書(SDD) | 0.2 | SDD §3.1(ユニット一覧)、§4.1〜4.17(各ユニット仕様)|
-| [4] | ユニットテスト計画書/報告書(UTPR) | 0.19 | UTPR §7.3.1〜§7.3.17(全 17 ユニットの試験詳細)、§9.2(試験結果)、§11(トレーサビリティ)|
-| [5] | リスクマネジメントファイル(RMF / ISO 14971) | 0.2 | RCM-001 / RCM-003 / RCM-004 / RCM-015 / RCM-016 / RCM-019 |
+| [1] | ソフトウェア要求仕様書(SRS) | 0.3 | SRS-010〜014, SRS-020〜032, SRS-O-*, SRS-P02〜P04, SRS-DATA-*, SRS-SEC-*, SRS-RCM-*, SRS-IF-002/003/010, SRS-UX-001/002/004/005, SRS-004/005、**SRS-040〜044(Inc.2 検知)、SRS-ALM-004〜008(Inc.2 アラーム)、SRS-RCM-006/009/010/011/012(Inc.2 RCM)、SRS-O-040 確定(Inc.2)、SRS-I-040 確定(Inc.2)、SRS-REG-002 詳細化(IEC 60601-1-8)** |
+| [2] | ソフトウェアアーキテクチャ設計書(SAD) | 0.2 | SAD §3(階層構造)、§4.3(ARCH-001〜005 Inc.1 + **ARCH-006 Detection 検知群 / ARCH-007 Alarm Reporter 本実装(Inc.2)+ ARCH-009 Logging Stub リネーム / ARCH-010 UI 予約**)、§5.1(IF-U-001〜011 Inc.1 + **IF-U-012〜015 Inc.2 新規**)、§5.2(`AlarmEvent` 型構造、Inc.2 確定)、§5.3(IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移)、§6(リスクコントロール)、§9(SEP-001 + **SEP-003 詳細化**) |
+| [3] | ソフトウェア詳細設計書(SDD) | 0.5 | SDD §3.1〜3.2(全 26 ユニット = Inc.1 18 + Inc.2 新規 8 + 既存 3 拡張)、§4.1〜4.18(Inc.1 各ユニット仕様)、**§4.19〜§4.26(Inc.2 新規 8 ユニット骨格)、§4.1.G / §4.11.G / §4.15.G(Inc.2 既存 3 ユニット拡張節)**、§5.1〜§5.3(IF-U 詳細 + AlarmEvent 実装契約)|
+| [4] | ユニットテスト計画書/報告書(UTPR) | 0.22 | UTPR §7.3.1〜§7.3.18(Inc.1 全 18 ユニットの試験詳細)、**§7.3.19〜§7.3.26(Inc.2 新規 8 ユニット骨格)、§7.3.1.G / §7.3.13.G / §7.3.15.G(Inc.2 既存 3 ユニット拡張節)**、§9.2(試験結果)、§11(トレーサビリティ)|
+| [5] | リスクマネジメントファイル(RMF / ISO 14971) | 0.4 | RCM-001 / RCM-003 / RCM-004 / RCM-015 / RCM-016 / RCM-019(Inc.1 Verified)+ **RCM-006 / 009 / 010 / 011 / 012 Designed(Inc.2)+ HZ-009 識別** |
 | [6] | ソフトウェア構成管理計画書(SCMP) | 0.3 | §4.1(変更区分)、§5(ベースライン)|
-| [7] | 構成アイテム一覧(CIL) | 0.27(本 Step 19 D-2 で更新) | §3 ソースコード、§4 ドキュメント、§5 SOUP、§8 試験資産 |
+| [7] | 構成アイテム一覧(CIL) | 0.51(本 Step 20 G で更新) | §3 ソースコード、§4 ドキュメント、§5 SOUP、§8 試験資産 |
 | [8] | ソフトウェア問題解決手順書(SPRP) | 0.2 | §5(問題報告 PRB-NNNN)|
-| [9] | DEVELOPMENT_STEPS.md | 0.29(本 Step 19 D-2 で更新) | Step 19 D-2 採用根拠 |
+| [9] | DEVELOPMENT_STEPS.md | 0.53(本 Step 20 G で更新) | Step 20 G 採用根拠、Step 19 D-2 流儀 + Step 14 v0.1 流儀継承 |
+| [10] | Inc.2 範囲計画書(INC2-SCOPE-VIP-001) | 0.1 | §6 対象ユニット候補(Inc.2 新規 8 + 既存 3 拡張)、§9 Step 20 G 計画、§10 受入基準 |
+| [11] | IEC 60601-1-8 | (規格) | §6.1 アラーム優先度分類、§5.1.4 テクニカル / 生理アラーム区分、§6.4 アラーム確認・休止規定 |
 
 ---
 
@@ -100,6 +105,9 @@
 | **IS-3** | **仮想ハードウェア層**:UNIT-002.1 Pump Simulator + UNIT-002.2 Pump Observer + UNIT-002.3 Event Injection Stub + UNIT-002.4 HW Failsafe Timer | UT 全 4 ユニット完了 | `_FakeClock`、`Barrier` 同期 | SRS-P01 過渡応答、観測契約、HW Watchdog(RCM-004 HW 側)、Inc.1 no-op 契約 |
 | **IS-4** | **API 層**:UNIT-005.1 Control API + UNIT-005.2 State Observer API + UNIT-005.3 Validation API クラス B | UT 全 3 ユニット完了 | UNIT-005.3 を本物として注入(Mock 不要) | 全コマンド経路、観測経路、SEP-001 import グラフ(クラス B が C を import しない) |
 | **IS-5** | **全層統合(E2E)**:IS-1 + IS-2 + IS-3 + IS-4 を全結合 | IS-1〜IS-4 完了 | 全実装ユニット(SOUP のみ外部) | RCM 6 件全結合検証、SEP-001 ランタイム検証、SRS-P02 / P03 / P04 統計時間試験、外乱(電源断・サイドチャネル)耐性 |
+| **IS-6**(Inc.2、骨格)| **検知群結合**:UNIT-006.1 Occlusion + UNIT-006.2 Air-Bubble + UNIT-006.3 Reservoir Empty + UNIT-006.4 Alarm Task Watchdog + UNIT-006.5 Alarm Path Redundancy + UNIT-006.6 Battery Low Detector | Inc.2 UT 全 6 ユニット完了 + IS-3 仮想 HW 層完了 | UNIT-002.3 Event Injection(BATTERY_LOW + IF-U-015 `read_sensor` 6 種 SensorKind 経由)、Mock(spec=AlarmReporterCore) / Mock(spec=StateMachine) | RCM-006/009/010/011/012 各検知ロジック単体結合動作、IF-U-015 経由センサー入力契約、IF-U-013 経由 State Machine 遷移依頼契約、検知 → Alarm Reporter 経路の Mock 駆動契約検証 |
+| **IS-7**(Inc.2、骨格)| **Alarm Reporter 結合(SEP-003 クラス B)**:UNIT-007.1 Alarm Reporter Core + UNIT-007.2 Priority Classifier | Inc.2 UT 全 2 ユニット完了 + IS-2 制御系コア(UNIT-001.1 拡張)+ IS-4 API 層(UNIT-005.1 拡張)完了 | Mock(spec=Detection)からの `report_alarm(AlarmEvent)` 注入、Mock(spec=ARCH-009 Logging Stub)| `report_alarm` / `acknowledge` / `silence` 3 API 結合動作、IEC 60601-1-8 §6.1 優先度判定 + §5.1.4 区分判定 + §6.4 ACK/SILENCE 状態遷移、高優先度アラーム ≤ 120 秒消音時間制限の本実装側強制、SEP-003 クラス B 分離契約(`AlarmEvent` 不変性 + 戻り値書込み禁止 + 例外伝播禁止) |
+| **IS-8**(Inc.2、骨格)| **Inc.2 全層統合 E2E**:IS-1 + IS-2 + IS-3 + IS-4 + IS-5 Inc.1 全層 + IS-6(検知群)+ IS-7(Alarm Reporter)を全結合 | IS-6 + IS-7 完了 + Inc.1 全層 IS-5 健在 | 全実装ユニット(Inc.1 + Inc.2)+ Inc.2 で BATTERY_LOW + 6 種 SensorKind 経由のイベント注入(本物 Pump → 検知群 → Alarm Reporter → ログ E2E)| RCM-006/009/010/011/012 全結合検証、HZ-009 駆動 EV-HZ009-001 経路、SEP-003 ランタイム検証(`vip_alarm.*` から `vip_ctrl.*` / `vip_sim.*` / `vip_integrity.*` への戻り値書込み禁止 + 例外伝播禁止 を AST + ランタイム検証)、IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移 E2E、Inc.1 既存 6 RCM への回帰なし(Inc.1 Verified 維持) |
 
 ### 3.3 SDD §3.1 ユニットマップとの対応
 
@@ -107,14 +115,18 @@
 
 | パッケージ | UNIT-ID | 結合ステップ |
 |-----------|--------|-----------|
-| `src/vip_ctrl/` | 001.1 / 001.2 / 001.3 / 001.4 / 001.5 | IS-2 |
+| `src/vip_ctrl/` | 001.1 / 001.2 / 001.3 / 001.4 / 001.5 + 005.4 CLI(Step 19 H1) | IS-2(+ 005.4 は IS-5 で system_test 連動)|
 | `src/vip_sim/` | 002.1 / 002.2 / 002.3 / 002.4 | IS-3 |
 | `src/vip_persist/` | 003.1 / 003.2 / 003.3 + records.py | IS-1 |
 | `src/vip_integrity/` | 004.1 / 004.2 | IS-1(004.1)+ IS-2 / IS-4(004.2)|
 | `src/vip_api/` | 005.1 / 005.2 | IS-4 |
 | `src/vip_api_b/` | 005.3 | IS-4 |
+| **`src/vip_detection/`(Inc.2 新規予定)**| **006.1〜006.6**(Inc.2 骨格)| **IS-6**(検知群結合)|
+| **`src/vip_alarm/`(Inc.2 新規予定)**| **007.1〜007.2**(Inc.2 骨格、SEP-003 クラス B)| **IS-7**(Alarm Reporter 結合)|
 
 > **注:** UNIT-004.2 Resume Confirmation Gate は永続化(IS-1)・制御系コア(IS-2)・API 層(IS-4)に跨る。RCM-016(再開ガード)結合観点として **IS-4 完了時** に統合検証する(§6.5 RCM-016 結合)。
+>
+> **注(Inc.2):** UNIT-001.1 / 002.3 / 005.1 の Inc.2 拡張節(SDD §4.x.G)は **既存 IS-2 / IS-3 / IS-4 結合ステップに帰属**(新規 IS-6/IS-7 ではない)。Inc.2 拡張機能(アラーム発報経路 + ACK/SILENCE 状態遷移 / BATTERY_LOW + Pump 伝播 / `acknowledge_alarm` + `silence_alarm` 転送)の結合検証は **IS-8 Inc.2 全層統合 E2E** で IS-6 / IS-7 と一体に検証する(§6.16 IT-ALM)。
 
 ## 4. ソフトウェア結合の検証(箇条 5.6.2)
 
@@ -141,9 +153,9 @@
 | IS-4 | TBD | TBD | TBD | TBD |
 | IS-5 | TBD | TBD | TBD | TBD |
 
-### 4.3 ユニット間 IF-U / 外部 IF-E 一覧(Inc.1 範囲)
+### 4.3 ユニット間 IF-U / 外部 IF-E 一覧(Inc.1〜2 範囲)
 
-> **本一覧は SDD §3.2 / SAD §3.4 と一対一に対応する。** Inc.1 範囲では IF-E は CLI 起動 / `pytest` ハーネス経由のみで、UI / ネットワーク IF は Inc.2 以降。
+> **本一覧は SDD §3.2 / SAD §3.4 / SAD §5.1 と一対一に対応する。** Inc.1 範囲では IF-E は CLI 起動 / `pytest` ハーネス経由のみで、UI / ネットワーク IF は Inc.4 以降。Inc.2 範囲では IF-E-001 拡張(`acknowledge_alarm` / `silence_alarm` Inc.2 追加、SAD §5.1 整合)。
 
 **IF-U(内部、結合試験対象):**
 
@@ -163,6 +175,13 @@
 | IF-U-012 | State Observer API(005.2)| Pump Observer / State Machine / Resume Gate | 3 注入での `observe_state` 集約 | SRS-IF-003, SRS-O-010, SRS-UX-002 |
 | IF-U-013 | Flow Validator(001.4)| Settings / Control Context | `validate(command, context)` | SRS-O-001, SRS-RCM-001 |
 | IF-U-014 | Pump Observer(002.2)| Pump Simulator(002.1) | `_lock` 借用 + private フィールド読取(SDD §4.10.C)| SRS-031, SRS-I-020 |
+| **IF-U-007**(**Inc.2 v0.2 確定**)| ARCH-006 Detection / ARCH-001.1 State Machine | ARCH-007.1 Alarm Reporter Core | **I/F(単方向通知):** `report_alarm(event: AlarmEvent) -> None`(SAD v0.2 §5.1 / SDD v0.5 §5.1.A 確定、Inc.1 までは no-op)| SRS-ALM-001, SRS-O-040, SRS-IF-010 |
+| **IF-U-012**(**Inc.2 v0.2 新規**)| ARCH-006 Detection 各ユニット | ARCH-007.1 Alarm Reporter Core | **I/F(単方向通知、IF-U-007 経由):** `report_alarm(event: AlarmEvent) -> None`(検知群側で `cause_code` を生成し ARCH-007.2 Priority Classifier 経由で `AlarmEvent` を構築)| SRS-RCM-006, SRS-ALM-004〜007, SRS-IF-010 |
+| **IF-U-013**(**Inc.2 v0.2 新規**)| ARCH-006 Detection 各ユニット | ARCH-001.1 State Machine | **関数呼出(非同期):** `request_state_transition(target: StateKind, reason: DetectionReason) -> None`(検知時の ERROR / PAUSED 遷移依頼、`DetectionReason` は `OCCLUSION` / `AIR_BUBBLE` / `RESERVOIR_EMPTY` / `BATTERY_LOW` / `ALARM_TASK_FAILURE` の sealed enum)| SRS-040〜043, SRS-RCM-006, SRS-RCM-011 |
+| **IF-U-014-A**(**Inc.2 v0.2 新規**、注:既存 IF-U-014 Pump Observer と区別)| ARCH-005.1 Control API | ARCH-007.1 Alarm Reporter Core | **関数呼出(同期):** `acknowledge(alarm_id: str) -> None` / `silence(alarm_id: str, duration_sec: int) -> None`(IEC 60601-1-8 §6.4 確認・休止規定準拠、高優先度の消音時間 ≤ 120 秒制限あり)| SRS-044, SRS-ALM-008, SRS-IF-010 |
+| **IF-U-015**(**Inc.2 v0.2 新規**)| ARCH-002.1 Pump Simulator / ARCH-002.3 Event Injection | ARCH-006 Detection 各ユニット | **I/F(センサー入力受信、polling):** `read_sensor(kind: SensorKind) -> SensorReading`(冗長 2 系統独立性 = SRS-RCM-009 の根拠 I/F、`SensorKind` は `OCCLUSION_PRIMARY` / `OCCLUSION_SECONDARY` / `AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` / `RESERVOIR` / `BATTERY` の sealed enum)| SRS-040〜043, SRS-I-040, SRS-RCM-009/010 |
+
+> **注(Inc.2):** SAD v0.2 では IF-U-014 が「Control API → Alarm Reporter ACK/Silence」に割当てられているが、本 ITPR の §4.3 既存表では IF-U-014 が「Pump Observer → Pump Simulator(SDD §4.10.C lock 借用)」を指す。SAD v0.2 と ITPR §4.3 の番号衝突を回避するため、本書では Inc.2 の Control API → Alarm Reporter ACK/Silence を **IF-U-014-A** と表記する(SAD v0.2 §5.1 IF-U-014 と意味的に一致)。後続 SDD v0.6 候補 + ITPR v0.13+ 候補での番号体系再整合は別途 CR で扱う。
 
 **IF-E(外部、Inc.1 範囲):**
 
@@ -709,23 +728,290 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 - **`side` マーカー未追加 + `pwr` マーカー未追加(F6 申し送り継続)**:本 §6.10 では `[integration, nightly, linux_only]` の組合せで IT-SIDE を識別可能としたが、F5 (IT-PERF) / F6 (IT-PWR) / F7 (IT-SIDE) すべてが `linux_only + nightly` を共有するため、**個別実行が必要になった場合**に `pyproject.toml` へ `pwr` / `side` マーカーを追加する判断を後続で行う(現時点ではコスト < 必要性、IT-PERF は `perf` マーカーで識別可能)。
 - **F 系列完了 + Step 19 G STPR 骨格化への引継ぎ**:Step 19 F7 完了で **§6.1〜§6.10 全 10 観点詳細化済**(F1 RCM-001 / F2 RCM-003 / F3 RCM-004 / F4 IT-SEP / F5 IT-PERF / F6 IT-PWR / F7 IT-SIDE + D-2 で詳細化済の §6.4 / §6.5 / §6.6)。次ステップ Step 19 G で STPR-VIP-001 v0.1 を新規作成し、F5 で発見した「SRS-P03/P04 全体予算 vs SDD 内訳予算」の分散配置(IT は SDD 内訳 / ST は SRS 全体)を STPR で明文化する。`SRS-O-*` / `SRS-UX-*` / `SRS-IF-*` を起点とする外部観点試験。
 
+---
+
+### 6.11 RCM-006 結合(発報必達、UNIT-006.3 Reservoir + UNIT-006.6 Battery Low)— **骨格(Step 20 G、CR-0013、Inc.2)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.21 / §4.24 で骨格化された UNIT-006.3 Reservoir Empty Detector + UNIT-006.6 Battery Low Detector + UTPR-VIP-001 v0.22 §7.3.21 / §7.3.24 の UT-006.3-NN / UT-006.6-NN に対応する **結合観点** を骨格化。Step 14 v0.1 流儀継承 + Step 20 E SDD v0.5 / Step 20 F UTPR v0.22 と同じ「骨格化 → 後続詳細化」の段階成熟方式で本 ITPR では骨格に留め、SDD v0.6 候補 + ITPR v0.13+ 候補(Step 20 X〜の TDD 実装と並行する詳細化)で IT-RCM006.x-NN 各ケースを詳細化予定。
+
+**関連 SRS:** SRS-042(薬液切れ検知)、SRS-043(バッテリ低下検知)、SRS-ALM-006(中優先度・テクニカル)、SRS-ALM-007(中優先度・テクニカル)、**SRS-RCM-006(発報必達)**、SRS-IF-010(Alarm I/F 本実装)、SRS-I-040 確定(SensorKind 6 種)
+**関連 RCM:** **RCM-006(発報必達、Inc.2 Designed → Verified 化目標)**、RCM-020 候補(HZ-009 対応、SRS 正式登録は Step 20 B-3 候補申し送り中)
+**関連 HZ:** HZ-002(残量切れ未検出での過少投与継続、間接)、HZ-004(検知失敗 → アラーム失敗連鎖、EV-HZ004-003 駆動)、**HZ-009(バッテリ低下によるソフトウェア機能喪失、Inc.2 新規識別、EV-HZ009-001 駆動)**
+**関連 IF-U:** IF-U-007(Detection → Alarm Reporter Core、`report_alarm(AlarmEvent)`)、IF-U-012(検知群 → Alarm Reporter Core)、IF-U-013(検知群 → State Machine、`request_state_transition`)、IF-U-015(Pump Simulator → 検知群、`read_sensor(RESERVOIR / BATTERY)`)
+**関連 IS:** IS-6(検知群結合)+ IS-8(Inc.2 全層統合 E2E)
+**元 UT 申し送り:** UT-006.3-NN(UTPR §7.3.21 v0.22)、UT-006.6-NN(UTPR §7.3.24 v0.22、HZ-009 対応)
+
+**結合経路骨格(SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化):**
+
+```
+[Pump Simulator + Event Injection (UNIT-002.1 / 002.3 拡張)]
+    └─ IF-U-015 read_sensor(RESERVOIR / BATTERY)
+        └─ [UNIT-006.3 Reservoir / UNIT-006.6 Battery Low (本物)]
+            ├─ IF-U-007 / IF-U-012 report_alarm(AlarmEvent)
+            │   └─ [Mock(spec=AlarmReporterCore)]  # IS-6 段階
+            └─ IF-U-013 request_state_transition(PAUSED, RESERVOIR_EMPTY / BATTERY_LOW)
+                └─ [Mock(spec=StateMachine)]
+```
+
+**試験ケース骨格(目安、ITPR v0.13+ 候補で詳細化):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT |
+|---------------|------|------|---------|
+| IT-RCM006.1-01〜 | RESERVOIR 残量降下 → 閾値跨ぎ → `report_alarm` 1 回呼出契約検証 + IF-U-013 PAUSED 遷移依頼順序 | RCM 必達 + 順序契約 | UT-006.3-03〜 |
+| IT-RCM006.1-04〜 | BATTERY 警告閾値以下 → 中優先度 `report_alarm` 必達(IF-U-015 → 検知 → IF-U-012 報告経路の Mock 駆動契約検証)| RCM 必達 + HZ-009 駆動 | UT-006.6-03〜 |
+| IT-RCM006.1-07〜 | BATTERY 緊急閾値以下 → 安全側遷移ロジック(RCM-020 候補)+ 中優先度発報必達 | RCM-020 候補 + 異常系 | UT-006.6-06〜 |
+| IT-RCM006.1-10〜 | センサー読取例外(`read_sensor` 例外)時の例外伝播禁止契約 + 検知群側で安全側遷移依頼 | 契約 + RCM | UT-006.3-12〜、UT-006.6-12〜 |
+| IT-RCM006.1-13〜 | 同周期内多重検知時の `report_alarm` 冪等性(同 cause_code で 1 回のみ発報、後続周期で重複発報抑制)| RCM 冪等 | UT-006.3-08〜 ヒステリシス連動 |
+
+**ケース数目安:** **≥ 12 件**(Inc.2 詳細化時に SDD v0.6 確定の閾値・ヒステリシス・周期に応じて拡張)
+**SUT 構成方針:** 本物 UNIT-006.3 / 006.6 + 本物 UNIT-002.1 拡張(センサー出力)+ Mock(spec=AlarmReporterCore)+ Mock(spec=StateMachine)で IS-6 段階。IS-8 段階で本物 UNIT-007.1 / 007.2 を結合(§6.16 IT-ALM へ集約)。
+**マーカー方針:** `@pytest.mark.integration` + (必要に応じ) `@pytest.mark.nightly`(発報タイミング測定が IT-PERF 級の場合のみ)。
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:** 閾値具体値(残量 % / バッテリ %)、ヒステリシス時間、`tick` 周期、検知後の遷移経路(PAUSED vs ERROR)、HZ-009 RCM-020 候補の安全側遷移ロジック種別。
+
+---
+
+### 6.12 RCM-009 結合(冗長 2 系統閉塞検知、UNIT-006.1 Occlusion)— **骨格(Step 20 G、CR-0013、Inc.2)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.19 + UTPR-VIP-001 v0.22 §7.3.19 で骨格化された UNIT-006.1 Occlusion Detector(冗長 2 系統)に対応する結合観点。骨格に留め、ITPR v0.13+ 候補で詳細化予定。
+
+**関連 SRS:** SRS-040(閉塞検知)、**SRS-RCM-009(冗長 2 系統)**、SRS-ALM-004(高優先度・テクニカル)、SRS-IF-010、SRS-I-040 確定
+**関連 RCM:** **RCM-009(閉塞検知冗長化、Designed → Verified 化目標)**
+**関連 HZ:** HZ-004(検知失敗 → アラーム失敗連鎖、EV-HZ004-001 駆動)、HZ-001(過大投与:閉塞検知失敗 + 制御継続による下流圧上昇 → 解除時の bolus、間接)
+**関連 IF-U:** IF-U-007 / IF-U-012(検知 → Alarm Reporter)、IF-U-013(検知 → State Machine ERROR 遷移)、**IF-U-015(`read_sensor(OCCLUSION_PRIMARY / OCCLUSION_SECONDARY)`、冗長 2 系統独立性 = SRS-RCM-009 の根拠 I/F)**
+**関連 IS:** IS-6(検知群結合)+ IS-8(Inc.2 全層 E2E)
+**元 UT 申し送り:** UT-006.1-NN(UTPR §7.3.19 v0.22、特に UT-006.1-07〜 片系故障時の他系単独動作)
+
+**結合経路骨格:**
+
+```
+[Pump Simulator + Event Injection (UNIT-002.1 / 002.3 拡張)]
+    ├─ IF-U-015 read_sensor(OCCLUSION_PRIMARY)  # 主系
+    └─ IF-U-015 read_sensor(OCCLUSION_SECONDARY) # 副系(独立)
+        └─ [UNIT-006.1 Occlusion (本物、冗長判定ロジック)]
+            ├─ IF-U-007 / IF-U-012 report_alarm(高優先度)
+            │   └─ [Mock(spec=AlarmReporterCore)]
+            └─ IF-U-013 request_state_transition(ERROR, OCCLUSION)
+                └─ [Mock(spec=StateMachine)]
+```
+
+**試験ケース骨格(目安):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT |
+|---------------|------|------|---------|
+| IT-RCM009.1-01〜 | 両系健全時の閾値判定組合せ(主単独超過 / 副単独超過 / 両系超過 / 両系下回り)→ Healthy / Detected 4 経路 + Mock 経由報告契約 | RCM(冗長性)| UT-006.1-01〜 |
+| IT-RCM009.1-05〜 | 片系故障(センサー断線・ノイズ・タイムアウト)+ 他系単独で検知継続(`Degraded(failed_channel)` 戻り値)| RCM(冗長性) | UT-006.1-07〜 |
+| IT-RCM009.1-08〜 | 両系故障時の安全側動作(IF-U-013 経由 ERROR 遷移依頼を独立発行)| RCM + 異常系 | UT-006.1-10〜 |
+| IT-RCM009.1-10〜 | 検知時の発報 + 遷移依頼順序契約(IF-U-007 → IF-U-013 の順序、Mock 駆動契約)| 順序契約 | UT-006.1-12〜 |
+| IT-RCM009.1-12〜 | 並行 `tick` 呼出耐性(主系 / 副系を別スレッドから独立に読出 → 順序入れ替えに対する atomic 性)| 並行 | UT-006.1-19〜 |
+
+**ケース数目安:** **≥ 10 件**
+**SUT 構成方針:** 本物 UNIT-006.1 + 本物 UNIT-002.1 拡張(冗長 2 系統センサー出力 = SRS-RCM-009 の根拠)+ Mock(spec=AlarmReporterCore) + Mock(spec=StateMachine)。冗長 2 系統独立性は **本物 UNIT-002.1 拡張で `OCCLUSION_PRIMARY` / `OCCLUSION_SECONDARY` を独立に注入できる** ことが必須(IF-U-015 SensorKind sealed enum で型安全担保)。
+**マーカー方針:** `@pytest.mark.integration`(ベース)+(片系故障の境界時間判定が IT-PERF 級なら `nightly` 追加)。
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:** 閾値具体値、片系故障検出ロジック(タイムアウト / ノイズ閾値 / 連続エラーカウント)、self-test 動作(誤検知抑制 vs 安全側即時停止のトレードオフ)。
+
+---
+
+### 6.13 RCM-010 結合(多段気泡判定、UNIT-006.2 Air-Bubble)— **骨格(Step 20 G、CR-0013、Inc.2)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.20 + UTPR-VIP-001 v0.22 §7.3.20 で骨格化された UNIT-006.2 Air-Bubble Detector(多段判定)に対応する結合観点。骨格に留め、ITPR v0.13+ 候補で詳細化予定。
+
+**関連 SRS:** SRS-041(気泡検知)、**SRS-RCM-010(多段判定)**、SRS-ALM-005(高優先度・テクニカル)、SRS-IF-010、SRS-I-040 確定
+**関連 RCM:** **RCM-010(気泡検知多段化、Designed → Verified 化目標)**
+**関連 HZ:** HZ-004(検知失敗 → アラーム失敗連鎖、EV-HZ004-002 駆動)、HZ-006(空気塞栓:危険段未検出による空気送出、間接)
+**関連 IF-U:** IF-U-007 / IF-U-012(報告)、IF-U-013(ERROR 遷移依頼)、**IF-U-015(`read_sensor(AIR_BUBBLE_WARN / AIR_BUBBLE_CRITICAL)`、警告 / 危険 2 段独立センサー)**
+**関連 IS:** IS-6 + IS-8
+**元 UT 申し送り:** UT-006.2-NN(UTPR §7.3.20 v0.22、特に UT-006.2-09〜 各段独立性)
+
+**結合経路骨格:**
+
+```
+[Pump Simulator + Event Injection (UNIT-002.1 / 002.3 拡張)]
+    ├─ IF-U-015 read_sensor(AIR_BUBBLE_WARN)      # 警告段
+    └─ IF-U-015 read_sensor(AIR_BUBBLE_CRITICAL)  # 危険段(独立)
+        └─ [UNIT-006.2 Air-Bubble (本物、多段判定 = Healthy / Warning / Detected)]
+            ├─ Detected → IF-U-007 / IF-U-012 report_alarm(高優先度)
+            ├─ Warning  → ログのみ(SDD §4.20 設計、発報なし)
+            └─ Detected → IF-U-013 request_state_transition(ERROR, AIR_BUBBLE)
+```
+
+**試験ケース骨格(目安):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT |
+|---------------|------|------|---------|
+| IT-RCM010.1-01〜 | 健全時(両段下)→ 検知なし | 正常系 | UT-006.2-01〜 |
+| IT-RCM010.1-03〜 | 警告段のみ超過 → ログのみ(`report_alarm` 未呼出契約 = 多段独立性)| 多段独立性 | UT-006.2-03〜 |
+| IT-RCM010.1-05〜 | 危険段のみ超過 → 高優先度発報 + ERROR 遷移依頼 | RCM 必達 | UT-006.2-05〜 |
+| IT-RCM010.1-07〜 | 両段超過 → 危険優先(高優先度発報 1 回のみ、警告段は副次)| 多段優先 | UT-006.2-07〜 |
+| IT-RCM010.1-09〜 | 各段の判定独立性(警告段の判定が危険段の判定に影響しない、機械的に各段を個別注入)| RCM(独立性) | UT-006.2-09〜 |
+| IT-RCM010.1-12〜 | 警告 → 危険遷移時の保持時間(継続警告から危険遷移する時間幅、SDD v0.6 候補)| タイミング | UT-006.2-13〜 |
+
+**ケース数目安:** **≥ 11 件**
+**SUT 構成方針:** 本物 UNIT-006.2 + 本物 UNIT-002.1 拡張(警告 / 危険 2 段独立センサー)+ Mock(spec=AlarmReporterCore) + Mock(spec=StateMachine)。
+**マーカー方針:** `@pytest.mark.integration`(ベース)。
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:** 警告閾値 / 危険閾値の値・単位、警告状態の保持時間、各段の判定独立性の機械的検証戦略。
+
+---
+
+### 6.14 RCM-011 結合(アラームタスク監視、UNIT-006.4 Alarm Task Watchdog)— **骨格(Step 20 G、CR-0013、Inc.2)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.22 + UTPR-VIP-001 v0.22 §7.3.22 で骨格化された UNIT-006.4 Alarm Task Watchdog(SRS-RCM-011「1 秒以内」)に対応する結合観点。Inc.1 §6.2 RCM-003(SW Watchdog 階層防御 SW < HW)で確立した試験設計を 3 階層目(SW < ALARM < HW)へ拡張。骨格に留め、ITPR v0.13+ 候補で詳細化予定。
+
+**関連 SRS:** SRS-044(アラームタスク監視 1 秒以内)、**SRS-RCM-011(アラームタスク監視によるデッドロック検知)**、SRS-IF-010
+**関連 RCM:** **RCM-011(アラームタスク監視、Designed → Verified 化目標)**
+**関連 HZ:** HZ-005(アラーム失敗単独、タスクデッドロック / 通知 I/F 不具合、EV-HZ005-001 駆動)
+**関連 IF-U:** UNIT-007.1 Alarm Reporter Core からの heartbeat 投入経路(SDD v0.6 候補)、IF-U-013(Trip 時の ERROR 遷移依頼)、UNIT-006.5 独立アラーム発報路への切替経路(SDD v0.6 候補)
+**関連 IS:** IS-6 + IS-8
+**元 UT 申し送り:** UT-006.4-NN(UTPR §7.3.22 v0.22、Inc.1 UNIT-001.5 / 002.4 試験設計継承)、Inc.1 §6.2(RCM-003 階層防御)
+
+**結合経路骨格:**
+
+```
+[UNIT-007.1 Alarm Reporter Core (本物、Inc.2)]
+    └─ heartbeat(ts) ─→ [UNIT-006.4 Alarm Task Watchdog (本物)]
+                            ├─ Trip → IF-U-013 request_state_transition(ERROR, ALARM_TASK_FAILURE)
+                            │           └─ [Mock(spec=StateMachine)]
+                            └─ Trip → 独立アラーム発報路 → [UNIT-006.5 (本物 / Mock)]
+                                                              └─ Mock(spec=AlarmReporterCore) フェイルオーバー経路
+```
+
+**試験ケース骨格(目安、Inc.1 IT-RCM003 階層防御パターン継承):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT |
+|---------------|------|------|---------|
+| IT-RCM011.1-01〜 | 正常 heartbeat(規定周期内)で `is_tripped == False` 維持 | 正常系 | UT-006.4-01〜 |
+| IT-RCM011.1-03〜 | アラームタスク模擬停止(heartbeat 途絶)→ タイムアウト境界(SRS-RCM-011「1 秒以内」、SDD v0.6 候補で 800 ms)で Trip + 独立発報路フェイルオーバー + ERROR 遷移依頼 | RCM(RCM-011 統合)| UT-006.4-03〜、Inc.1 IT-RCM003 階層防御 |
+| IT-RCM011.1-06〜 | 境界値試験(タイムアウト直前 / ちょうど / + ε / 最大検出遅延)、Inc.1 UNIT-001.5 / 002.4 境界 4 点試験パターン継承 | 境界値 | UT-006.4-06〜 |
+| IT-RCM011.1-10〜 | 階層防御時間順序実証(SW Watchdog 300 ms < ALARM Watchdog 800 ms < HW Failsafe 500 ms = 矛盾、SDD v0.6 で時間順序確定後に再整理)| RCM 階層 | Inc.1 IT-RCM003 + UT-006.4 |
+| IT-RCM011.1-13〜 | クロック逆転耐性(Inc.1 UT-001.5-05 安全側設計判断継承 = 逆転は Trip 扱い)| 安全側 | UT-006.4-10〜 |
+| IT-RCM011.1-15〜 | UNIT-001.5 SW Watchdog との独立性(別スレッド / 別 timer / 異なる監視対象 = アラームタスク vs 制御ループ)| 並行 + 独立性 | UT-006.4-14〜 |
+
+**ケース数目安:** **≥ 12 件**
+**SUT 構成方針:** 本物 UNIT-006.4 + 本物 UNIT-007.1 Alarm Reporter Core(heartbeat 投入元)+ Mock(spec=StateMachine) + Mock / 本物 UNIT-006.5(独立発報路)。Inc.1 §6.2 RCM-003 で実証した「実時間連動 + 監視スレッド lifecycle 検証」パターンを継承。
+**マーカー方針:** `@pytest.mark.integration` + `@pytest.mark.nightly` + `@pytest.mark.linux_only`(Inc.1 IT-RCM003 と同様、macOS sleep ジッタ対策)。
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:** タイムアウト具体値(800 ms 候補)、SW < ALARM < HW 階層防御時間順序の確定(現状候補 300 / 800 / 500 ms は矛盾、SDD v0.6 で 300 / 600 / 1000 ms 等への再整理候補)、監視タスク自身の停止検知(self-check 機構)。
+
+---
+
+### 6.15 RCM-012 結合(アラーム発報路冗長化、UNIT-006.5 Alarm Path Redundancy)— **骨格(Step 20 G、CR-0013、Inc.2)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.23 + UTPR-VIP-001 v0.22 §7.3.23 で骨格化された UNIT-006.5 Alarm Path Redundancy(主系 / 予備系発報経路)に対応する結合観点。骨格に留め、ITPR v0.13+ 候補で詳細化予定。
+
+**関連 SRS:** **SRS-RCM-012(アラーム発報路冗長化)**、SRS-IF-010
+**関連 RCM:** **RCM-012(アラーム発報路冗長化、Designed → Verified 化目標)**
+**関連 HZ:** HZ-005(アラーム失敗単独、発報路故障)
+**関連 IF-U:** IF-U-007 / IF-U-012(主系 / 予備系それぞれの `report_alarm` 経路)、IF-U-013(両系故障時の ERROR 遷移依頼)
+**関連 IS:** IS-6 + IS-8
+**元 UT 申し送り:** UT-006.5-NN(UTPR §7.3.23 v0.22)
+
+**結合経路骨格:**
+
+```
+[Detection 検知群 (UNIT-006.1〜006.4 / 006.6 のいずれか)]
+    └─ IF-U-007 report_alarm(AlarmEvent) → [UNIT-006.5 Alarm Path Redundancy (本物)]
+                                              ├─ 主系: [UNIT-007.1 主インスタンス] → Ok / Err / timeout
+                                              ├─ 予備系: [UNIT-007.1 副インスタンス](フェイルオーバー時)
+                                              └─ 両系故障時: IF-U-013 request_state_transition(ERROR)
+                                                              └─ [Mock(spec=StateMachine)]
+```
+
+**試験ケース骨格(目安):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT |
+|---------------|------|------|---------|
+| IT-RCM012.1-01〜 | 主系健全時 → 主系発報のみ → `Ok` 戻り値、予備系未呼出契約 | 正常系 | UT-006.5-01〜 |
+| IT-RCM012.1-03〜 | 主系故障(タイムアウト / 例外 / Err)+ 予備系健全 → 予備系フェイルオーバー → `PrimaryFailedSecondaryOk` | RCM(RCM-012)| UT-006.5-03〜 |
+| IT-RCM012.1-06〜 | 両系故障 → `BothFailed` + IF-U-013 ERROR 遷移依頼 + 制御停止 | RCM + 異常系 | UT-006.5-06〜 |
+| IT-RCM012.1-09〜 | 主系遅延(タイムアウト境界)時の予備系発報判断 | タイミング + RCM | UT-006.5-09〜 |
+| IT-RCM012.1-11〜 | 主系 / 予備系の隔離性(プロセス分離 / スレッド分離 / 経路分離いずれか採用、SDD v0.6 候補)| 並行 + 独立性 | UT-006.5-11〜 |
+
+**ケース数目安:** **≥ 10 件**
+**SUT 構成方針:** 本物 UNIT-006.5 + 本物 UNIT-007.1 主 / 副 2 インスタンス + Mock(spec=StateMachine)。主系 / 予備系の隔離手段(SDD v0.6 候補)に応じて SUT 構成を確定。
+**マーカー方針:** `@pytest.mark.integration` +(タイムアウト境界判定が必要な場合は `nightly` + `linux_only` 追加、Inc.1 §6.2 / §6.8 と同方針)。
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:** 主系失敗の検知条件、予備系発報の試行戦略(同時並行 vs 逐次)、主系 / 予備系の隔離手段、タイムアウト具体値。
+
+---
+
+### 6.16 IT-ALM Inc.2 全層統合 E2E + SEP-003 ランタイム検証 + IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移 — **骨格(Step 20 G、CR-0013、Inc.2、IS-7 + IS-8 集約)**
+
+> **Step 20 G 整合化(2026-05-10、本節 v0.12 新規追加):** SDD-VIP-001 v0.5 §4.25 / §4.26 + UTPR-VIP-001 v0.22 §7.3.25 / §7.3.26 で骨格化された UNIT-007.1 Alarm Reporter Core + UNIT-007.2 Priority Classifier(SEP-003 クラス B 分離)+ SAD-VIP-001 v0.2 §9.2 SEP-003 詳細化 + IEC 60601-1-8 §6.4(アラーム確認・休止規定)+ §3.2 IS-7 / IS-8 結合ステップに対応する **Inc.2 集約結合観点**。本節は Inc.1 §6.7 IT-SEP(SEP-001 ランタイム検証)+ §6.4 RCM-015 永続化 E2E + §6.5 RCM-016 再開ガード結合の Inc.2 等価集約観点として位置付ける。骨格に留め、ITPR v0.13+ 候補で詳細化予定。
+
+**関連 SRS:** SRS-ALM-001(アラーム I/F 接続)、SRS-ALM-004〜008(Inc.2 アラーム要求 5 件)、SRS-040〜044(検知要求 5 件)、SRS-IF-010(Alarm Reporter 本実装契約)、SRS-O-040 確定(`AlarmEvent` 構造)、SRS-REG-002 詳細化(IEC 60601-1-8 §6.1 優先度 / §5.1.4 区分 / §6.4 確認・休止)、SRS-RCM-006/009/010/011/012(Inc.2 RCM 5 件)
+**関連 RCM:** **Inc.2 担当 5 件全件 + RCM-020 候補(HZ-009 対応)** = §6.11〜§6.15 が個別観点、本節は **全層 E2E 集約観点**(SEP-003 ランタイム + IEC 60601-1-8 §6.4 状態遷移 + IS-8 全結合検証)
+**関連 HZ:** HZ-004 / HZ-005 / HZ-009(Inc.2 範囲全 HZ)
+**関連 IF-U:** **IF-U-007 確定**(`report_alarm(AlarmEvent)`)、**IF-U-014-A 新規**(Control API → Alarm Reporter `acknowledge` / `silence`、IEC 60601-1-8 §6.4 準拠、高優先度消音 ≤ 120 秒制限)、IF-U-012/013/015(検知群 IF-U)、IF-U-008(ARCH-009 Logging Stub、Inc.2 では no-op スタブ)
+**関連 IS:** IS-7(Alarm Reporter 結合、SEP-003)+ **IS-8(Inc.2 全層統合 E2E、本節集約)**
+**元 UT 申し送り:** UT-007.1-NN(UTPR §7.3.25 v0.22、SEP-003 機械検証 = Inc.1 UNIT-005.3 SEP-001 検証パターン継承)、UT-007.2-NN(UTPR §7.3.26 v0.22、IEC 60601-1-8 6 種 cause_code パラメータ化)、UT-001.1-G / UT-002.3-G / UT-005.1-G(既存 3 ユニット拡張)
+
+**結合経路骨格:**
+
+```
+[CLI / Control API (UNIT-005.1 拡張: acknowledge_alarm / silence_alarm)]
+    └─ IF-U-014-A → [UNIT-007.1 Alarm Reporter Core (本物、SEP-003 クラス B)]
+                       └─ IEC 60601-1-8 §6.4 状態遷移(ACTIVE → ACK → SILENCED → ACTIVE)
+
+[Detection 検知群 (本物全 6 ユニット、§6.11〜§6.15 結合済)]
+    ├─ IF-U-012 → [UNIT-007.2 Priority Classifier (本物、純粋関数)]
+    │                ├─ IEC 60601-1-8 §6.1 優先度判定(高 / 中 / 低)
+    │                └─ IEC 60601-1-8 §5.1.4 区分判定(テクニカル / 生理)
+    └─ IF-U-007 → [UNIT-007.1 Alarm Reporter Core] → AlarmEvent ログ → [Mock(spec=ARCH-009 Logging Stub)]
+
+[Pump Simulator (本物、UNIT-002.1 + 002.3 拡張)]
+    └─ IF-U-015 → 検知群 → 上記 Alarm Reporter 経路へ E2E
+
+[State Machine (本物、UNIT-001.1 拡張: アラーム発報経路 + ACK/SILENCE 状態遷移)]
+    └─ IF-U-013 ← 検知群からの遷移依頼
+
+# SEP-003 ランタイム検証(Inc.1 §6.7 IT-SEP パターン継承):
+#   vip_alarm.* → vip_ctrl.* / vip_sim.* / vip_integrity.* への
+#     (a) AST import グラフ機械検証(import なし)
+#     (b) ランタイム戻り値書込み禁止 + 例外伝播禁止 + AlarmEvent 不変性
+```
+
+**試験ケース骨格(目安):**
+
+| 試験 ID(目安)| 内容 | 種別 | 関連 UT / IF-U |
+|---------------|------|------|----------------|
+| IT-ALM.1-01〜 | IS-7 段階:`report_alarm(AlarmEvent)` 3 種 cause_code(OCCLUSION / AIR_BUBBLE_CRITICAL / RESERVOIR_EMPTY)→ Priority Classifier 経由優先度 + 区分判定の正しさ | IS-7 統合 + IEC 60601-1-8 | UT-007.1 + UT-007.2 |
+| IT-ALM.1-04〜 | IS-7 段階:`acknowledge(alarm_id)` / `silence(alarm_id, duration_sec)` 3 API 結合動作 + 高優先度消音時間 ≤ 120 秒制限の本実装側強制(IEC 60601-1-8 §6.4)| IF-U-014-A 結合 | UT-007.1 + UT-005.1-G |
+| IT-ALM.1-07〜 | IS-7 段階:IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移(ACTIVE → ACK → SILENCED → ACTIVE)の網羅 | 状態遷移 E2E | UT-007.1 + UT-001.1-G |
+| IT-ALM.1-10〜 | **SEP-003 ランタイム検証**:`vip_alarm.*` から `vip_ctrl.*` / `vip_sim.*` / `vip_integrity.*` への (a) AST import グラフ機械検証 + (b) 戻り値書込み禁止 + 例外伝播禁止 + AlarmEvent 不変性(`MappingProxyType` ラップ確認)= Inc.1 §6.7 IT-SEP パターン継承 | SEP-003 検証 | UT-007.1 SEP-003 機械検証 |
+| IT-ALM.1-13〜 | IS-8 全層 E2E:本物 Pump Simulator(UNIT-002.1)→ Event Injection BATTERY_LOW(UNIT-002.3 拡張)→ UNIT-006.6(本物)→ IF-U-007 → UNIT-007.1(本物)→ Mock Logging Stub のフル経路 + HZ-009 EV-HZ009-001 駆動実証 | IS-8 + HZ-009 駆動 | UT-002.3-G11〜 + UT-006.6-NN |
+| IT-ALM.1-16〜 | IS-8 全層 E2E:Inc.1 既存 6 RCM への回帰なし(Inc.1 IT-RCM001/003/004/015/016/019/SEP/PERF/PWR/SIDE 全件 Pass 維持の確認、Inc.2 結合追加による副作用検査)| 回帰 | Inc.1 §6.1〜§6.10 全件 |
+
+**ケース数目安:** **≥ 16 件**(Inc.2 詳細化時に SEP-003 機械検証ケース + IEC 60601-1-8 §6.4 状態遷移網羅で拡張)
+**SUT 構成方針:**
+- IS-7 段階(IT-ALM.1-01〜09):本物 UNIT-007.1 + 本物 UNIT-007.2 + Mock(spec=Detection 各検知群)+ Mock(spec=ARCH-009 Logging Stub)
+- SEP-003 検証(IT-ALM.1-10〜12):AST 解析(Inc.1 IT-SEP.1-01 パターン継承、`tests/integration/test_arch_separation_inc2.py` 候補)+ ランタイム例外伝播禁止検証(`patch.object` で `vip_ctrl.*` 各 API に例外を仕込む)
+- IS-8 段階(IT-ALM.1-13〜):**全実装ユニット本物**(Inc.1 全 18 + Inc.2 新規 8 + 既存 3 拡張)、Mock は Logging Stub のみ
+
+**マーカー方針:** IS-7 段階 = `@pytest.mark.integration`、SEP-003 AST 検証 = `@pytest.mark.integration`(高速)、IS-8 全層 E2E + IEC 60601-1-8 状態遷移網羅 = `@pytest.mark.integration` + `@pytest.mark.nightly`(Inc.1 §6.5 / §6.7 同方針、Mock 注入の重さ + 全層スルー時間で nightly 化)。
+
+**SDD v0.6 候補 + ITPR v0.13+ 候補で詳細化する項目:**
+- IF-U-014 番号衝突(SAD v0.2 §5.1 IF-U-014 vs ITPR §4.3 IF-U-014 = Pump Observer 既存)の体系再整合(別途 CR 申し送り、本書では IF-U-014-A 表記で衝突回避)
+- AlarmEvent の `MappingProxyType` ラップ実装契約(SDD v0.5 §5.1.A 確定済、ランタイム検証ケース詳細化)
+- IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移の網羅マトリクス(状態 × 操作 × 結果の表)
+- SEP-003 AST 機械検証の対象ファイル一覧(`vip_alarm/*` 全ファイルを `tests/integration/test_arch_separation_inc2.py` で走査)
+- Inc.1 既存 6 RCM 回帰確認の自動化方針(Inc.2 PR では Inc.1 IT 全件再実行を必須化、§8 影響範囲解析ルールに追記候補)
+
+---
+
 ## 7. 結合試験手順の評価(箇条 5.6.5)
 
 ### 7.1 計画レビューチェックリスト
 
-- [ ] 計画が SRS / SAD / SDD と整合している(§2 参照文書、§6 試験観点)
-- [ ] 各試験ケースが期待結果・合格基準を明示している(§6.1〜§6.10 全 10 観点詳細化済、§6.10 IT-SIDE は Step 19 F7 で詳細化完了 = F 系列最終)
+- [ ] 計画が SRS / SAD / SDD と整合している(§2 参照文書、§6 試験観点、Inc.2 では SRS v0.3 / SAD v0.2 / SDD v0.5 / RMF v0.4 / UTPR v0.22 / INC2-SCOPE-VIP-001 v0.1 と整合)
+- [ ] 各試験ケースが期待結果・合格基準を明示している(Inc.1 = §6.1〜§6.10 全 10 観点詳細化済、§6.10 IT-SIDE は Step 19 F7 で詳細化完了 = F 系列最終 / **Inc.2 = §6.11〜§6.16 全 6 観点骨格化済**(Step 20 G、CR-0013、Step 14 v0.1 流儀継承)、ITPR v0.13+ 候補で詳細化予定)
 - [ ] 試験が再現可能である(§5.3 試験環境、`pytest` ベース、CI 自動実行)
-- [ ] リスクコントロール手段(RCM-001/003/004/015/016/019)を検証するケースが含まれている(§6.1〜§6.6)
-- [ ] SEP-001 分離(クラス C / B)を検証するケースが含まれている(§6.7)
-- [ ] UT で扱えない外乱・統計挙動が IT で扱われている(§6.8 / §6.9 / §6.10)
+- [ ] リスクコントロール手段(Inc.1 = RCM-001/003/004/015/016/019、§6.1〜§6.6 + Inc.2 = **RCM-006/009/010/011/012**、§6.11〜§6.15 骨格化 + §6.16 IT-ALM 集約)を検証するケースが含まれている
+- [ ] 分離(Inc.1 = SEP-001 §6.7 + Inc.2 = **SEP-003 Alarm Reporter** §6.16 IT-ALM)を検証するケースが含まれている
+- [ ] UT で扱えない外乱・統計挙動が IT で扱われている(§6.8 / §6.9 / §6.10、Inc.2 では §6.16 IT-ALM の IEC 60601-1-8 §6.4 状態遷移 + IS-8 全層 E2E 経路スループットも IT で扱う)
 
 ### 7.2 IF-U / IF-E 網羅性
 
-- [ ] §4.3 の IF-U 14 件全てが §6 のいずれかの試験ケースで駆動される
-- [ ] IF-E 3 件全てが §6 のいずれかの試験ケースで駆動される
+- [ ] §4.3 の IF-U 全 18 件(Inc.1 = 001〜011 + Pump Observer 014 + 詳細化分 + **Inc.2 = IF-U-007 確定 / IF-U-012〜015 新規 / IF-U-014-A**)全てが §6 のいずれかの試験ケースで駆動される
+- [ ] IF-E 3 件全てが §6 のいずれかの試験ケースで駆動される(Inc.2 では IF-E-001 拡張 = `acknowledge_alarm` / `silence_alarm` Inc.2 追加が §6.16 IT-ALM で駆動)
 
-> v0.1 時点では §6.4 / §6.5 / §6.6 詳細化分のみで IF-U-001 / 002 / 003 / 009 / 010 / 011 が駆動済。残 IF-U(004 / 005 / 006 / 007 / 008 / 012 / 013 / 014)は Step 19 F の §6.1〜§6.3 / §6.7 詳細化で網羅予定。
+> Inc.1 = §6.1〜§6.10 全 10 観点詳細化済で IF-U-001〜014 全件駆動済(F1〜F7 + D-2 で網羅完了)。**Inc.2 = §6.11〜§6.16 骨格化分**(Step 20 G、CR-0013)では IF-U-007 確定 + IF-U-012/013/014-A/015 を IS-6 / IS-7 / IS-8 で駆動予定、ITPR v0.13+ 候補(Step 20 X〜の TDD 実装と並行)で各 IT-RCM006/009/010/011/012 + IT-ALM のケース展開時に網羅性を再確認。
 
 ## 8. 回帰試験の実施(箇条 5.6.6)
 
@@ -770,15 +1056,15 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 
 # 第 II 部 報告
 
-> **Inc.1 結合試験実施(Step 19 F 以降)時に本部を記入する。v0.1 時点では骨格のみ。**
+> **Inc.1 結合試験実施(Step 19 F 以降)時に本部を記入する。Inc.1 は v0.11 時点で全 10 観点詳細化 + Linux nightly 5 連続 Pass + ANOM-001 残留化が完了。Inc.2 範囲は本 v0.12(Step 20 G、CR-0013)で §6.11〜§6.16 骨格化のみ、実測は Step 20 X〜の TDD 実装と並行する詳細化(ITPR v0.13+ 候補)で記入する。**
 
 ## 11. 試験実施結果
 
 ### 11.1 実施サマリ
 
-- 実施期間: 2026-05-01(F1)〜 2026-05-07(F7 + Step 19 H3 Linux nightly 5 連続 Pass トリガ)
+- 実施期間: 2026-05-01(F1)〜 2026-05-07(F7 + Step 19 H3 Linux nightly 5 連続 Pass トリガ)= **Inc.1 範囲完了**。**Inc.2 範囲は本 v0.12 時点で §6.11〜§6.16 骨格化のみ、実測は Step 20 X〜の TDD 実装と並行する詳細化で記入予定。**
 - 実施者: k-abe
-- ソフトウェアバージョン(コミット): F1〜F7 各時点の PR マージコミット SHA + Step 19 H3 nightly トリガ時点 main HEAD `2a7855f`(PR #45 マージ後)
+- ソフトウェアバージョン(コミット): F1〜F7 各時点の PR マージコミット SHA + Step 19 H3 nightly トリガ時点 main HEAD `2a7855f`(PR #45 マージ後)= Inc.1 範囲。Inc.2 範囲は **`v0.2.0-inc2`(予定、Inc.2 完了タグ)** 付与時点の main HEAD で確定予定。
 - 試験環境バージョン: Python 3.12.13(GitHub Actions ubuntu-latest 実測)、pytest 9.0.3 / pytest-cov 7.1.0 / hypothesis 6.152.4 / pytest-benchmark 5.2.3 / pytest-timeout 2.4.0、Linux runner(IT-PERF / IT-PWR / IT-SIDE は `linux_only` auto-skip でローカル macOS では skip)
 - CI ジョブ:
   - `.github/workflows/integration-test.yml`(Step 19 F0 で新設、`integration-fast` + `integration-nightly` 2 ジョブ)
@@ -798,7 +1084,15 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | IT-PERF(統計時間、§6.8 詳細化済 Step 19 F5、Step 19 H3 で Linux nightly 5 連続トリガ実施)| **6**(IT-PERF.1-01/02、2-01/02、3-01/02)| **5/6 nightly Pass × 5 runs = 25/30**(IT-PERF.1-01/02、2-01、3-01/02 全件 5/5 Pass)+ **IT-PERF.2-02 のみ 5/5 fail = ANOM-001**(SDD §4.7.A 50 ms 厳密境界の構造的フレーク、§11.3 参照)| **1**(IT-PERF.2-02、ANOM-001 として残留異常化、PRB-0001)| **6**(macOS local の `linux_only` auto-skip による意図的 skip、各 nightly run でのもの) | 2026-05-07(Linux nightly 5 連続実測、Step 19 H3)| Run IDs: 25487397704 / 25489604041 / 25489774732 / 25489838148 / 25489902809、main HEAD `2a7855f`(PR #45 マージ後) |
 | IT-PWR(電源断、§6.9 詳細化済 Step 19 F6、Step 19 H3 で Linux nightly 5 連続 Pass 達成)| **4**(IT-PWR.1-01〜04)| **20/20 nightly Pass(4 tests × 5 runs)= F6 申し送り回収完了 ✓**(全 5 runs で IT-PWR.1-01〜04 完全 Pass、SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() 復元実証 を Linux runner で 5 連続安定確認)| 0 | **4**(macOS local の `linux_only` auto-skip による意図的 skip、各 nightly run でのもの)| 2026-05-07(Linux nightly 5 連続実測、Step 19 H3)| Run IDs と main HEAD は IT-PERF 行と同じ |
 | IT-SIDE(サイドチャネル、§6.10 詳細化済 Step 19 F7、Step 19 H3 で Linux nightly 5 連続 Pass 達成)| **2**(IT-SIDE.1-01〜02)| **10/10 nightly Pass(2 tests × 5 runs)= F7 申し送り回収完了 ✓**(全 5 runs で IT-SIDE.1-01/02 完全 Pass、`hmac.compare_digest` 定数時間性 弱判定 median 比 < 10x を Linux runner で 5 連続安定確認)| 0 | **2**(macOS local の `linux_only` auto-skip による意図的 skip、各 nightly run でのもの)| 2026-05-07(Linux nightly 5 連続実測、Step 19 H3)| Run IDs と main HEAD は IT-PERF 行と同じ |
-| **合計** | **≥ 73** | **F6 / F7 申し送り回収完了**(IT-PWR / IT-SIDE = Linux nightly 5 連続 Pass 達成)、IT-PERF.2-02 のみ ANOM-001 残留 | 1(ANOM-001 = IT-PERF.2-02 のみ)| — | — | — |
+| **Inc.1 小計** | **≥ 73** | **F6 / F7 申し送り回収完了**(IT-PWR / IT-SIDE = Linux nightly 5 連続 Pass 達成)、IT-PERF.2-02 のみ ANOM-001 残留 | 1(ANOM-001 = IT-PERF.2-02 のみ)| — | — | — |
+| **IT-RCM006(発報必達 Reservoir + Battery Low、§6.11 骨格 Step 20 G、CR-0013、Inc.2)**| **≥ 12**(目安、IT-RCM006.1-01〜)| TBD | TBD | TBD | TBD | TBD |
+| **IT-RCM009(冗長 2 系統閉塞、§6.12 骨格 Step 20 G、CR-0013、Inc.2)**| **≥ 10**(目安、IT-RCM009.1-01〜)| TBD | TBD | TBD | TBD | TBD |
+| **IT-RCM010(多段気泡、§6.13 骨格 Step 20 G、CR-0013、Inc.2)**| **≥ 11**(目安、IT-RCM010.1-01〜)| TBD | TBD | TBD | TBD | TBD |
+| **IT-RCM011(アラームタスク監視、§6.14 骨格 Step 20 G、CR-0013、Inc.2、Inc.1 IT-RCM003 階層防御パターン継承)**| **≥ 12**(目安、IT-RCM011.1-01〜)| TBD | TBD | TBD | TBD | TBD |
+| **IT-RCM012(発報路冗長、§6.15 骨格 Step 20 G、CR-0013、Inc.2)**| **≥ 10**(目安、IT-RCM012.1-01〜)| TBD | TBD | TBD | TBD | TBD |
+| **IT-ALM(SEP-003 + IEC 60601-1-8 §6.4 + IS-7 + IS-8 全層 E2E、§6.16 骨格 Step 20 G、CR-0013、Inc.2 集約)**| **≥ 16**(目安、IT-ALM.1-01〜、Inc.1 §6.7 IT-SEP + §6.4 RCM-015 E2E + §6.5 RCM-016 ガード結合 の Inc.2 等価集約観点)| TBD | TBD | TBD | TBD | TBD |
+| **Inc.2 小計**(骨格、合計目安)| **≥ 71** | TBD(Step 20 X〜の TDD 実装と並行する詳細化 + 実測で確定、ITPR v0.13+ 候補)| TBD | TBD | — | — |
+| **総計**(Inc.1 + Inc.2) | **≥ 144** | Inc.1 = F6 / F7 回収完了 + ANOM-001 残留 / Inc.2 = TBD | 1 + TBD | — + TBD | — | — |
 
 ### 11.3 不具合・逸脱
 
@@ -814,14 +1108,27 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 
 ## 12. 結論
 
-- [ ] 全結合ステップ(IS-1 〜 IS-5)が §4.1 構造的検証を満たしている
-- [ ] §6 の試験ケース全件が Pass、または逸脱が SPRP §5 で正当化されている
-- [ ] §13 トレーサビリティマトリクスで SDD 17 ユニット × IF-U 14 件 × RCM 6 件 × 申し送り元 UT-ID の双方向リンクが確立している
-- [ ] 未解決問題は既知の残留異常として SMS-VIP-001(§5.8)に記載する
+**Inc.1 範囲(`v0.1.0-inc1` 完了タグ前判定):**
+
+- [ ] Inc.1 全結合ステップ(IS-1 〜 IS-5)が §4.1 構造的検証を満たしている
+- [ ] §6.1〜§6.10 の試験ケース全件が Pass、または逸脱が SPRP §5 で正当化されている(ANOM-001 = IT-PERF.2-02 のみ Active 残留、§11.3 PRB-0001 で記録)
+- [ ] §13 トレーサビリティマトリクスで Inc.1 SDD 18 ユニット × IF-U 14 件 × RCM 6 件 × 申し送り元 UT-ID の双方向リンクが確立している
+- [ ] 未解決問題(ANOM-001)は既知の残留異常として SMS-VIP-001(§5.8、最終リリース時に正式記入予定)に記載する
+
+**Inc.2 範囲(`v0.2.0-inc2` 完了タグ前判定、本 v0.12 では骨格化のみ、ITPR v0.13+ 候補で詳細化 + 実測):**
+
+- [ ] Inc.2 結合ステップ(IS-6 検知群 / IS-7 Alarm Reporter / IS-8 全層 E2E)が §4.1 構造的検証を満たしている
+- [ ] §6.11〜§6.16 の試験ケース全件が Pass、または逸脱が SPRP §5 で正当化されている
+- [ ] §13 トレーサビリティマトリクスで Inc.2 新規 8 ユニット + 既存 3 ユニット拡張 × IF-U 5 件(IF-U-007 確定 / 012〜015 新規 / 014-A)× RCM 5 件(006/009/010/011/012)× 申し送り元 UT-ID(UT-006.x / UT-007.x / UT-001.1.G / UT-002.3.G / UT-005.1.G)の双方向リンクが確立している
+- [ ] **SEP-003 ランタイム検証**(§6.16 IT-ALM.1-10〜12)が AST + 戻り値書込み禁止 + 例外伝播禁止 + AlarmEvent 不変性で Pass している
+- [ ] **IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移網羅**(§6.16 IT-ALM.1-07〜09)が Pass している
+- [ ] **Inc.1 既存 6 RCM への回帰なし**(§6.16 IT-ALM.1-16〜)が Pass、Inc.1 IT 全件 Pass 維持を確認している
+- [ ] HZ-009 駆動経路(EV-HZ009-001、UNIT-006.6 Battery Low 経路)が IS-8 全層 E2E で実証されている
+- [ ] RCM-006/009/010/011/012 が RMF v0.4 §7 で `Designed` → `Verified` 化されている(Inc.2 完了タグ付与時)
 
 ## 13. トレーサビリティマトリクス
 
-> v0.1 時点では §6 詳細化分(RCM-015 / RCM-016 / RCM-019)の試験 ID と SRS / RCM / HZ / 元 UT-ID の対応を表形式で記録する。骨格カテゴリは Step 19 F で同マトリクスに追記する。
+> Inc.1 = §6.1〜§6.10 全 10 観点詳細化済(F1〜F7 + D-2 + Step 19 H3 で確定)。**Inc.2 = §6.11〜§6.16 全 6 観点骨格化分**(Step 20 G、CR-0013)を本 v0.12 で末尾に追記、結果欄は Step 20 X〜の TDD 実装と並行する詳細化(ITPR v0.13+ 候補)で確定する。
 
 | 結合観点 | 試験 ID | 関連 SRS | 関連 RCM | 関連 HZ | 関連 IF-U | 関連 UT | 結果 |
 |---------|--------|---------|---------|---------|----------|--------|------|
@@ -835,13 +1142,20 @@ SAD §9 SEP-001(クラス C ↔ クラス B 分離)が **AST 静的検証(UT-005
 | 統計時間 | IT-PERF.1-01/02、2-01/02、3-01/02(§6.8 詳細化済 Step 19 F5、Step 19 H3 で Linux nightly 5 連続トリガ)| SRS-P02、SRS-P03(SDD 内訳)、SRS-P04(SDD 内訳)、SRS-P06、SRS-RCM-004 | —(性能要求のため RCM 紐付けなし、ただし HW Failsafe Timer 観察は IT-PERF.3-01 で RCM-004 関連)| HZ-002(SRS-P04 関連)| IF-U-001/002/003/004/005/009 | UT-001.2-19(UTPR §7.3.9 v0.10)、UT-001.3-19(UTPR §7.3.12 v0.13)、UT-002.4(UTPR §7.3.3 v0.4)| **5/6 Pass × 5 runs + 1/6 ANOM-001(Step 19 H3、2026-05-07):** IT-PERF.1-01/02、2-01、3-01/02 全件 5/5 Pass(SRS-P02 100 ms 周期精度 + ファストパス計測 + HW Failsafe Timer + 永続化負荷下維持 を Linux runner で 5 連続安定確認)、**IT-PERF.2-02 のみ 5/5 fail = ANOM-001(P95 50.30〜50.36 ms vs 50 ms 厳密境界、構造的 CI flake)**、§11.3 PRB-0001 で正式記録、CR-0006(SDD §4.7.A 閾値緩和)を Inc.2 以降に申し送り |
 | 電源断耐性 | IT-PWR.1-01〜04(§6.9 詳細化済 Step 19 F6、Step 19 H3 で Linux nightly 5 連続 Pass 達成)| SRS-DATA-002/003、SRS-RCM-015 | RCM-015 | HZ-007 | IF-U-009、IF-E-001 | UT-003.3-10(UTPR §7.3.4 v0.5 Step 19 B5 申し送り)| **F6 申し送り回収完了 ✓ — 20/20 Pass(4 tests × 5 runs、Step 19 H3、2026-05-07):** SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() 復元実証 を Linux runner で 5 連続安定確認、subprocess + SIGKILL 精密同期方式の安定性が証明された |
 | サイドチャネル | IT-SIDE.1-01〜02(§6.10 詳細化済 Step 19 F7、Step 19 H3 で Linux nightly 5 連続 Pass 達成)| SRS-SEC-001(Inc.1 では参考扱い、Inc.5 で正式化予定)| — | HZ-007(Inc.1 脅威モデル外、Inc.5 で再評価)| —(`vip_persist.checksum.compute` / `verify` 内部実装契約)| UT-003.2(UTPR §7.3.7 v0.8 Step 19 B8 申し送り)| **F7 申し送り回収完了 ✓ — 10/10 Pass(2 tests × 5 runs、Step 19 H3、2026-05-07):** `hmac.compare_digest` 定数時間性 弱判定 median 比 < 10x を Linux runner で 5 連続安定確認、Inc.5 SRS-SEC-001 正式化時に強判定(< 1 sigma)再評価申し送りは継続 |
+| **RCM-006 発報必達 Reservoir + Battery Low(Inc.2、骨格)** | IT-RCM006.1-01〜(§6.11 骨格、Step 20 G、CR-0013、目安 ≥ 12 件)| SRS-042、SRS-043、SRS-ALM-006、SRS-ALM-007、**SRS-RCM-006**、SRS-IF-010、SRS-I-040 確定 | **RCM-006(Designed → Verified 化目標)**、RCM-020 候補(HZ-009 対応)| HZ-002、HZ-004(EV-HZ004-003)、**HZ-009(EV-HZ009-001)**| IF-U-007、IF-U-012、IF-U-013、**IF-U-015(`read_sensor(RESERVOIR / BATTERY)`)**| UT-006.3-NN、UT-006.6-NN(UTPR v0.22 §7.3.21 / §7.3.24)| **骨格(Step 20 G、CR-0013):結合経路 + 試験ケース骨格(IS-6 段階)+ ケース数目安 + マーカー方針記述、ITPR v0.13+ 候補で詳細化予定** |
+| **RCM-009 冗長 2 系統閉塞(Inc.2、骨格)** | IT-RCM009.1-01〜(§6.12 骨格、Step 20 G、CR-0013、目安 ≥ 10 件)| SRS-040、**SRS-RCM-009**、SRS-ALM-004、SRS-IF-010、SRS-I-040 確定 | **RCM-009(Designed → Verified 化目標)** | HZ-001(間接、過大投与:閉塞解除時 bolus)、HZ-004(EV-HZ004-001)| IF-U-007/012/013、**IF-U-015(`OCCLUSION_PRIMARY` / `SECONDARY` 冗長 2 系統独立センサー)**| UT-006.1-NN(UTPR v0.22 §7.3.19、特に UT-006.1-07〜 片系故障時の他系単独動作)| **骨格(Step 20 G、CR-0013):冗長 2 系統独立性は本物 UNIT-002.1 拡張で OCCLUSION_PRIMARY/SECONDARY を独立注入できることが必須(IF-U-015 SensorKind sealed enum で型安全担保)、ITPR v0.13+ 候補で詳細化** |
+| **RCM-010 多段気泡(Inc.2、骨格)** | IT-RCM010.1-01〜(§6.13 骨格、Step 20 G、CR-0013、目安 ≥ 11 件)| SRS-041、**SRS-RCM-010**、SRS-ALM-005、SRS-IF-010、SRS-I-040 確定 | **RCM-010(Designed → Verified 化目標)** | HZ-004(EV-HZ004-002)、HZ-006(間接、空気塞栓:危険段未検出)| IF-U-007/012/013、**IF-U-015(`AIR_BUBBLE_WARN / CRITICAL` 警告/危険 2 段独立センサー)**| UT-006.2-NN(UTPR v0.22 §7.3.20、特に UT-006.2-09〜 各段独立性)| **骨格(Step 20 G、CR-0013):警告段はログのみ・危険段は発報の多段独立性が本旨、ITPR v0.13+ 候補で詳細化** |
+| **RCM-011 アラームタスク監視(Inc.2、骨格)** | IT-RCM011.1-01〜(§6.14 骨格、Step 20 G、CR-0013、目安 ≥ 12 件、Inc.1 IT-RCM003 階層防御パターン継承)| SRS-044、**SRS-RCM-011**、SRS-IF-010 | **RCM-011(Designed → Verified 化目標)** | HZ-005(EV-HZ005-001、アラーム失敗単独 / タスクデッドロック)| UNIT-007.1 → UNIT-006.4 heartbeat、IF-U-013、UNIT-006.5 独立アラーム発報路への切替経路 | UT-006.4-NN(UTPR v0.22 §7.3.22、Inc.1 UNIT-001.5 / 002.4 試験設計継承)| **骨格(Step 20 G、CR-0013):3 階層目 Watchdog(SW < ALARM < HW)時間順序の確定が SDD v0.6 候補(現状 300 / 800 / 500 ms は矛盾、再整理必要)、ITPR v0.13+ 候補で詳細化** |
+| **RCM-012 発報路冗長(Inc.2、骨格)** | IT-RCM012.1-01〜(§6.15 骨格、Step 20 G、CR-0013、目安 ≥ 10 件)| **SRS-RCM-012**、SRS-IF-010 | **RCM-012(Designed → Verified 化目標)** | HZ-005(発報路故障)| IF-U-007/012(主系/予備系)、IF-U-013(両系故障時 ERROR)| UT-006.5-NN(UTPR v0.22 §7.3.23)| **骨格(Step 20 G、CR-0013):主系 / 予備系の隔離手段(プロセス/スレッド/経路分離いずれか)が SDD v0.6 候補、ITPR v0.13+ 候補で詳細化** |
+| **IT-ALM Inc.2 全層統合 E2E + SEP-003 + IEC 60601-1-8 §6.4(Inc.2、骨格、IS-7 + IS-8 集約)** | IT-ALM.1-01〜(§6.16 骨格、Step 20 G、CR-0013、目安 ≥ 16 件)| SRS-ALM-001 / 004〜008、SRS-040〜044、SRS-IF-010、SRS-O-040 確定、**SRS-REG-002 詳細化(IEC 60601-1-8 §6.1/§5.1.4/§6.4)**、SRS-RCM-006/009/010/011/012 | **Inc.2 担当 5 件全件 + RCM-020 候補(HZ-009)、本節は §6.11〜§6.15 の全層 E2E 集約観点** | HZ-004 / HZ-005 / HZ-009(Inc.2 範囲全 HZ)| **IF-U-007 確定**、**IF-U-014-A 新規(`acknowledge` / `silence`、IEC 60601-1-8 §6.4 高優先度消音 ≤ 120 秒制限)**、IF-U-012/013/015、IF-U-008(ARCH-009 Logging Stub 経路、Inc.2 では no-op)| UT-007.1-NN / UT-007.2-NN(UTPR v0.22 §7.3.25 / §7.3.26)、UT-001.1-G / UT-002.3-G / UT-005.1-G(既存 3 ユニット拡張)| **骨格(Step 20 G、CR-0013):IS-7 段階(本物 UNIT-007.1 + UNIT-007.2 + Mock 検知群)+ SEP-003 ランタイム検証(Inc.1 §6.7 IT-SEP パターン継承、AST + 戻り値書込み禁止 + 例外伝播禁止 + AlarmEvent 不変性)+ IS-8 全層 E2E(全実装本物 + Mock は Logging Stub のみ)+ Inc.1 既存 6 RCM への回帰なし、ITPR v0.13+ 候補で詳細化** |
 
-**カバレッジ:** 本マトリクスにより、Inc.1 全 RCM 6 件 / SDD 17 ユニットからの UT 申し送り 6 件 / SAD §9 SEP-001 が IT カテゴリと紐付き、SRS / RCM / HZ / IF-U への双方向トレーサビリティが確立した(v0.1 では §6.4 / §6.5 / §6.6 詳細化分が試験 ID レベル、残骨格は Step 19 F で完成)。
+**カバレッジ:** 本マトリクスにより、**Inc.1 = 全 RCM 6 件 / SDD 18 ユニットからの UT 申し送り 6 件 / SAD §9 SEP-001** + **Inc.2 = 全 RCM 5 件(006/009/010/011/012)+ RCM-020 候補(HZ-009)/ SDD §3.2 Inc.2 新規 8 ユニット + 既存 3 ユニット拡張 / SAD §9.2 SEP-003 / IEC 60601-1-8 §6.1/§5.1.4/§6.4** が IT カテゴリと紐付き、SRS / RCM / HZ / IF-U への双方向トレーサビリティが確立した。Inc.2 は本 v0.12(Step 20 G、CR-0013、骨格化)では結合観点 + 試験 ID 体系 + 関連 IF-U / UT が紐付くレベルまで、Step 20 X〜の TDD 実装と並行する詳細化(ITPR v0.13+ 候補)で結果欄を確定する。
 
 ## 14. 改訂履歴
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.12 | 2026-05-10 | **Step 20 G(CR-0013、Inc.2 連動改訂の ITPR 部分、骨格化、Step 14 v0.1 流儀 / Step 19 D-2 流儀継承、「単一文書 = 単一 CR」運用パターンの 7 度目適用、Inc.2 着手準備 Step 系列の 8 番目 = 最終)を反映。**(A) ヘッダ更新:バージョン 0.11 → 0.12、最終更新日 2026-05-10、対象 SW v0.2.0-inc1 → v0.2.0-inc2、対象範囲を「Inc.1(18 ユニット、§6.1〜§6.10 詳細化済)+ Inc.2(検知群 + Alarm Reporter 結合 + 既存ユニット拡張、§6.11〜§6.16 骨格化、Step 20 G、CR-0013)」に拡張。**(B) §1.2 適用範囲拡張:** Inc.2 ユニット 8 + 既存 3 拡張 = 計 26 ユニット、新規パッケージ `vip_detection/` `vip_alarm/`、SEP-003 追加、Inc.2 担当 RCM 5 件(006/009/010/011/012)+ RCM-020 候補(HZ-009)。**(C) §2 参照文書更新**(全成果物のバージョンを Inc.2 反映済に更新:SRS 0.3、SAD 0.2、SDD 0.5、UTPR 0.22、RMF 0.4、CIL 0.51、DEVELOPMENT_STEPS 0.53)+ Inc.2 範囲計画書(INC2-SCOPE-VIP-001 v0.1)+ IEC 60601-1-8 を追加参照。**(D) §3.2 結合ステップ追加:** **IS-6(検知群結合)/ IS-7(Alarm Reporter 結合、SEP-003)/ IS-8(Inc.2 全層統合 E2E)** の 3 ステップを Inc.2 骨格として追加(SUT 構成 + 検証スコープ + 依存条件記述)。**(E) §3.3 ユニットマップ拡張:** Inc.2 新規 2 パッケージ追記、UNIT-001.1/002.3/005.1 拡張節は既存 IS-2/3/4 に帰属(IS-8 で E2E 検証)を注記。**(F) §4.3 IF-U 一覧拡張:** **IF-U-007 確定**(`report_alarm(AlarmEvent) -> None`、SAD v0.2 §5.1 / SDD v0.5 §5.1.A 確定)+ **IF-U-012〜015 新規追加**(検知群 → Alarm Reporter / 検知群 → State Machine / Control API → Alarm Reporter ACK/Silence / Pump → 検知群 6 種 SensorKind)、SAD v0.2 §5.1 IF-U-014 と既存 IF-U-014(Pump Observer)の番号衝突を回避するため Inc.2 側を **IF-U-014-A** と表記、後続 SDD v0.6 候補 + ITPR v0.13+ 候補での番号体系再整合を別途 CR で扱うことを注記。**(G) §6.11〜§6.16 Inc.2 結合観点骨格新設**(本書最大の改訂):**§6.11 RCM-006**(発報必達:UNIT-006.3 Reservoir + UNIT-006.6 Battery Low、HZ-009 EV-HZ009-001 駆動)+ **§6.12 RCM-009**(冗長 2 系統閉塞:UNIT-006.1)+ **§6.13 RCM-010**(多段気泡:UNIT-006.2)+ **§6.14 RCM-011**(アラームタスク監視:UNIT-006.4、Inc.1 IT-RCM003 階層防御パターン継承)+ **§6.15 RCM-012**(発報路冗長:UNIT-006.5)+ **§6.16 IT-ALM**(SEP-003 + IEC 60601-1-8 §6.4 ACK/SILENCE 状態遷移 + UNIT-007.1 / 007.2 + IS-7 + IS-8 全層 E2E、Inc.2 集約観点 = Inc.1 §6.7 IT-SEP + §6.4 RCM-015 E2E + §6.5 RCM-016 ガード結合 の Inc.2 等価集約)。各節は「関連 SRS / RCM / HZ / IF-U / IS / 元 UT 申し送り + 結合経路骨格(コードブロック)+ 試験ケース骨格(目安表)+ ケース数目安 + SUT 構成方針 + マーカー方針 + ITPR v0.13+ 候補で詳細化する項目」のテンプレート構造で骨格化(Step 14 v0.1 流儀 / Step 20 E SDD v0.5 / Step 20 F UTPR v0.22 流儀継承)。**(H) §7.1 計画レビューチェックリスト + §7.2 IF-U 網羅性 拡張**(Inc.1 / Inc.2 範囲分離 + Inc.2 担当 RCM 5 件 + SEP-003 + IEC 60601-1-8 + IF-U-007/012〜015/014-A 追記)。**(I) §11.1 実施サマリ拡張**(Inc.1 = v0.11 で完了済、Inc.2 = 本 v0.12 で骨格化のみ・実測は ITPR v0.13+ 候補と注記)+ **§11.2 試験ケース結果テーブル拡張**(Inc.2 6 行追加 = IT-RCM006/009/010/011/012 + IT-ALM、全件「未実施(TBD)」状態 + 目安 ≥ 71 件 + Inc.1 / Inc.2 / 総計 ≥ 144 件 集計行)。**(J) §12 結論拡張**(Inc.1 範囲チェックリスト + Inc.2 範囲チェックリスト = SEP-003 ランタイム + IEC 60601-1-8 §6.4 状態遷移網羅 + Inc.1 既存 6 RCM 回帰なし + HZ-009 EV-HZ009-001 駆動経路実証 + RCM-006/009/010/011/012 Verified 化を追加)。**(K) §13 トレーサビリティマトリクス追補**(6 行追加 = 全 6 観点骨格、関連 SRS / RCM / HZ / IF-U / UT を双方向リンク)。**(L) §14 改訂履歴 v0.12 行追加**(本行)。**(M) MODERATE 区分・「単一文書 = 単一 CR」運用パターン 7 度目適用**(SCMP §4.1「中度」、Inc.2 全層統合 E2E + SEP-003 検証範囲拡大により「軽微」を超える、ただし Inc.1 既存 6 RCM 検出能力は不変、Inc.1 既存 §6.1〜§6.10 詳細化部分 + 試験ケースは据置、本書は ITPR の Inc.2 連動改訂のみで実装コード変更なし)。**(N) Step 20 G 着手中の発見:** SAD v0.2 §5.1 で IF-U-014 が「Control API → Alarm Reporter ACK/Silence」に新規割当てされていたが、本 ITPR §4.3 既存表では IF-U-014 が「Pump Observer → Pump Simulator(SDD §4.10.C lock 借用)」を指す番号衝突を発見。本書では Inc.2 側を **IF-U-014-A** と表記して衝突回避、後続 SDD v0.6 候補 + ITPR v0.13+ 候補での番号体系再整合を別途 CR で扱うことを §4.3 末尾と §13 関連 IF-U 列で明示(MINOR、SCMP §4.1 軽微整合、SAD / SDD / UTPR 既存記述は不変)。**(O) 著しい教訓:** **(a) Step 20 系列(A〜G)8 ステップ完走 = Inc.2 着手準備の連動改訂が一巡**(SRS B-1/B-2 → RMF C → SAD D → SDD E → UTPR F → ITPR G、各「単一文書 = 単一 CR」+「§4 CLOSED 一気通貫」運用パターンの連続 6〜7 度適用で default 運用ルールとして完全確立)。**お手本的価値:** Inc.2〜N の連動改訂で「上流文書の MAJOR/MODERATE 改訂時は SRS → RMF → SAD → SDD → UTPR → ITPR → STPR の順で 1 文書 1 CR の連鎖を実施し、各文書を骨格化(Step 14 v0.1 流儀)で先に通す → 後続 TDD 実装 (Step 20 X〜) と並行して各文書を詳細化」というパターンを Inc.2 で確立、後続プロジェクトのお手本として参照可能。**(b) 骨格化 + 後続詳細化方式の正当性再確認:** SDD v0.5(E)→ UTPR v0.22(F)→ ITPR v0.12(G)で各 26 ユニット / 33 UT-UID 節 / 6 結合観点が「骨格テンプレート + ITPR v0.13+ 候補で詳細化」の段階成熟方式で揃い、TDD 実装(Step 20 X〜)着手時に「上流文書ですべての ID と要求が定義済 + 詳細はコード実装と並行で詰める」という Inc.1 同等の作業前提が成立 | k-abe |
 | 0.11 | 2026-05-07 | **Step 19 H3(Linux nightly 5 連続 Pass 確認 + ANOM-001 残留異常記録 + Inc.1 完了タグ前準備)を反映。** **(1) §11.1 実施サマリ更新:** Step 19 H3 で実施した Linux nightly 5 連続トリガ(2026-05-07、main HEAD `2a7855f` = PR #45 マージ後)を記録、Run IDs 25487397704 / 25489604041 / 25489774732 / 25489838148 / 25489902809 を明示。**(2) §11.2 試験ケース結果テーブル更新**(IT-PERF / IT-PWR / IT-SIDE 3 行を「設計確定 + Linux nightly 申し送り」 → 「Step 19 H3 で実測完了」に更新):IT-PWR(20/20 Pass)+ IT-SIDE(10/10 Pass)= **F6 / F7 申し送り回収完了 ✓**(Linux nightly 5 連続 Pass 達成)、IT-PERF は 5/6 tests Pass × 5 runs = 25/30 Pass(IT-PERF.1-01/02、2-01、3-01/02 全件 5/5 Pass)+ **IT-PERF.2-02 のみ 5/5 fail = ANOM-001**(SDD §4.7.A 50 ms 厳密境界の構造的 CI flake、§11.3 で正式記録)。**(3) §11.3 PRB-0001 新規登録**:IT-PERF.2-02 の 5/5 fail を Minor 重大度・残留異常 ANOM-001 として正式記録、原因(GitHub Actions runner pool 時間帯依存変動 = CI 環境ノイズ)+ 根拠(同一コミット `2a7855f` の 1 時間前 push 駆動 nightly Run ID 25485771369 で Pass = コード回帰ではない、F5 / F7 申し送り「Linux nightly 5 連続 Pass 確認」運用ルールが flake リスクを織り込んだ要求でその実発生事例)+ 対応(SMS §4 / §5 への正式記入は Inc.4 / 最終リリース申し送り、SDD §4.7.A 50 ms → 55 ms 閾値緩和は CR-0006 として Inc.2 以降に再評価申し送り、Inc.5 での専用 runner 検討も並列申し送り)。**(4) §13 トレース行更新**(IT-PERF / IT-PWR / IT-SIDE 3 行)を「設計確定」 → 「Step 19 H3 で n/m Pass 確定 + 申し送り根拠」。**(5) MINOR 区分・CR 不要**(SCMP §4.1「軽微」、SRS / SDD / RMF / SAD 本体不変、外部 API 変更なし、ANOM-001 化は試験記録 + リリース判定への入力 = 試験運用層の変更で実装には影響しない)。**(6) Step 19 H3 着手中の発見:** ITPR §11.2 を「個別 nightly run の per-test 内訳」で記録すべきだった(現在は per-test カテゴリ × 5 runs の集計表記)。Inc.4 の同様運用で改善(本書 v0.11 では集計表記のままに留め、後続改善を申し送り)。**(7) 著しい教訓:** **(a) F5 / F7 で確立した「Linux nightly 5 連続 Pass」運用ルールは flake リスクの実検出装置として機能した** — 5 連続トリガで 5/5 fail を実測しなければ ANOM-001 の存在に気付かず、Inc.1 完了タグ付与後に flake 観測 → CR 起票という後追い対応になっていた。**お手本的価値:** 厳密境界判定の試験は「単発 Pass / Fail ではなく 5 連続 Pass 要求 + flake 実観測時は ANOM-001 化」を運用ルールとし、リリースタグ付与前の最終ステップで実施することを推奨。**(b) ANOM-001 残留異常化の判断基準:** 0.7% 程度の境界超過で機能的に区別不可能 + コード回帰の証拠なし + SRS 性能要求の本旨は満たされている(IT-PERF.1-01 + 3-02 + ST-PERF.1-04 で SRS-P02 / P05 / P06 が 5 連続 Pass)場合、ANOM-001 化が SCMP §4.1 軽微整合かつ Inc.1 完了タグ付与判定への入力として適切 | k-abe |
 | 0.10 | 2026-05-07 | **Step 19 F7(§6.10 IT-SIDE Checksum タイミング攻撃耐性詳細化、F 系列最終、`linux_only` auto-skip hook の F7 で 3 ステップ目連続再利用)を反映。** §6.10 を骨格 → 詳細化(IT-SIDE.1-01〜02、2 ケース表 + 結合経路 1 構成 + 設計判断 5 項目 + 申し送り 4 項目)。**着手前クロスレビューでの API 名整合化(MINOR、CR 不要、SCMP §4.1 軽微):** v0.9 までの §6.10 骨格(L668)で「`compute_payload_checksum` / `verify_payload_checksum` 内部実装契約」と記述していたが、SDD §4.13 / `vip_persist/checksum.py` の実 API は `compute` / `verify` の 2 関数のみ(`compute_payload_checksum` は `vip_persist/serializer.py` の別 API で UNIT-003.1 Serializer の責務、UNIT-003.2 Checksum Verifier の責務とは異なる)。本 v0.10 で「`vip_persist.checksum.compute` / `verify` 内部実装契約」に整合化。F5 「計画文書間数値不整合 → 同 PR 訂正」パターンの再現。**着手時設計判断:** 弱判定(median 比 < 10x)を採用 — SDD §4.13.F「タイミング試験(参考)」 + SRS-SEC-001 Inc.1 参考扱い + CI 共有環境 + Python interpreter ノイズで強判定(< 1 sigma)はノイズ過多のため、短絡比較なら数百倍となる 10x で十分検出可能。**`linux_only` auto-skip hook の F5/F6/F7 3 ステップ連続再利用達成**(F5 先取り → F6 初再利用 → F7 3 ステップ目連続再利用、`pytest.mark.skipif` 個別記述の重複完全排除を実証)。**マーカー方針:** 全 2 件に `@pytest.mark.integration` + `@pytest.mark.nightly` + `@pytest.mark.linux_only` を付与(§8.1 規定どおり PR / macOS local では除外、CI Linux nightly のみで実行)。§11.2 IT-SIDE 行を **設計確定 + Linux nightly 実測確認は Inc.1 完了タグ前に申し送り**(2026-05-07)、§13 トレーサビリティマトリクス IT-SIDE 行を **「設計確定(2 tests、本物 `vip_persist.checksum.verify` + 200 サンプル × 2 経路 + median 比 < 10x 弱判定で `hmac.compare_digest` 定数時間性検証、`linux_only` auto-skip hook を F5/F6 から 3 ステップ目連続再利用)」** に更新、合計目安を ≥ 71 → ≥ 73 に。**F 系列完了**:§6.1〜§6.10 全 10 観点詳細化済となった節目を §6.10 末尾 + §7.1 チェックリスト + §11.2 / §13 で明示。RCM 検出能力不変、SAD §6 / §9 設計不変、`tests/integration/test_side_timing.py` 新規(IT-SIDE.1-01/02 全 2 ケース)、`tests/conftest.py` の `linux_only` auto-skip hook は F5 / F6 から無修正で再利用、`tests/integration/conftest.py` は本観点で Mock を使用しないため新規 fixture 追加なし。Inc.5 SRS-SEC-001 正式化時に強判定(< 1 sigma)再評価 + 専用 runner 検討を申し送り | k-abe |
 | 0.9 | 2026-05-07 | **Step 19 F6(§6.9 IT-PWR subprocess + SIGKILL 電源断耐性詳細化、`linux_only` auto-skip hook の F6 で初再利用)を反映。** §6.9 を骨格 → 詳細化(IT-PWR.1-01〜04、4 ケース表 + 結合経路 1 構成 + 設計判断 5 項目 + 申し送り 4 項目)。**着手時設計判断:** F5 で先取り実装した `linux_only` auto-skip hook を **新規追加なしで再利用**(`pytestmark = [integration, nightly, linux_only]` のみで Linux 限定運用が成立、F5 教訓「規定 → 機械化 → 利用」の 3 段階パターンの「利用」フェーズ初実行)。**試験技法:** subprocess + SIGKILL の **精密同期方式**(子ヘルパ `_pwr_child_helper.py` に `os.replace` / `_try_fsync_directory` の monkey-patch を仕込み、SDD §4.4.B 擬似コードの **指定フェーズ突入直前** で signal-file 作成 + sleep、親が signal-file 検知後 `os.kill(pid, signal.SIGKILL)`)を採用。乱数 fuzz 方式と異なり SDD §4.4.B 不変条件の各フェーズを 1:1 で網羅、SDD 監査トレーサビリティと回帰再現性を確保。**着手中の設計是正:** **(1) `signal_file.write_bytes` self-recursion 回避:** 当初 `os.replace(tmp, signal_file)` で signal-file を atomic 書込する設計だったが、`_install_phase_pause` で `os.replace` を monkey-patch しているため signal-file 作成が patched_replace を再帰呼出する race を実装中に発見 → `Path.write_bytes` に変更(brief な空ファイル状態は親の `signal_file.exists()` 判定では無害)。**(2) `setattr` による mypy --strict 整合:** `atomic_writer.os.replace = ...` 直接代入は `attr-defined` / `assignment` エラー → `setattr(_os, "replace", ...)` + `setattr(atomic_writer, "_try_fsync_directory", ...)` に変更、B010 noqa 許容で mypy --strict / ruff 通過。§11.2 IT-PWR 行を **設計確定 + Linux nightly 実測確認は Inc.1 完了タグ前に申し送り**(2026-05-07)、§13 トレーサビリティマトリクス IT-PWR 行を **「設計確定(4 tests、本物 atomic_writer + 本物 serializer + 本物 integrity validator + 子ヘルパ monkey-patch による SDD §4.4.B 不変条件 3 フェーズ網羅 + rollback() による SRS-DATA-003 1 世代 backup 復元実証、`linux_only` auto-skip hook を F5 から再利用)」** に更新、合計目安を ≥ 67 → ≥ 71 に。RCM 検出能力不変(RCM-015 load 側で破損検知)、SAD §6 / §9 設計不変、`tests/integration/_pwr_child_helper.py` 新規(子プロセスヘルパ、`tests/integration/test_power_loss.py` から subprocess.Popen で起動)、`tests/integration/test_power_loss.py` 新規(IT-PWR.1-01〜04 全 4 ケース)、`tests/conftest.py` の `linux_only` auto-skip hook は F5 から無修正で再利用、`tests/integration/conftest.py` は本観点で Mock を使用しないため新規 fixture 追加なし | k-abe |
