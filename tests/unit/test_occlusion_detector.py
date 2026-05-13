@@ -264,9 +264,7 @@ def test_tick_both_failed_requests_error_transition_without_alarm() -> None:
     safe stop via the ERROR transition path.
     """
     readings = {
-        SensorKind.OCCLUSION_PRIMARY: _reading(
-            SensorKind.OCCLUSION_PRIMARY, _BELOW, healthy=False
-        ),
+        SensorKind.OCCLUSION_PRIMARY: _reading(SensorKind.OCCLUSION_PRIMARY, _BELOW, healthy=False),
         SensorKind.OCCLUSION_SECONDARY: _reading(
             SensorKind.OCCLUSION_SECONDARY, _BELOW, healthy=False
         ),
