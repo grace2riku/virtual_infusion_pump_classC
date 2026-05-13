@@ -1,13 +1,13 @@
 # ソフトウェア詳細設計書(SDD)
 
 **ドキュメント ID:** SDD-VIP-001
-**バージョン:** 0.6
-**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)/ 2026-05-07(v0.4)/ 2026-05-10(v0.5)/ 2026-05-13(v0.6)
+**バージョン:** 0.7
+**作成日:** 2026-04-18(v0.1)/ 2026-04-19(v0.2)/ 2026-05-01(v0.3)/ 2026-05-07(v0.4)/ 2026-05-10(v0.5)/ 2026-05-13(v0.6 + v0.7)
 **最終更新日:** 2026-05-13
 **対象製品:** 仮想輸液ポンプ(Virtual Infusion Pump) / VIP-SIM-001
-**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲全 18 ユニット詳細 + Inc.2 範囲 UNIT-006.1 詳細 + Inc.2 残 7 ユニット骨格 + 既存 3 ユニット Inc.2 拡張節、合計 26 ユニット、Step 14 v0.1 流儀の v0.x 骨格化 → 後続改訂で詳細化を継承)
+**対象ソフトウェアバージョン:** 0.2.0(Inc.1 範囲全 18 ユニット詳細 + Inc.2 範囲 UNIT-006.1/006.2 詳細 + Inc.2 残 6 ユニット骨格 + 既存 3 ユニット Inc.2 拡張節、合計 26 ユニット、Step 14 v0.1 流儀の v0.x 骨格化 → 後続改訂で詳細化を継承)
 **安全クラス:** C(IEC 62304)
-**変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)、CR-0009(Issue #57、MODERATE、Step 20 E)、CR-0016(MODERATE、Step 20 X2、Inc.2 連動詳細化の SDD 部分 §4.19)
+**変更要求:** CR-0001(Issue #1、MODERATE)、CR-0004(Issue #32、MODERATE)、CR-0005(Issue #36、MODERATE)、CR-0009(Issue #57、MODERATE、Step 20 E)、CR-0016(MODERATE、Step 20 X2、Inc.2 連動詳細化の SDD 部分 §4.19)、CR-0019(Issue #74、MODERATE、Step 20 X5、Inc.2 連動詳細化の SDD 部分 §4.20)
 
 | 役割 | 氏名 | 所属 | 日付 | 署名 |
 |------|------|------|------|------|
@@ -100,7 +100,7 @@ ARCH-005 Public API Facade
 # Inc.2 で新設(本 v0.5 で骨格化、CR-0009 / Step 20 E)
 ARCH-006 Detection (C、新設)
 ├── UNIT-006.1  Occlusion Detector          (§4.19、骨格、RCM-009)
-├── UNIT-006.2  Air-Bubble Detector         (§4.20、骨格、RCM-010)
+├── UNIT-006.2  Air-Bubble Detector         (§4.20、詳細 v0.7、RCM-010、Step 20 X4 実装 + X5 SDD 詳細化)
 ├── UNIT-006.3  Reservoir Empty Detector    (§4.21、骨格、RCM-006)
 ├── UNIT-006.4  Alarm Task Watchdog         (§4.22、骨格、RCM-011)
 ├── UNIT-006.5  Alarm Path Redundancy       (§4.23、骨格、RCM-012)
@@ -137,7 +137,7 @@ ARCH-010(Inc.4 UI 用予約、SAD v0.2 で新規予約)
 | UNIT-005.3 | Validation API | ARCH-005 | B(分離対象) | **詳細(§4.17、v0.2)** |
 | UNIT-005.4 | CLI Entry Point | ARCH-005 | C | **詳細(§4.18、v0.4、Step 19 H1 で新規追加)** |
 | **UNIT-006.1** | **Occlusion Detector** | **ARCH-006** | **C** | **詳細(§4.19、v0.6、RCM-009、SRS-040、SRS-ALM-004、Step 20 X1 で実装 + Step 20 X2 で SDD 詳細化)** |
-| **UNIT-006.2** | **Air-Bubble Detector** | **ARCH-006** | **C** | **骨格(§4.20、v0.5、RCM-010、SRS-041、SRS-ALM-005)** |
+| **UNIT-006.2** | **Air-Bubble Detector** | **ARCH-006** | **C** | **詳細(§4.20、v0.7、RCM-010、SRS-041、SRS-ALM-005、Step 20 X4 で実装 + Step 20 X5 で SDD 詳細化、`src/vip_detection/air_bubble.py` 運用中 v0.1)** |
 | **UNIT-006.3** | **Reservoir Empty Detector** | **ARCH-006** | **C** | **骨格(§4.21、v0.5、RCM-006、SRS-042、SRS-ALM-006)** |
 | **UNIT-006.4** | **Alarm Task Watchdog** | **ARCH-006** | **C** | **骨格(§4.22、v0.5、RCM-011、SRS-044)** |
 | **UNIT-006.5** | **Alarm Path Redundancy** | **ARCH-006** | **C** | **骨格(§4.23、v0.5、RCM-012、SRS-IF-010)** |
@@ -2085,29 +2085,258 @@ Step 20 X1 で実装した UT 19 ケース(`tests/unit/test_occlusion_detector.p
 
 ---
 
-### 4.20 UNIT-006.2: Air-Bubble Detector(Inc.2 新規、骨格、v0.5、CR-0009 / Step 20 E)
+### 4.20 UNIT-006.2: Air-Bubble Detector(Inc.2 新規、v0.7 詳細化、CR-0019 / Step 20 X5)
 
-- **目的 / 責務:** 静脈ラインへの気泡混入を **多段判定**(警告閾値 + 危険閾値、各段独立)で検知する(SRS-041、RCM-010)。各段独立にセンサー入力を判定し、危険閾値超過時に気泡と判定して SRS-ALM-005 を発報、UNIT-001.1 State Machine に ERROR 遷移を依頼する。警告閾値到達は監視ログとして記録(発報はしない、Inc.4 で UI 通知化検討)。
-- **関連 SRS:** SRS-041, SRS-RCM-010, SRS-ALM-005, SRS-IF-010
-- **関連 RCM:** RCM-010(気泡検知多段化)
-- **安全クラス:** C(SAD §9 SEP-000、非分離)
-- **新規パッケージ予定:** `src/vip_detection/air_bubble.py`
+#### 4.20.A 目的 / 責務
 
-**主要 API(候補):**
+静脈ラインへの気泡混入を **多段判定**(警告閾値 + 危険閾値、各段独立)で検知する(SRS-041、RCM-010)。物理的に独立な 2 つのセンサーチャネル(`AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL`)を周期的に読み取り、以下のいずれかの行動をとる:
 
-| 関数・メソッド | 引数 | 戻り値 | 概要 |
-|--------------|------|-------|------|
-| `tick() -> None` | — | `None` | 周期駆動エントリ |
-| `_evaluate(warn: SensorReading, critical: SensorReading) -> DetectionResult` | 警告 / 危険 2 段の値 | `Healthy` / `Warning` / `Detected` | 多段独立判定の純粋ロジック |
+- **危険閾値超過(critical >= threshold):** `SRS-ALM-005`(HIGH / TECHNICAL)を発報 + State Machine に ERROR 遷移を依頼。**段間優先(critical > warning)** = 危険閾値が超過していれば、警告閾値の状態を問わず Detected として扱う(`AlarmEvent.metadata` 内の `triggering_value` には危険センサーの読み値を載せる)。
+- **警告閾値超過(warn >= threshold)かつ危険未達:** `WarningLogger` を経由した監視ログのみ(発報なし、状態遷移なし、Inc.4 で UI 通知化検討)。
+- **両系故障時:** ERROR 遷移依頼のみ(`Failed` 独立型、alarm なし、safe-side)= 不確実な検出に基づく fabricated alarm を避ける(UNIT-006.1 §4.19 と同原則)。
+- **片系故障時:** `Degraded(failed_channel)` で監視継続(警告系の喪失 = warning が出せないが critical 判定は維持、危険系の喪失 = warning は出せるが critical 判定不能のため Degraded で alarm / transition なし、SDD v0.8 で safe-side 議論)。
 
-**依存:** UNIT-002.1 Pump + UNIT-002.3 Event Injection(IF-U-015、`AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` 2 種センサー)、UNIT-007.1 Alarm Reporter、UNIT-001.1 State Machine
+**段独立性(SDD §4.20 設計趣旨):** 警告センサーと危険センサーは物理的に独立 = ノイズの多い警告センサー読み値が危険判定をマスク / 偽造しない(UT-006.2-07 で機械検証)。
 
-**SDD v0.6 候補で詳細化する項目:**
+**関連 SRS:** SRS-041(気泡検知)、SRS-RCM-010(多段判定)、SRS-ALM-005(HIGH/TECHNICAL)、SRS-IF-010(Alarm I/F)
+**関連 RCM:** RCM-010(気泡検知多段化、Designed → Verified 化目標、Inc.2 完了時)
+**関連 HZ:** HZ-004(検知失敗 → アラーム失敗連鎖、EV-HZ004-002 駆動)
+**安全クラス:** C(SAD §9 SEP-000、非分離)
+**実装パッケージ:** `src/vip_detection/air_bubble.py` v0.1(Step 20 X4 PR #73 マージ `943230a` で TDD 実装、104 stmt + 20 branch、stmt/branch 100% = MC/DC 100% 目標達成)+ 共通 `src/vip_detection/protocols.py` v0.2(WarningLogger Protocol 追加)
 
-- 警告閾値 / 危険閾値の値・単位
-- 各段の判定独立性の機械的検証(ユニット試験で各段を個別注入)
-- 警告状態の保持時間(継続警告から危険遷移する時間幅)
-- ユニット試験設計(UT-006.2-01〜:健全 / 警告のみ / 危険のみ / 両方 / 閾値境界 / 段独立性)
+**依存:** UNIT-002.1 Pump + UNIT-002.3 Event Injection 拡張(`AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` 2 種センサー)、UNIT-007.1 Alarm Reporter(SEP-003)、UNIT-001.1 State Machine、Inc.4 UI 通知コンポーネント(WarningLogger Protocol 経由、現 Inc. は記録 Fake で運用)
+
+#### 4.20.B 定数
+
+| 定数名 | 型 | 値(暫定) | 用途 |
+|-------|----|----------|------|
+| `AIR_BUBBLE_WARN_THRESHOLD` | `Final[Decimal]` | `Decimal(50)` | 警告閾値。`warn.value >= threshold` で `Warning` 候補(SDD v0.8 で bench data に基づき正式確定予定) |
+| `AIR_BUBBLE_CRITICAL_THRESHOLD` | `Final[Decimal]` | `Decimal(150)` | 危険閾値。`critical.value >= threshold` で `Detected`(同上、`CRITICAL > WARN` の順序が構造的に保証) |
+
+**単位:** 気泡体積センサー出力の **暫定無次元スケール**。SDD v0.8 で bench data の transfer function 確定後に再投影(mm^3 of entrained air または pump 正規化スケール)。docstring に「Placeholder scale pending SDD v0.8」と明記。
+
+#### 4.20.C 依存 protocol(`vip_detection/protocols.py` v0.2)
+
+UNIT-006.1 で確立した検知群共通 protocols を継承 + 本 X4 で **WarningLogger Protocol を新規追加**:
+
+| Protocol | 役割 | SEP-003 契約 |
+|----------|------|------------|
+| `SensorReader` | IF-U-015 pull(`AIR_BUBBLE_WARN` / `AIR_BUBBLE_CRITICAL` 2 channel) | 例外は detector 側で吸収(`_safe_read`) |
+| `AlarmReporter` | IF-U-007 push(`AlarmEvent`) | 例外伝播禁止(`_on_detected` で吸収) |
+| `WarningLogger`(本 X4 新規) | sub-alarm 記録(警告閾値超過時) | 例外伝播禁止(`_on_warning` で吸収) |
+| `StateTransitionRequester` | IF-U-013 push(ERROR target) | idempotent、例外伝播禁止 |
+
+`WarningLogger.log_warning(detector_id: str, *, threshold_value: Decimal, observed_value: Decimal, occurred_at: float) -> None` シグネチャ:
+
+- `detector_id`:`"UNIT-006.2"` 定数。複数ユニットが同一 Logger に書く場合の発信元識別子。
+- `threshold_value` / `observed_value`:警告閾値と観測値の対(後続ログ集計で「閾値からどれだけ離れているか」を分析可能)。
+- `occurred_at`:`clock()` の戻り値透過(monotonic seconds、AlarmEvent と同源)。
+
+Inc.4 で UI 通知コンポーネントが本 Protocol を実装することで、警告 → 通知の経路を「Protocol 抽象化のまま」拡張可能。
+
+#### 4.20.D `DetectionResult` 型(sealed 5 種、frozen+slots)
+
+```python
+DetectionResult = Healthy | Warning | Detected | Degraded | Failed
+```
+
+UNIT-006.1 の 4 種(Healthy / Detected / Degraded / Failed)に `Warning(triggering_value)` を加えた 5 種。**Warning と Detected を独立型として持つ理由**:
+
+1. UTPR §7.3.20 UT-006.2-04b/04c で `triggering_value` が「警告センサー値」か「危険センサー値」かを契約検証可能(段間優先のテスト)。
+2. `_apply` のディスパッチで `Warning` と `Detected` の副作用が異なる(log only vs alarm + transition)= 明示的に分岐できる sealed 型が読みやすい。
+3. Inc.4 で UI 通知化する際の表示分岐(yellow vs red)を、結果型から直接得られる。
+
+各バリアントの意味:
+
+| バリアント | 条件 | `_apply` 副作用 |
+|-----------|------|---------------|
+| `Healthy()` | 両系健全 + `warn < WARN_T` + `critical < CRITICAL_T` | 両 armed を再 arm |
+| `Warning(value)` | 両系健全 + `warn >= WARN_T` + `critical < CRITICAL_T` | `_on_warning`(warning_armed 連動で log)、alarm_armed 維持 |
+| `Detected(value)` | 両系健全 + `critical >= CRITICAL_T`(警告の状態問わず段間優先)| `_on_detected`(alarm_armed 連動で発報 + ERROR 遷移、両 armed クリア) |
+| `Degraded(failed)` | 片系 `healthy=False`、他系が下回り / 警告系のみ超過 | 両 armed を再 arm(detection 不能ではないが alarm/warning なし) |
+| `Failed()` | 両系 `healthy=False` | `_on_failed`(ERROR 遷移依頼のみ、両 armed 再 arm) |
+
+#### 4.20.E `AirBubbleDetector` クラス(DI 駆動、armed 連動冪等性)
+
+```python
+def __init__(
+    self,
+    *,
+    sensor_reader: SensorReader,
+    alarm_reporter: AlarmReporter,
+    warning_logger: WarningLogger,
+    state_machine: StateTransitionRequester,
+    clock: Callable[[], float] = time.monotonic,
+    warn_threshold: Decimal = AIR_BUBBLE_WARN_THRESHOLD,
+    critical_threshold: Decimal = AIR_BUBBLE_CRITICAL_THRESHOLD,
+) -> None: ...
+```
+
+内部状態は 2 つの armed フラグのみ:
+
+- `_alarm_armed: bool` 初期値 `True`、`Detected` 発火時に `False`、`Healthy` / `Degraded` / `Failed` 経由で `True` に再 arm。
+- `_warning_armed: bool` 初期値 `True`、`Warning` 発火時に `False`、`Detected` 発火時にも併せて `False`(検知昇格中の warning 重複防止)、`Healthy` / `Degraded` / `Failed` 経由で `True` に再 arm。
+
+`_alarm_armed` と `_warning_armed` を **独立** に管理する理由:Warning → Detected の段間遷移時に `Detected` の alarm を発火可能にするため。`_warning_armed` のみ False の状態でも `_alarm_armed=True` なら新規 detected で alarm 発火 OK。
+
+#### 4.20.F 主要 API + 動作仕様
+
+##### 4.20.F.1 `_evaluate`(純粋関数、UT-006.2-01〜10)
+
+```python
+def _evaluate(self, warn: SensorReading, critical: SensorReading) -> DetectionResult:
+    if not warn.healthy and not critical.healthy:
+        return Failed()
+    if critical.healthy and critical.value >= self._critical_threshold:
+        return Detected(triggering_value=critical.value)
+    if not critical.healthy:
+        return Degraded(failed_channel=SensorKind.AIR_BUBBLE_CRITICAL)
+    if not warn.healthy:
+        return Degraded(failed_channel=SensorKind.AIR_BUBBLE_WARN)
+    if warn.value >= self._warn_threshold:
+        return Warning(triggering_value=warn.value)
+    return Healthy()
+```
+
+**契約:**
+
+- 副作用なし(self の状態を読みも書きもしない、`self._warn_threshold` / `self._critical_threshold` のみ参照)。
+- 閾値境界は `>=`(inclusive)= 境界値ちょうども超過扱い(safe-side、過量投与回避と同パターン、UNIT-006.1 §4.19.F.1 と整合)。
+- 段間優先(critical > warning):critical_ok かつ critical 超過なら、warn の状態を問わず Detected を返す(UT-006.2-04 = 両超過時 / UT-006.2-07 = 警告値が負値 / UT-006.2-03 = 警告下回り、すべて critical 単独で Detected)。
+- 故障 channel の値は無視(`healthy=False` なら value を判定に使わない)= 故障 channel が偽の超過値を返しても判定に影響しない。
+- 片系故障の方向性:critical 故障は **致命的**(代替不能 = warning は critical の代替にならない)だが、本 v0.7 ではシンプルに `Degraded` で扱い、alarm / transition なしで継続監視。SDD v0.8 で「critical 故障時の ERROR 遷移依頼」を再評価(申し送り §4.20.G.x)。
+
+##### 4.20.F.2 `_safe_read`(SEP-003 例外吸収、UT-006.2-20)
+
+UNIT-006.1 §4.19.F.2 と同実装:`sensor_reader.read_sensor(kind)` 呼出時の任意例外を `SensorReading(kind, Decimal(0), healthy=False)` プレースホルダに変換、`_logger.warning(...)` で記録。`noqa: BLE001` で catch-all を意図的に許容(SEP-003 = 検出経路が centralized でなくとも壊れない、UNIT-006.1 と同契約)。
+
+##### 4.20.F.3 `_apply`(ディスパッチ、UT-006.2-19)
+
+```python
+def _apply(self, result: DetectionResult) -> None:
+    if isinstance(result, Detected):
+        self._on_detected(result)
+        return
+    if isinstance(result, Warning):
+        self._on_warning(result)
+        return
+    if isinstance(result, Failed):
+        self._on_failed()
+        return
+    # Healthy or Degraded
+    self._alarm_armed = True
+    self._warning_armed = True
+```
+
+`Healthy` / `Degraded` で両 armed を再 arm することで、再発する air bubble を毎回新規 alarm + warning として扱える(UT-006.2-19 で 6 step シーケンス検証)。
+
+##### 4.20.F.4 `_on_detected`(armed 連動冪等性、UT-006.2-12〜17)
+
+```python
+def _on_detected(self, result: Detected) -> None:
+    if not self._alarm_armed:
+        return
+    event = AlarmEvent(
+        alarm_id=_ALARM_ID_AIR_BUBBLE,
+        priority=AlarmPriority.HIGH,
+        category=AlarmCategory.TECHNICAL,
+        occurred_at=self._clock(),
+        cause_code=_CAUSE_CODE_AIR_BUBBLE,
+        metadata={"triggering_value": result.triggering_value},
+    )
+    try:
+        self._alarm_reporter.report_alarm(event)
+    except Exception:  # noqa: BLE001 — SEP-003 catch-all
+        _logger.warning(...)
+    self._alarm_armed = False
+    self._warning_armed = False
+    self._state_machine.request_state_transition(
+        TargetState.ERROR,
+        reason=_REASON_DETECTED,
+    )
+```
+
+**契約:**
+
+- armed 連動冪等性:`_alarm_armed=False` の間は何度 `tick()` を呼んでも alarm を重複発火しない(UT-006.2-17)。
+- `_warning_armed` も併せて False に:Detected 中の Warning 重複を防ぐ(検知昇格中は警告ログ不要)。
+- 発報 → 遷移順序契約:`report_alarm()` 呼出が `request_state_transition()` より厳密に先行(UT-006.2-12 で共有 trace 検証、SAD v0.2 §11.1)。
+- Reporter 例外吸収:`report_alarm` が `RuntimeError` を上げても `_alarm_armed=False` セットと `request_state_transition` 呼出は実行(UT-006.2-15、SEP-003)。
+- `AlarmEvent.metadata.triggering_value`:危険センサーの読み値(`Decimal`)を載せる。Inc.4 UI で「閾値からどれだけ離れているか」を可視化する用途を想定。
+
+##### 4.20.F.5 `_on_warning`(warning_armed 連動冪等性、UT-006.2-13/16/18)
+
+```python
+def _on_warning(self, result: Warning) -> None:
+    if not self._warning_armed:
+        return
+    try:
+        self._warning_logger.log_warning(
+            _DETECTOR_ID,
+            threshold_value=self._warn_threshold,
+            observed_value=result.triggering_value,
+            occurred_at=self._clock(),
+        )
+    except Exception:  # noqa: BLE001 — SEP-003 catch-all
+        _logger.warning(...)
+    self._warning_armed = False
+```
+
+**契約:**
+
+- warning_armed 連動冪等性:`_warning_armed=False` の間は何度 `tick()` を呼んでも logger を重複呼出しない(UT-006.2-18)。
+- `_alarm_armed` は **触らない**:Warning → Detected 段間遷移時、`_on_detected` 側で alarm を出せるよう alarm_armed=True 維持。
+- Logger 例外吸収:`log_warning` が `RuntimeError` を上げても `_warning_armed=False` セットは実行 = 次回 tick で重複 log 試行しない(UT-006.2-16)。
+- 副作用は logger 呼出のみ(state transition なし、alarm なし)= SDD §4.20.A 設計趣旨に整合。
+
+##### 4.20.F.6 `_on_failed`(両系故障時の安全側遷移、UT-006.2-11/20)
+
+```python
+def _on_failed(self) -> None:
+    self._state_machine.request_state_transition(
+        TargetState.ERROR,
+        reason=_REASON_UNAVAILABLE,
+    )
+    self._alarm_armed = True
+    self._warning_armed = True
+```
+
+**契約:**
+
+- alarm なし(両系不信時の Detected alarm は fabrication = 不確実な事象に基づく虚偽発報を回避)、warning なし(同じ理由)。
+- ERROR 遷移依頼のみ実施(State Machine 側の安全停止に委ねる、UNIT-001.1 §4.1)。
+- `reason` 区別("air_bubble_detection_unavailable" vs Detected の "air_bubble_detected")= State Machine 側でログ / フォレンジック分析時に経路を区別可能。
+- 両 armed 再 arm:故障から復帰した場合に新規 detection / warning を発火可能(復旧経路で alarm 漏れを防ぐ)。
+
+#### 4.20.G 依存
+
+| 依存 UNIT | 役割 | Step 20 X4 時点の代替 | 正式結合 |
+|-----------|------|--------------------|---------|
+| UNIT-002.1 Pump Simulator | センサー値供給(`AIR_BUBBLE_WARN`)| `_ScriptedSensorReader` Fake で代替 | ITPR §6.13 IT-RCM010(Inc.2 IT 実装フェーズ)|
+| UNIT-002.3 Event Injection 拡張 | センサー値供給(`AIR_BUBBLE_CRITICAL` + per-channel healthy フラグ)| 同上 | UNIT-002.3 G 拡張(SDD §4.11.G、Step 20 X25〜)|
+| UNIT-007.1 Alarm Reporter Core | `AlarmEvent` 配信 + ACK/SILENCE 状態管理 | `_RecordingReporter` Fake で代替 | UNIT-007.1 実装(Step 20 X22〜)|
+| UNIT-001.1 State Machine 拡張 | ERROR 遷移受理 + アラーム経路統合 | `_RecordingStateMachine` Fake で代替 | UNIT-001.1 G 拡張(SDD §4.1.G、Step 20 X25〜)|
+| Inc.4 UI 通知コンポーネント | `WarningLogger` 実装(yellow indicator) | `_RecordingWarningLogger` Fake で代替 | Inc.4(`WarningLogger` Protocol 互換実装) |
+
+#### 4.20.G.x SDD v0.8 候補で詳細化する項目(本 v0.7 スコープ外)
+
+1. **警告状態保持時間(継続警告から危険遷移する時間幅)**:現状は段間遷移を「次 tick で判定」する純粋関数 + step base モデル。bench data によっては「連続 N tick の Warning → 強制 Detected」のような時間ガード追加が必要(SDD v0.8 + Control Loop 拡張と並行)。
+2. **並行 `tick` 耐性 + atomic 性**:`_alarm_armed` + `_warning_armed` の二系統 armed は現状 GIL atomic 性に依存。将来複数スレッドからの呼出が発生する場合、`threading.Lock` または `dataclass(slots=True)` + atomic CAS の検討が必要(UTPR v0.25 の並行 UT-006.2-21+ と並行)。
+3. **周期 `tick` 呼出間隔**:Control Loop 拡張で確定。SDD v0.8 で `(tick_period_ms, max_consecutive_warning_ticks)` の対を明示。
+4. **片系故障内部ロジック詳細**:タイムアウト / ノイズ閾値 / 連続エラーカウントの判定。UNIT-002.3 拡張で実装側詳細化、`SensorReading.healthy` の具体的故障検出ロジックは UNIT-006.2 から見ると黒箱。
+5. **閾値具体値の bench 整合性**:`AIR_BUBBLE_WARN_THRESHOLD` / `AIR_BUBBLE_CRITICAL_THRESHOLD` 正式確定 + 単位の物理スケール明示(mm^3 / 正規化スケール / バーセル等)。
+6. **critical 故障時の safe-side 評価**:現状は `Degraded(CRITICAL)` で alarm/transition なしだが、critical 機能の喪失は warning では代替不能 = SDD v0.8 で「critical 故障時の ERROR 遷移依頼」を再評価(UNIT-002.3 拡張で故障判定の信頼性が確定した後)。
+
+#### 4.20.H ユニット試験設計(UTPR §7.3.20 詳細化は CR-0020 / Step 20 X6 で実施)
+
+Step 20 X4 で実装した UT 22 ケース(`tests/unit/test_air_bubble_detector.py`、UT-006.2-01〜18 + UT-006.2-04b/04c、stmt/branch 100% = MC/DC 100% 目標達成)を UTPR §7.3.20 で詳細化する(別 PR 化、CR-0020 / Step 20 X6)。本 SDD v0.7 §4.20 では UT-006.2-NN 各ケースの設計意図は §4.20.F.x の各 API の **契約** 節で記述済(参照ガイド):
+
+- §4.20.F.1 `_evaluate` 契約 ← UT-006.2-01〜10(parametrize + triggering_value 内容 + 境界 + 段独立 + 片系/両系故障)
+- §4.20.F.2 `_safe_read` 契約 ← UT-006.2-20(Sensor 例外吸収)
+- §4.20.F.3 `_apply` 契約 ← UT-006.2-19(Healthy 経由再 arm)
+- §4.20.F.4 `_on_detected` 契約 ← UT-006.2-12〜17(順序契約 + AlarmEvent 内容 + Reporter 例外吸収 + 連続検知冪等性)
+- §4.20.F.5 `_on_warning` 契約 ← UT-006.2-13/16/18(log のみ + Logger 例外吸収 + 連続警告冪等性)
+- §4.20.F.6 `_on_failed` 契約 ← UT-006.2-11/20(ERROR 遷移のみ + alarm/warning なし + Sensor 全例外時の Failed 変換)
 
 ---
 
@@ -2448,7 +2677,7 @@ v0.2 詳細化作業中に発見した SRS 文言整合・実装上の判断点 
 | **SRS-I-040(確定)、SRS-040〜043(Inc.2)** | **ARCH-002.3** | **UNIT-002.3**(Inc.2 拡張)| **詳細(§4.11、Inc.1 v0.2)+ Inc.2 拡張(§4.11.G、v0.5、骨格、no-op 解除)** | **TBD(Step 20 F)** |
 | **SRS-IF-010(Inc.2)、SRS-044(Inc.2)** | **ARCH-005.1** | **UNIT-005.1**(Inc.2 拡張)| **詳細(§4.15、Inc.1 v0.2)+ Inc.2 拡張(§4.15.G、v0.5、骨格、`acknowledge_alarm` / `silence_alarm`)** | **TBD(Step 20 F)** |
 | **SRS-040, SRS-RCM-009, SRS-ALM-004(Inc.2)** | **ARCH-006.1** | **UNIT-006.1** | **詳細(§4.19、v0.6、Step 20 X1 で実装 + Step 20 X2 で SDD 詳細化)** | **UT-006.1-01〜18(19 ケース、Step 20 X1 で実装、stmt/branch 100% = MC/DC 100%、UTPR §7.3.19 詳細化は CR-0017 / Step 20 X3)** |
-| **SRS-041, SRS-RCM-010, SRS-ALM-005(Inc.2)** | **ARCH-006.2** | **UNIT-006.2** | **骨格(§4.20、v0.5)** | **TBD(Step 20 F UT-006.2-01〜)** |
+| **SRS-041, SRS-RCM-010, SRS-ALM-005(Inc.2)** | **ARCH-006.2** | **UNIT-006.2** | **詳細(§4.20、v0.7、Step 20 X4 実装 + Step 20 X5 SDD 詳細化、`src/vip_detection/air_bubble.py` 運用中 v0.1)** | **UT-006.2-01〜18 + 04b/04c(22 ケース、Step 20 X4 で実装、stmt/branch 100% = MC/DC 100%、UTPR §7.3.20 詳細化は CR-0020 / Step 20 X6)** |
 | **SRS-042, SRS-RCM-006(部分)、SRS-ALM-006(Inc.2)** | **ARCH-006.3** | **UNIT-006.3** | **骨格(§4.21、v0.5)** | **TBD(Step 20 F UT-006.3-01〜)** |
 | **SRS-044, SRS-RCM-011(Inc.2)** | **ARCH-006.4** | **UNIT-006.4** | **骨格(§4.22、v0.5)** | **TBD(Step 20 F UT-006.4-01〜)** |
 | **SRS-RCM-012, SRS-IF-010(Inc.2)** | **ARCH-006.5** | **UNIT-006.5** | **骨格(§4.23、v0.5)** | **TBD(Step 20 F UT-006.5-01〜)** |
@@ -2460,6 +2689,7 @@ v0.2 詳細化作業中に発見した SRS 文言整合・実装上の判断点 
 
 | バージョン | 日付 | 変更内容 | 変更者 |
 |----------|------|---------|--------|
+| 0.7 | 2026-05-13 | **CR-0019(Issue #74、MODERATE、Step 20 X5 / Inc.2 連動詳細化の SDD 部分 §4.20、UNIT-006.2 完結サイクル(Step 20 X4〜X6)第 2 ステップ)による改訂。** Step 20 X4(CR-0018、PR #73 マージ `943230a`)で TDD 実装した `src/vip_detection/air_bubble.py` v0.1 + `src/vip_detection/protocols.py` v0.2(`WarningLogger` Protocol 追加)の内容を SDD §4.20 に詳細化反映。**(A) §4.20 UNIT-006.2: Air-Bubble Detector を骨格(v0.5)→ 詳細(v0.7)に展開:** §4.20.A 目的 / 責務(多段判定 = critical > warning 段間優先、警告 = WarningLogger 経由監視ログのみ、両系故障 = `Failed` 独立型で alarm なし + ERROR 遷移依頼のみ、片系故障 = `Degraded(failed_channel)` で監視継続、段独立性 = ノイズの多い警告センサーが危険判定をマスク / 偽造しない契約)、§4.20.B 定数(`AIR_BUBBLE_WARN_THRESHOLD = Decimal(50)` + `AIR_BUBBLE_CRITICAL_THRESHOLD = Decimal(150)` 暫定、SDD v0.8 で bench data 正式確定予定、CRITICAL > WARN の順序は構造的に保証、単位は気泡体積センサー出力の暫定無次元スケール)、§4.20.C 依存 protocol(`vip_detection/protocols.py` v0.2、UNIT-006.1 で確立した SensorReader/AlarmReporter/StateTransitionRequester に加え本 X4 で **WarningLogger Protocol を新規追加**(`log_warning(detector_id, *, threshold_value, observed_value, occurred_at) -> None`、SEP-003 例外伝播禁止契約、後続 UNIT-006.3〜006.6 + Inc.4 UI 通知コンポーネントで再利用予定))、§4.20.D `DetectionResult` 5 種 sealed frozen+slots(`Healthy` / `Warning(triggering_value)` / `Detected(triggering_value)` / `Degraded(failed_channel)` / `Failed`、UNIT-006.1 の 4 種 + Warning 拡張の根拠 = UTPR §7.3.20 8 観点を表現可能 + UT-006.2-04b/04c で triggering_value 内容を契約検証可能 + Inc.4 UI 表示分岐(yellow vs red)に直接対応)、§4.20.E `AirBubbleDetector` クラス DI 駆動 constructor(sensor_reader / alarm_reporter / warning_logger / state_machine / clock / warn_threshold / critical_threshold)+ **二系統 armed フラグ**(`_alarm_armed` + `_warning_armed`、Warning → Detected 段間遷移時に alarm を発火可能にするため独立管理)、§4.20.F 主要 API + 動作仕様(F.1 `_evaluate` 純粋関数 + decision tree + 段間優先 critical > warning + 段独立性 + 故障 channel 値無視 + 閾値境界 inclusive >= / F.2 `_safe_read` SEP-003 例外吸収 / F.3 `_apply` ディスパッチ + Healthy/Degraded 両 armed 再 arm / F.4 `_on_detected` alarm_armed 連動冪等性 + 発報 → 遷移順序契約 + alarm/warning 両 armed クリア + Reporter 例外吸収 + metadata.triggering_value / F.5 `_on_warning` warning_armed 連動冪等性 + Logger 例外吸収 + alarm_armed 維持(段間遷移可能) / F.6 `_on_failed` ERROR 遷移依頼のみ + alarm/warning なし safe-side + reason 区別 + 両 armed 再 arm)、§4.20.G 依存先テーブル(UNIT-002.1 sensor / UNIT-002.3 拡張 / UNIT-007.1 / UNIT-001.1 拡張 / Inc.4 UI WarningLogger 実装、Step 20 X4 時点では fake 代替)、§4.20.G.x SDD v0.8 候補で詳細化する項目 6 件(警告状態保持時間 / 並行 tick + atomic 性 / 周期 tick 呼出間隔 / 片系故障内部ロジック詳細 = UNIT-002.3 拡張 / 閾値具体値 bench 整合性 + 物理スケール / critical 故障時の safe-side 評価)、§4.20.H ユニット試験設計参照ガイド(UT-006.2-NN ↔ §4.20.F.x 契約節のマッピング、UTPR §7.3.20 詳細化は CR-0020 / Step 20 X6 で別 PR)。**(B) §3.2 ユニット一覧で UNIT-006.2 行の状態を「骨格(§4.20、v0.5、RCM-010、SRS-041、SRS-ALM-005)」→「詳細(§4.20、v0.7、RCM-010、SRS-041、SRS-ALM-005、Step 20 X4 で実装 + Step 20 X5 で SDD 詳細化、`src/vip_detection/air_bubble.py` 運用中 v0.1)」に更新。**(C) §3.1 ユニット階層で UNIT-006.2 行を「骨格、RCM-010」→「詳細 v0.7、RCM-010、Step 20 X4 実装 + X5 SDD 詳細化」に更新。**(D) §7 トレーサビリティマトリクスで SRS-041/RCM-010/SRS-ALM-005 → UNIT-006.2 行を「骨格(§4.20、v0.5)」→「詳細(§4.20、v0.7、Step 20 X4 実装 + Step 20 X5 SDD 詳細化、`src/vip_detection/air_bubble.py` 運用中 v0.1)」+ UT-006.2-01〜18 + 04b/04c(22 ケース)を充填(stmt/branch 100% = MC/DC 100%、UTPR 詳細化は CR-0020 / Step 20 X6)。**(E) ヘッダ:** v0.6 → v0.7、対象 SW バージョン 0.2.0(Inc.1 全 18 詳細 + Inc.2 UNIT-006.1/006.2 詳細 + Inc.2 残 6 ユニット骨格 + 既存 3 ユニット拡張節、合計 26 ユニット)、最終更新日 2026-05-13、変更要求に CR-0019 を追加。**MODERATE 区分**(SCMP §4.1):骨格化 → 詳細化への枠組み拡張で実装は不変、SDD 内記述の精度向上のみ、SRS / SAD / RMF / 既存実装に影響しない、Step 20 X2 SDD v0.5 → v0.6(CR-0016 MODERATE)と同区分・同性質。**SRMP §7.3「RCM 関連部の追記化」相当**(RCM-010 実装ユニットの設計記述精度向上、検出能力不変)、**RMF 更新不要**(RMF v0.4 で既に Designed 状態反映済、Verified 化判定は Inc.2 完了時)、**本 CR-0019 は SDD 改訂のみで実装コード / SOUP / 試験への波及なし**(Step 20 X4 PR #73 で実装済 + 後続 Step 20 X6 で UTPR 連動)。**「単一文書 = 単一 CR」運用パターンの 13 度目適用**(CR-0008〜CR-0018 + 本 CR-0019 = SDD のみで分離継続)、**「§4 CLOSED 一気通貫」運用パターンの 13 度目適用**(Step 19 I 発見 → Step 20 B-1 〜本 X5 連続 13 回適用)、**Step 20 X2 SDD §4.19 詳細化テンプレート(11 サブセクション §4.x.A〜H + §4.x.G.x 申し送り)の継承**:UNIT-006.1 で確立したテンプレートを §4.20 で再利用 = 後続 UNIT-006.3〜007.2 + 既存 3 拡張節も同テンプレートで展開予定(残 27 Step)。**詳細化スコープ判断:** 「実装した項目のみ」(Step 20 X5 着手前ユーザ確認で推奨案合意)。具体的には Step 20 X4 で実装した 6 項目(暫定閾値 WARN/CRITICAL ペア・5 種 DetectionResult・二系統 armed フラグ・WarningLogger Protocol DI・段間優先 critical > warning・段独立性 + SEP-003 例外契約)を §4.20.A〜H に展開、未確定 6 項目(警告状態保持時間・並行 tick・周期 tick・片系故障内部ロジック・閾値 bench・critical 故障 safe-side 評価)は §4.20.G.x に申し送り = SDD v0.8 候補 + UNIT-002.3 拡張 + Control Loop 拡張と並行で詳細化予定。Step 20 X5 軽量化(派生 ~11 箇所):SDD ヘッダ + §3.1 + §3.2 UNIT-006.2 行 + §4.20 詳細化(本 v0.7 最大の改訂)+ §7 トレース UNIT-006.2 行 + §8 改訂履歴 + CRR §4 CR-0019 行 + §6 + §9 改訂履歴 + CIL CI-DOC-SDD v0.6 → v0.7 + §11 改訂履歴 + DEVSTEPS Step 20 X5 セクション + 改訂履歴 + 次ステップ計画 + GitHub Issue 起票 = 計約 11 箇所(Step 20 X2 と同等の軽量規模)| k-abe |
 | 0.6 | 2026-05-13 | **CR-0016(MODERATE、Step 20 X2 / Inc.2 連動詳細化の SDD 部分 §4.19)による改訂。** Step 20 X1(CR-0015、PR #67 マージ `551f862`)で TDD 実装した `src/vip_detection/occlusion.py` v0.1 + `src/vip_detection/protocols.py` v0.1 の内容を SDD §4.19 に詳細化反映。**(A) §4.19 UNIT-006.1: Occlusion Detector を骨格(v0.5)→ 詳細(v0.6)に展開:** §4.19.A 目的 / 責務(両系故障時の挙動を `Failed` 独立型で明示、alarm なし + ERROR 遷移依頼のみ)、§4.19.B 定数(`OCCLUSION_PRESSURE_THRESHOLD_KPA = Decimal(90)` kPa = 暫定値、SDD v0.7 で正式確定)、§4.19.C 依存 protocol(`vip_detection/protocols.py` に集中配置、`SensorKind` 6 channels + `SensorReading` frozen+slots + `SensorReader` Protocol + `AlarmPriority` / `AlarmCategory` Enum + `AlarmEvent` frozen+slots + `MappingProxyType` + `AlarmReporter` Protocol + `TargetState` Enum + `StateTransitionRequester` Protocol、すべて `@runtime_checkable`)、§4.19.D `DetectionResult` 4 種 sealed frozen+slots(`Healthy` / `Detected(triggering_channels)` / `Degraded(failed_channel)` / `Failed`、v0.5 骨格 3 種からの拡張理由 = UT-006.1-10/11 観点明示)、§4.19.E `OcclusionDetector` クラス DI 駆動 constructor(sensor_reader / alarm_reporter / state_machine / clock / threshold_kpa)、§4.19.F 主要 API + 動作仕様(`tick` / `_evaluate` 純粋関数 + 契約 / `_safe_read` SEP-003 例外吸収 + 契約 / `_apply` ディスパッチ + 契約 / `_on_detected` armed 連動冪等性 + 発報 → 遷移依頼順序契約 + 契約 / `_on_failed` ERROR 遷移依頼のみ + 再 arm + 契約)、§4.19.G 依存先テーブル(UNIT-002.1 sensor / UNIT-002.3 拡張 / UNIT-007.1 / UNIT-001.1 拡張、Step 20 X1 時点では fake 代替)、§4.19.G.x SDD v0.7 候補で詳細化する項目(周期 tick / 並行性 / 片系故障検出ロジック詳細 / 検知後 self-test / 閾値具体値の bench 整合)、§4.19.H ユニット試験設計参照ガイド(UT-006.1-NN ↔ §4.19.F.x 契約節のマッピング、UTPR §7.3.19 詳細化は CR-0017 / Step 20 X3 で別 PR)。**(B) §3.2 ユニット一覧で UNIT-006.1 行の状態を「骨格(§4.19、v0.5、...)」→「詳細(§4.19、v0.6、RCM-009、SRS-040、SRS-ALM-004、Step 20 X1 で実装 + Step 20 X2 で SDD 詳細化)」に更新。**(C) §7 トレーサビリティマトリクスで SRS-040/RCM-009/SRS-ALM-004 → UNIT-006.1 行を「骨格(§4.19、v0.5)」→「詳細(§4.19、v0.6)」+ UT-006.1-01〜18 を充填(stmt/branch 100% = MC/DC 100%、UTPR 詳細化は CR-0017 / Step 20 X3)。**(D) ヘッダ:** v0.5 → v0.6、対象 SW バージョン 0.2.0(Inc.1 全 18 詳細 + Inc.2 UNIT-006.1 詳細 + Inc.2 残 7 ユニット骨格 + 既存 3 ユニット拡張節、合計 26 ユニット)、最終更新日 2026-05-13、変更要求に CR-0016 を追加。**MODERATE 区分**(SCMP §4.1):骨格化 → 詳細化への枠組み拡張で実装は不変、SDD 内記述の精度向上のみ、SRS / SAD / RMF / 既存実装に影響しない。**SRMP §7.3「RCM 関連部の追記化」相当**(RCM-009 実装ユニットの設計記述精度向上、検出能力不変)、**RMF 更新不要**(RMF v0.4 で既に Designed 状態反映済、Verified 化判定は Inc.2 完了時)、**本 CR-0016 は SDD 改訂のみで実装コード / SOUP / 試験への波及なし**(Step 20 X1 PR #67 で実装済 + 後続 Step 20 X3 で UTPR 連動)。**「単一文書 = 単一 CR」運用パターンの 10 度目適用**(CR-0008/0010/0011/0009/0012/0013/0014/0015 + 本 CR-0016 = SDD のみで分離)、**「§4 CLOSED 一気通貫」運用パターンの 10 度目適用**(Step 19 I 発見 → Step 20 B-1 〜本 X2 連続 10 回適用)、**Step 14 v0.1 流儀 / Step 19 B 系列流儀 / Inc.2 着手準備流儀の合流**:「v0.x 骨格化 → 後続改訂で詳細化」パターンを Inc.2 でも実証 = v0.5 骨格 → v0.6 §4.19 詳細化で第 1 ユニット完了、後続 UNIT-006.2〜007.2 + 既存 3 拡張節は v0.7+ で順次詳細化予定。**詳細化スコープ判断:** 「実装した項目のみ」(Step 20 X1 着手前ユーザ確認で推奨案合意)。具体的には Step 20 X1 で実装した 5 項目(閾値暫定値・API シグネチャ・依存 protocol・DetectionResult 型・armed 連動冪等性 + SEP-003 例外契約)を §4.19.A〜H に展開、未確定 4 項目(周期 tick 呼出間隔・並行性 / 排他制御・片系故障検出ロジック詳細・検知後 self-test 動作)は §4.19.G.x に申し送り = SDD v0.7 候補 + 連動 detector 実装(UNIT-006.2〜)と並行で詳細化予定。Step 20 X2 軽量化(派生 7 箇所程度):SDD ヘッダ + §3.2 UNIT-006.1 行 + §4.19 詳細化(本 v0.6 最大の改訂)+ §7 トレース UNIT-006.1 行 + §8 改訂履歴 + CRR §4 CR-0016 行 + §9 改訂履歴 + CIL CI-DOC-SDD v0.5 → v0.6 + §11 改訂履歴 + DEVSTEPS Step 20 X2 セクション + 改訂履歴 + 次ステップ計画 + GitHub Issue 起票 = 計約 10 箇所(Step 20 X1 と同等の軽量規模)| k-abe |
 | 0.5 | 2026-05-10 | **CR-0009(Issue #57、MODERATE、Step 20 E / Inc.2 連動改訂の SDD 部分、骨格化)による改訂。** SAD-VIP-001 v0.2(CR-0011 / Step 20 D、PR #56 マージ `c06425a`)で確定した Inc.2 範囲のアーキテクチャ要素を、Step 14 v0.1 流儀(代表 5 ユニット詳細 + 骨格 N ユニット)を継承して **SDD §4.x 骨格記述** として反映。**(A) §3.1 ユニット階層拡張:** ARCH-006 Detection 検知群 + ARCH-007 Alarm Reporter + ARCH-009 Logging Stub(旧 ARCH-006、SAD v0.2 リネーム)+ ARCH-010(Inc.4 UI 用予約)を追加。**(B) §3.2 ユニット一覧拡張:** Inc.2 新規 8 ユニット行追加(状態 = 「骨格(§4.x、v0.5)」)+ 既存 UNIT-001.1 / UNIT-002.3 / UNIT-005.1 行に「Inc.2 拡張(§4.x.G、v0.5)」状態追記、合計 26 ユニット。**(C) §4.19〜§4.26 Inc.2 新規 8 ユニットの §5.4.2 骨格記述:** UNIT-006.1 Occlusion Detector(RCM-009、SRS-040、SRS-ALM-004)/ UNIT-006.2 Air-Bubble Detector(RCM-010、SRS-041、SRS-ALM-005)/ UNIT-006.3 Reservoir Empty Detector(RCM-006、SRS-042、SRS-ALM-006)/ UNIT-006.4 Alarm Task Watchdog(RCM-011、SRS-044)/ UNIT-006.5 Alarm Path Redundancy(RCM-012、SRS-IF-010)/ UNIT-006.6 Battery Low Detector(RCM-006、SRS-043、SRS-ALM-007、HZ-009)/ UNIT-007.1 Alarm Reporter Core(クラス B、SEP-003 継続、SRS-IF-010、SRS-O-040、SRS-ALM-001/004〜008)/ UNIT-007.2 Alarm Priority Classifier(クラス B、純粋関数、IEC 60601-1-8 §6.1/§5.1.4、SRS-REG-002)。各骨格で目的 / 責務・関連 SRS / RCM・安全クラス・新規パッケージ予定・主要 API 候補表・依存・SDD v0.6 候補で詳細化する項目を記述(Step 14 v0.1 流儀のテンプレート継承)。**(D) §4.1.G / §4.11.G / §4.15.G 既存 3 ユニット拡張サブセクション追補:** UNIT-001.1 State Machine(アラーム発報経路 + ACK / SILENCE 状態遷移、SRS-044 / SRS-ALM-008 / IEC 60601-1-8 §6.4)/ UNIT-002.3 Event Injection(BATTERY_LOW enum 追加 + Pump 伝播経路、SDD v0.2 §4.11.C で予告済の Inc.2 hooks 部分の正式確定、no-op 解除方針確定)/ UNIT-005.1 Control API(`acknowledge_alarm` / `silence_alarm`、IEC 60601-1-8 §6.4 準拠)。**(E) §5.1 ユニット間 I/F 詳細化:** **IF-U-007 詳細化**(`report_alarm(event: AlarmEvent) -> None` の Python 実装契約を §5.1.A で確定 = `dataclass(frozen=True, slots=True)` + `metadata` の `MappingProxyType` ラップ + バリデーション規則 + 例外契約 = 例外伝播禁止 = SEP-003 違反検知の根拠)、**IF-U-012〜015 新規追加**(検知群 → Alarm Reporter / 検知群 → State Machine / Control API → Alarm Reporter ACK・Silence / Pump → 検知群冗長 2 系統センサー入力)、IF-U-008 を「ARCH-009 Logging Stub」(旧 ARCH-006)に整合化。**(F) §6.4 ISS-V02 解消済整合化:** ISS-V02-001〜004 は Step 20 B-1(CR-0007 / SRS v0.2、PR #50 `8005c05`)で全件解消済を本 v0.5 で正式記録(各 ID の解消結果列を追加)。**(G) §6.5(新規)v0.5 骨格化で発見した整合性課題(申し送り):** ISS-V03-XXX 集約欄を新設、本 v0.5 時点では新規発見なし(SAD v0.2 で確定した内容を反映する従属的改訂のため設計判断は SAD 側で完結)、Step 20 F〜H + Step 20 X〜で発見される課題の集約先として枠を用意。**(H) §7 トレーサビリティマトリクス追補:** Inc.2 新規 8 ユニット行 + 既存 3 ユニット拡張行を追加(SRS-040〜044 / SRS-ALM-004〜008 / SRS-RCM-006/009/010/011/012 / SRS-IF-010 / SRS-O-040 / SRS-I-040 / SRS-REG-002 → ARCH-006/007 各 UNIT への割付け、UT/IT/ST 列は Step 20 F〜H で充填予定の TBD)。**(I) ヘッダ:** v0.4 → v0.5、対象 SW バージョン 0.2.0(Inc.2 範囲新規 8 ユニット骨格 + 既存 3 ユニット拡張節、合計 26 ユニット)、最終更新日 2026-05-10。**MODERATE 区分**(SCMP §4.1):骨格化 = 詳細設計の枠組み追加で、論理 / 安全機能 / 既存実装に影響しない、SAD v0.2 で確定した設計を SDD §4.x プレースホルダに反映する従属的改訂。**SRMP §7.3「RCM 関連部の追記化」相当**(新規 5 RCM の詳細設計枠組み追加)、**RMF 更新不要**(RMF v0.4 で既に Designed 状態反映済 = SDD は RMF と整合する形で詳細設計枠組みを記述するのみ)、**本 CR-0009 は SDD 改訂のみで実装コード / SOUP / 試験への波及なし**(後続 Step 20 F〜Z で連動)。**「単一文書 = 単一 CR」運用パターンの 5 度目適用**(CR-0008 = SRS / CR-0010 = RMF / CR-0011 = SAD / CR-0009 = SDD で分離継続)、**「§4 CLOSED 一気通貫」運用パターンの 5 度目適用**(Step 19 I 発見 → Step 20 B-1 / B-2 / C / D / 本 E で連続 5 回適用 = default 運用ルールとして完全確立)、**Step 14 v0.1 流儀の継承**(代表 N ユニット詳細 + 骨格 N ユニットの分離記述パターンを Inc.2 でも再利用、SDD v0.6 候補で詳細化展開する道筋を確保)| k-abe |
 | 0.1 | 2026-04-18 | 初版作成(Inc.1 範囲):代表 5 ユニット(State Machine / Flow Command Validator / HW-side Failsafe Timer / Atomic File Writer / Integrity Validator)を §5.4.2 テンプレートに従って詳細記述、残 9 ユニットを骨格記述(責務・主要 API・依存・SDD v0.2 詳細化項目)、§5.4.3 I/F 詳細 13 件、§5.4.4 検証観点チェックリスト・レビュー記録。SDD v0.2 は CR 起票で追補予定、`inc1-design-frozen` タグは v0.2 完成後に付与 | k-abe |
