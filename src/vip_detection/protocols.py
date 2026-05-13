@@ -21,6 +21,10 @@ Defines the dependency boundary that every detector unit in Inc.2 talks to:
   exceptions from propagating back to the detector (SEP-003).
 * :class:`StateTransitionRequester` — IF-U-013 transition-request push
   contract implemented by UNIT-001.1 State Machine.
+* :class:`WarningLogger` — sub-alarm record contract used by multi-stage
+  detectors (UNIT-006.2 Air-Bubble Detector, SDD §4.20). Warning-level
+  exceedances are recorded here without raising an alarm; the Inc.4 UI
+  notification component is expected to plug into the same contract.
 
 These protocols are intentionally placed in this module (rather than inside
 ``occlusion.py``) so UNIT-006.2 .. UNIT-006.6 can import them without
@@ -48,6 +52,7 @@ __all__ = [
     "SensorReading",
     "StateTransitionRequester",
     "TargetState",
+    "WarningLogger",
 ]
 
 
@@ -176,4 +181,33 @@ class StateTransitionRequester(Protocol):
 
     def request_state_transition(self, target: TargetState, *, reason: str) -> None:
         """Request a transition to ``target``. Implementations should be idempotent."""
+        ...
+
+
+@runtime_checkable
+class WarningLogger(Protocol):
+    """Sub-alarm warning record contract (SDD §4.20, Inc.2).
+
+    Multi-stage detectors (currently UNIT-006.2 Air-Bubble Detector) use
+    this contract to record warning-level threshold exceedances that do
+    not yet warrant an alarm. The contract is push-only and idempotent
+    from the detector's perspective; the detector's ``warning_armed``
+    flag ensures one record per warning-to-non-warning transition so
+    repeated warnings collapse to one entry until the situation clears.
+
+    Implementations must not re-raise (SEP-003): a logger failure must
+    not prevent the next periodic tick from running. The planned Inc.4
+    UI notification component is expected to plug into the same Protocol
+    so warning-stage UX shares one boundary with the detector group.
+    """
+
+    def log_warning(
+        self,
+        detector_id: str,
+        *,
+        threshold_value: Decimal,
+        observed_value: Decimal,
+        occurred_at: float,
+    ) -> None:
+        """Record one warning-level threshold exceedance. Must not raise."""
         ...
